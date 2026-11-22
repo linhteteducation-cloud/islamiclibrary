@@ -1,0 +1,6 @@
+{
+  "name": "Myanmar Islamic Library",
+  "description": "Myanmar Muslim Islamic Online Library — Free digital collection of Quran, Tafsir, Hadith, Fiqh, Duas, Periodicals, and Islamic Research in Burmese.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

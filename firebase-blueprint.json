@@ -1,0 +1,235 @@
+{
+  "entities": {
+    "Book": {
+      "title": "Book",
+      "description": "Islamic library PDF book, periodical, research paper, or timetable stored with Google Drive reference",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "author": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "categoryId": {
+          "type": "string",
+          "enum": [
+            "quran-tafsir",
+            "hadith",
+            "shariah",
+            "dua-amal",
+            "aqeedah",
+            "history",
+            "ethics",
+            "children",
+            "periodicals",
+            "research",
+            "azan"
+          ]
+        },
+        "categoryLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "type": {
+          "type": "string",
+          "enum": ["Book", "Periodical", "Research", "Dua", "Timetable"]
+        },
+        "hijriYear": { "type": "string", "maxLength": 60 },
+        "pages": { "type": "integer" },
+        "fileSize": { "type": "string", "maxLength": 40 },
+        "summary": { "type": "string", "maxLength": 3000 },
+        "driveFileId": { "type": "string", "minLength": 1, "maxLength": 200, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "driveViewUrl": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "^https://.*$" },
+        "driveDownloadUrl": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "^https://.*$" },
+        "coverTheme": {
+          "type": "string",
+          "enum": ["emerald", "gold", "teal", "burgundy", "slate"]
+        },
+        "downloads": { "type": "integer" },
+        "published": { "type": "boolean" },
+        "uploadedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "title",
+        "author",
+        "categoryId",
+        "categoryLabel",
+        "type",
+        "hijriYear",
+        "pages",
+        "fileSize",
+        "summary",
+        "driveFileId",
+        "driveViewUrl",
+        "driveDownloadUrl",
+        "coverTheme",
+        "downloads",
+        "published",
+        "uploadedByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Dua": {
+      "title": "Dua",
+      "description": "Arabic and Burmese Dua or A'mal entry",
+      "type": "object",
+      "properties": {
+        "titleMy": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "titleAr": { "type": "string", "maxLength": 240 },
+        "categoryMy": {
+          "type": "string",
+          "enum": ["နေ့စဉ်ဒိုအာ", "အထူးအအ်မာလ်", "မုနာဂျာသ်", "ကုရ်အာန်လာဒိုအာ"]
+        },
+        "arabic": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "transliteration": { "type": "string", "maxLength": 2000 },
+        "meaningMy": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "source": { "type": "string", "maxLength": 200 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "titleMy",
+        "titleAr",
+        "categoryMy",
+        "arabic",
+        "transliteration",
+        "meaningMy",
+        "source",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "Islamic lecture video entry",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "speaker": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "categoryMy": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "duration": { "type": "string", "maxLength": 30 },
+        "videoUrl": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "^https://.*$" },
+        "description": { "type": "string", "maxLength": 3000 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "title",
+        "speaker",
+        "categoryMy",
+        "duration",
+        "videoUrl",
+        "description",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Article": {
+      "title": "Article",
+      "description": "Editorial news or Islamic article",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "kicker": { "type": "string", "maxLength": 120 },
+        "author": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "readTime": { "type": "string", "maxLength": 40 },
+        "excerpt": { "type": "string", "minLength": 1, "maxLength": 600 },
+        "body": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "title",
+        "kicker",
+        "author",
+        "readTime",
+        "excerpt",
+        "body",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Global site visibility and Google Drive library folder configuration managed by Admin",
+      "type": "object",
+      "properties": {
+        "hiddenSections": { "type": "array" },
+        "hiddenCategories": { "type": "array" },
+        "driveFolderId": { "type": "string", "maxLength": 200 },
+        "driveFolderName": { "type": "string", "maxLength": 120 },
+        "heroDescription": { "type": "string", "maxLength": 1000 },
+        "updatedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "hiddenSections",
+        "hiddenCategories",
+        "driveFolderId",
+        "driveFolderName",
+        "heroDescription",
+        "updatedByUid",
+        "updatedAt"
+      ]
+    },
+    "ContactMessage": {
+      "title": "ContactMessage",
+      "description": "Public contact inquiry or book request",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "contact": { "type": "string", "maxLength": 160 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 3000 },
+        "status": { "type": "string", "enum": ["unread", "read"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "contact", "subject", "message", "status", "createdAt"]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized admin record",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "addedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "addedByUid", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/books/{bookId}": {
+      "schema": { "$ref": "#/entities/Book" },
+      "description": "Public library books catalog with Google Drive PDF references"
+    },
+    "/duas/{duaId}": {
+      "schema": { "$ref": "#/entities/Dua" },
+      "description": "Duas and A'mal collection managed by Admin"
+    },
+    "/videos/{videoId}": {
+      "schema": { "$ref": "#/entities/Video" },
+      "description": "Video lectures catalog managed by Admin"
+    },
+    "/articles/{articleId}": {
+      "schema": { "$ref": "#/entities/Article" },
+      "description": "Articles and announcements managed by Admin"
+    },
+    "/siteSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Site visibility toggles and Drive folder metadata"
+    },
+    "/contactMessages/{messageId}": {
+      "schema": { "$ref": "#/entities/ContactMessage" },
+      "description": "Visitor contact and book requests readable only by Admin"
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Authorized admin users"
+    }
+  }
+}

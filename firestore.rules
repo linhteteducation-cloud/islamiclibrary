@@ -1,0 +1,304 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'linhteteducation@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidHttpsUrl(val) {
+      return val is string && val.size() >= 10 && val.size() <= 500 && val.matches('^https://.*$');
+    }
+
+    function isValidBook(data) {
+      return data.keys().hasAll([
+        'title', 'author', 'categoryId', 'categoryLabel', 'type', 'hijriYear',
+        'pages', 'fileSize', 'summary', 'driveFileId', 'driveViewUrl',
+        'driveDownloadUrl', 'coverTheme', 'downloads', 'published',
+        'uploadedByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'author', 'categoryId', 'categoryLabel', 'type', 'hijriYear',
+        'pages', 'fileSize', 'summary', 'driveFileId', 'driveViewUrl',
+        'driveDownloadUrl', 'coverTheme', 'downloads', 'published',
+        'uploadedByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
+      data.author is string && data.author.size() >= 1 && data.author.size() <= 160 &&
+      data.categoryId in [
+        'quran-tafsir', 'hadith', 'shariah', 'dua-amal', 'aqeedah',
+        'history', 'ethics', 'children', 'periodicals', 'research', 'azan'
+      ] &&
+      data.categoryLabel is string && data.categoryLabel.size() >= 1 && data.categoryLabel.size() <= 120 &&
+      data.type in ['Book', 'Periodical', 'Research', 'Dua', 'Timetable'] &&
+      data.hijriYear is string && data.hijriYear.size() <= 60 &&
+      data.pages is int && data.pages >= 0 && data.pages <= 10000 &&
+      data.fileSize is string && data.fileSize.size() <= 40 &&
+      data.summary is string && data.summary.size() <= 3000 &&
+      data.driveFileId is string && data.driveFileId.size() >= 1 && data.driveFileId.size() <= 200 &&
+      data.driveFileId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      isValidHttpsUrl(data.driveViewUrl) &&
+      isValidHttpsUrl(data.driveDownloadUrl) &&
+      data.coverTheme in ['emerald', 'gold', 'teal', 'burgundy', 'slate'] &&
+      data.downloads is int && data.downloads >= 0 &&
+      data.published is bool &&
+      data.uploadedByUid is string && data.uploadedByUid.size() >= 1 && data.uploadedByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidDua(data) {
+      return data.keys().hasAll([
+        'titleMy', 'titleAr', 'categoryMy', 'arabic', 'transliteration',
+        'meaningMy', 'source', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'titleMy', 'titleAr', 'categoryMy', 'arabic', 'transliteration',
+        'meaningMy', 'source', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.titleMy is string && data.titleMy.size() >= 1 && data.titleMy.size() <= 240 &&
+      data.titleAr is string && data.titleAr.size() <= 240 &&
+      data.categoryMy in ['နေ့စဉ်ဒိုအာ', 'အထူးအအ်မာလ်', 'မုနာဂျာသ်', 'ကုရ်အာန်လာဒိုအာ'] &&
+      data.arabic is string && data.arabic.size() >= 1 && data.arabic.size() <= 4000 &&
+      data.transliteration is string && data.transliteration.size() <= 2000 &&
+      data.meaningMy is string && data.meaningMy.size() >= 1 && data.meaningMy.size() <= 4000 &&
+      data.source is string && data.source.size() <= 200 &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidVideo(data) {
+      return data.keys().hasAll([
+        'title', 'speaker', 'categoryMy', 'duration', 'videoUrl',
+        'description', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'speaker', 'categoryMy', 'duration', 'videoUrl',
+        'description', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
+      data.speaker is string && data.speaker.size() >= 1 && data.speaker.size() <= 160 &&
+      data.categoryMy is string && data.categoryMy.size() >= 1 && data.categoryMy.size() <= 120 &&
+      data.duration is string && data.duration.size() <= 30 &&
+      isValidHttpsUrl(data.videoUrl) &&
+      data.description is string && data.description.size() <= 3000 &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidArticle(data) {
+      return data.keys().hasAll([
+        'title', 'kicker', 'author', 'readTime', 'excerpt',
+        'body', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'kicker', 'author', 'readTime', 'excerpt',
+        'body', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
+      data.kicker is string && data.kicker.size() <= 120 &&
+      data.author is string && data.author.size() >= 1 && data.author.size() <= 160 &&
+      data.readTime is string && data.readTime.size() <= 40 &&
+      data.excerpt is string && data.excerpt.size() >= 1 && data.excerpt.size() <= 600 &&
+      data.body is string && data.body.size() >= 1 && data.body.size() <= 12000 &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll([
+        'hiddenSections', 'hiddenCategories', 'driveFolderId',
+        'driveFolderName', 'heroDescription', 'updatedByUid', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'hiddenSections', 'hiddenCategories', 'driveFolderId',
+        'driveFolderName', 'heroDescription', 'updatedByUid', 'updatedAt'
+      ]) &&
+      data.hiddenSections is list && data.hiddenSections.size() <= 20 &&
+      (data.hiddenSections.size() == 0 || data.hiddenSections[0] is string) &&
+      data.hiddenCategories is list && data.hiddenCategories.size() <= 20 &&
+      (data.hiddenCategories.size() == 0 || data.hiddenCategories[0] is string) &&
+      data.driveFolderId is string && data.driveFolderId.size() <= 200 &&
+      data.driveFolderName is string && data.driveFolderName.size() <= 120 &&
+      data.heroDescription is string && data.heroDescription.size() <= 1000 &&
+      data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidContactMessage(data) {
+      return data.keys().hasAll([
+        'name', 'contact', 'subject', 'message', 'status', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'name', 'contact', 'subject', 'message', 'status', 'createdAt'
+      ]) &&
+      data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+      data.contact is string && data.contact.size() <= 160 &&
+      data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 120 &&
+      data.message is string && data.message.size() >= 1 && data.message.size() <= 3000 &&
+      data.status in ['unread', 'read'] &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'addedByUid', 'createdAt']) &&
+      data.keys().hasOnly(['uid', 'email', 'addedByUid', 'createdAt']) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+      data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+      data.addedByUid is string && data.addedByUid.size() >= 1 && data.addedByUid.size() <= 128 &&
+      data.createdAt is timestamp;
+    }
+
+    // Startup connection check path
+    match /test/connection {
+      allow get: if true;
+    }
+
+    // Books collection
+    match /books/{bookId} {
+      allow get: if isValidId(bookId) && (existing().published == true || isAdmin());
+      allow list: if resource.data.published == true || isAdmin();
+      allow create: if isValidId(bookId) && isAdmin() && isValidBook(incoming()) &&
+        incoming().uploadedByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(bookId) && isAdmin() && isValidBook(incoming()) &&
+        incoming().uploadedByUid == existing().uploadedByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'author', 'categoryId', 'categoryLabel', 'type', 'hijriYear',
+          'pages', 'fileSize', 'summary', 'driveFileId', 'driveViewUrl',
+          'driveDownloadUrl', 'coverTheme', 'downloads', 'published', 'updatedAt'
+        ]);
+      allow delete: if isValidId(bookId) && isAdmin();
+    }
+
+    // Duas collection
+    match /duas/{duaId} {
+      allow get: if isValidId(duaId);
+      allow list: if true;
+      allow create: if isValidId(duaId) && isAdmin() && isValidDua(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(duaId) && isAdmin() && isValidDua(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'titleMy', 'titleAr', 'categoryMy', 'arabic', 'transliteration',
+          'meaningMy', 'source', 'updatedAt'
+        ]);
+      allow delete: if isValidId(duaId) && isAdmin();
+    }
+
+    // Videos collection
+    match /videos/{videoId} {
+      allow get: if isValidId(videoId);
+      allow list: if true;
+      allow create: if isValidId(videoId) && isAdmin() && isValidVideo(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(videoId) && isAdmin() && isValidVideo(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'speaker', 'categoryMy', 'duration', 'videoUrl', 'description', 'updatedAt'
+        ]);
+      allow delete: if isValidId(videoId) && isAdmin();
+    }
+
+    // Articles collection
+    match /articles/{articleId} {
+      allow get: if isValidId(articleId);
+      allow list: if true;
+      allow create: if isValidId(articleId) && isAdmin() && isValidArticle(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(articleId) && isAdmin() && isValidArticle(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'kicker', 'author', 'readTime', 'excerpt', 'body', 'updatedAt'
+        ]);
+      allow delete: if isValidId(articleId) && isAdmin();
+    }
+
+    // Site settings (Admin can toggle sections/categories & store Drive folder ID)
+    match /siteSettings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if true;
+      allow create: if isValidId(settingId) && isAdmin() && isValidSiteSettings(incoming()) &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId) && isAdmin() && isValidSiteSettings(incoming()) &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'hiddenSections', 'hiddenCategories', 'driveFolderId',
+          'driveFolderName', 'heroDescription', 'updatedByUid', 'updatedAt'
+        ]);
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // Contact messages (Public create, strictly Admin-only read/update/delete)
+    match /contactMessages/{messageId} {
+      allow get: if isValidId(messageId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(messageId) && isValidContactMessage(incoming()) &&
+        incoming().status == 'unread' &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(messageId) && isAdmin() && isValidContactMessage(incoming()) &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isValidId(messageId) && isAdmin();
+    }
+
+    // Admin registry
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && (isAdmin() || (isVerifiedUser() && request.auth.uid == adminUid));
+      allow list: if isAdmin();
+      allow create: if isValidId(adminUid) && isAdmin() && isValidAdminUser(incoming()) &&
+        incoming().uid == adminUid &&
+        incoming().addedByUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(adminUid) && isAdmin() && adminUid != request.auth.uid;
+    }
+  }
+}
