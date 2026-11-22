@@ -116,25 +116,31 @@ export function BookReaderModal({
                 </h3>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#526058]">
-                  <span className="inline-flex items-center gap-1.5">
-                    <User className="w-4 h-4 text-[#146B3A]" />
-                    {book.author}
-                  </span>
+                  {book.author.trim() && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <User className="w-4 h-4 text-[#146B3A]" />
+                      {book.author}
+                    </span>
+                  )}
                   {book.hijriYear && (
                     <>
-                      <span aria-hidden="true">·</span>
+                      {book.author.trim() && <span aria-hidden="true">·</span>}
                       <span>{book.hijriYear}</span>
                     </>
                   )}
                   {book.pages > 0 && (
                     <>
-                      <span aria-hidden="true">·</span>
+                      {(book.author.trim() || book.hijriYear) && (
+                        <span aria-hidden="true">·</span>
+                      )}
                       <span className="tabular-nums">{book.pages} စာမျက်နှာ</span>
                     </>
                   )}
                   {book.fileSize && (
                     <>
-                      <span aria-hidden="true">·</span>
+                      {(book.author.trim() || book.hijriYear || book.pages > 0) && (
+                        <span aria-hidden="true">·</span>
+                      )}
                       <span className="tabular-nums">{book.fileSize}</span>
                     </>
                   )}

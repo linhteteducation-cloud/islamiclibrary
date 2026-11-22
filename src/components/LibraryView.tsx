@@ -457,13 +457,21 @@ export function LibraryView({
                       key={book.id}
                       className="group bg-white border border-[#E2E8E4] rounded-xl overflow-hidden flex flex-col transition-shadow duration-150 hover:shadow-md"
                     >
-                      <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-[#EDF1EE]">
-                        <BookCoverFrame book={book} />
+                      <div className="relative aspect-[4/3] w-full overflow-hidden border-b border-[#EDF1EE] bg-[#F3F5F4]">
+                        <button
+                          type="button"
+                          onClick={() => onOpenBook(book)}
+                          aria-label={`${book.title} ကြည့်ရှုရန်`}
+                          className="w-full h-full block text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#146B3A]"
+                        >
+                          <BookCoverFrame book={book} />
+                          <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => onToggleBookmark(book.id)}
                           aria-label={isSaved ? 'Remove bookmark' : 'Bookmark book'}
-                          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-colors ${
+                          className={`absolute top-2.5 right-2.5 z-10 w-8 h-8 rounded-lg flex items-center justify-center backdrop-blur-sm transition-colors ${
                             isSaved
                               ? 'bg-[#C59B27] text-white shadow-sm'
                               : 'bg-black/40 text-white hover:bg-black/60'
@@ -485,10 +493,14 @@ export function LibraryView({
                           {book.title}
                         </h3>
 
-                        <p className="text-xs text-[#5A6860] flex items-center gap-1.5 truncate mb-4">
-                          <User className="w-3.5 h-3.5 shrink-0 text-[#7A887F]" />
-                          <span className="truncate">{book.author}</span>
-                        </p>
+                        {book.author.trim() ? (
+                          <p className="text-xs text-[#5A6860] flex items-center gap-1.5 truncate mb-4">
+                            <User className="w-3.5 h-3.5 shrink-0 text-[#7A887F]" />
+                            <span className="truncate">{book.author}</span>
+                          </p>
+                        ) : (
+                          <div className="mb-3" />
+                        )}
 
                         <div className="mt-auto pt-3 border-t border-[#EFF3F0] flex items-center justify-between gap-2">
                           <span className="text-xs text-[#5A6860] tabular-nums">

@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from 'react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 import {User} from 'firebase/auth';
 import {
   AlertTriangle,
@@ -49,6 +49,8 @@ import {
   ensureLibraryDriveFolder,
   extractDriveFileId,
   formatBytes,
+  getDriveFileMetadata,
+  inferBookMetadataFromFileName,
   isValidDriveFileId,
   isValidSafeHttpsUrl,
   listLibraryDrivePdfs,
@@ -66,6 +68,7 @@ import {
   SiteSettings,
   VideoItem,
 } from '../types/library';
+import {BookCoverFrame} from './BookCoverFrame';
 
 interface AdminPanelViewProps {
   user: User | null;
@@ -135,10 +138,21 @@ export function AdminPanelView({
 
   // Google Drive files list
   const [driveFiles, setDriveFiles] = useState<DriveFileSummary[]>([]);
+  const [driveScopeMode, setDriveScopeMode] = useState<'folder' | 'all'>('folder');
   const [isLoadingDrive, setIsLoadingDrive] = useState(false);
   const [driveActivationUrl, setDriveActivationUrl] = useState<string | null>(
     null,
   );
+  const knownDriveIdsRef = useRef<Set<string>>(new Set());
+  const syncInFlightRef = useRef(false);
+
+  useEffect(() => {
+    const nextSet = new Set<string>();
+    for (const b of books) {
+      if (b.driveFileId) nextSet.add(b.driveFileId);
+    }
+    knownDriveIdsRef.current = nextSet;
+  }, [books]);
 
   // Visibility settings draft
   const [hiddenSectionsDraft, setHiddenSectionsDraft] = useState<string[]>(
@@ -242,9 +256,70 @@ export function AdminPanelView({
     }
   };
 
-  const refreshDriveFiles = async () => {
+  const syncDriveFilesToWebsite = async (
+    files: DriveFileSummary[],
+    silent = false,
+  ): Promise<number> => {
+    if (!driveToken || !user || syncInFlightRef.current) return 0;
+    syncInFlightRef.current = true;
+    let addedCount = 0;
+    try {
+      for (const file of files) {
+        if (!file.id || !isValidDriveFileId(file.id)) continue;
+        if (knownDriveIdsRef.current.has(file.id)) continue;
+
+        knownDriveIdsRef.current.add(file.id);
+        await makeDriveFilePublicReadable(driveToken, file.id).catch(() => {});
+
+        const inferred = inferBookMetadataFromFileName(file.name);
+        const catObj = BOOK_CATEGORIES.find((c) => c.id === inferred.categoryId);
+        const urls = buildDriveUrls(file.id);
+
+        await createBookRecord(user.uid, {
+          title: inferred.title,
+          author: inferred.author,
+          categoryId: inferred.categoryId,
+          categoryLabel: catObj?.nameMy || 'ကုရ်အာန်နှင့် သဖ်စီးရ်',
+          type: 'Book',
+          hijriYear: '၁၄၄၇ ဟစ်ဂျရီ',
+          pages: 0,
+          fileSize: formatBytes(file.size),
+          summary: '',
+          driveFileId: file.id,
+          driveViewUrl: urls.driveViewUrl,
+          driveDownloadUrl: urls.driveDownloadUrl,
+          coverTheme: 'emerald',
+          downloads: 0,
+          published: true,
+        });
+        addedCount += 1;
+      }
+
+      if (addedCount > 0) {
+        showNotice(
+          'success',
+          `Google Drive မှ PDF စာအုပ်အသစ် ${addedCount} အုပ်ကို ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ အလိုအလျောက် တင်ပြပြီးပါပြီ။`,
+        );
+      } else if (!silent && files.length > 0) {
+        // Keep existing notice untouched during silent checks
+      }
+      return addedCount;
+    } finally {
+      syncInFlightRef.current = false;
+    }
+  };
+
+  const refreshDriveFiles = async (options?: {
+    silent?: boolean;
+    scope?: 'folder' | 'all';
+    autoSync?: boolean;
+  }) => {
     if (!driveToken || !user) return;
-    setIsLoadingDrive(true);
+    const scope = options?.scope ?? driveScopeMode;
+    const shouldAutoSync = options?.autoSync ?? scope === 'folder';
+    if (!options?.silent) {
+      setIsLoadingDrive(true);
+    }
     try {
       const folder = await ensureLibraryDriveFolder(
         driveToken,
@@ -258,22 +333,35 @@ export function AdminPanelView({
           driveFolderName: folder.folderName,
         });
       }
-      const files = await listLibraryDrivePdfs(driveToken, folder.folderId);
+      const files = await listLibraryDrivePdfs(
+        driveToken,
+        scope === 'folder' ? folder.folderId : undefined,
+      );
       setDriveFiles(files);
       setDriveActivationUrl(null);
+      if (shouldAutoSync) {
+        await syncDriveFilesToWebsite(files, options?.silent);
+      }
     } catch (err) {
-      handleDriveError(err, 'Google Drive ဖိုင်များ ရယူရာတွင် အမှားဖြစ်ပေါ်ပါသည်။');
+      if (!options?.silent || err instanceof DriveApiError) {
+        handleDriveError(err, 'Google Drive ဖိုင်များ ရယူရာတွင် အမှားဖြစ်ပေါ်ပါသည်။');
+      }
     } finally {
-      setIsLoadingDrive(false);
+      if (!options?.silent) {
+        setIsLoadingDrive(false);
+      }
     }
   };
 
   useEffect(() => {
-    if (isAdmin && driveToken && (activeTab === 'drive' || activeTab === 'books')) {
-      void refreshDriveFiles();
-    }
+    if (!isAdmin || !driveToken) return;
+    void refreshDriveFiles();
+    const timer = window.setInterval(() => {
+      void refreshDriveFiles({silent: true, scope: 'folder', autoSync: true});
+    }, 20000);
+    return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, driveToken, activeTab]);
+  }, [isAdmin, driveToken]);
 
   const resetBookForm = () => {
     setEditingBookId(null);
@@ -294,9 +382,9 @@ export function AdminPanelView({
   const handlePdfFileSelected = async (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    const file = e.target.files?.[0];
+    const selectedFiles = Array.from(e.target.files ?? []);
     e.target.value = '';
-    if (!file) return;
+    if (selectedFiles.length === 0) return;
 
     if (!driveToken || !user) {
       showNotice(
@@ -323,23 +411,89 @@ export function AdminPanelView({
         });
       }
 
-      const uploaded = await uploadPdfToGoogleDrive(
-        driveToken,
-        file,
-        folder.folderId,
-        (pct) => setUploadProgress(pct),
-      );
+      let lastCreatedId: string | null = null;
+      let lastUploadedTitle = '';
+      let lastUploadedAuthor = '';
+      let lastUploadedCategory: BookCategoryId = bookCategoryId;
+      let lastUploadedFileId = '';
+      let lastUploadedSize = '';
 
-      setBookDriveFileId(uploaded.driveFileId);
-      setBookFileSize(uploaded.fileSize);
-      if (!bookTitle.trim()) {
-        setBookTitle(file.name.replace(/\.pdf$/i, ''));
+      for (let i = 0; i < selectedFiles.length; i += 1) {
+        const file = selectedFiles[i];
+        const uploaded = await uploadPdfToGoogleDrive(
+          driveToken,
+          file,
+          folder.folderId,
+          (pct) => {
+            const overall = Math.round(
+              ((i + pct / 100) / selectedFiles.length) * 100,
+            );
+            setUploadProgress(overall);
+          },
+        );
+
+        const inferred = inferBookMetadataFromFileName(uploaded.fileName);
+        const isSingle = selectedFiles.length === 1;
+        const resolvedTitle =
+          isSingle && bookTitle.trim() ? bookTitle.trim() : inferred.title;
+        const resolvedAuthor =
+          isSingle && bookAuthor.trim() ? bookAuthor.trim() : inferred.author;
+        const resolvedCategoryId = isSingle
+          ? bookCategoryId
+          : inferred.categoryId;
+        const catObj = BOOK_CATEGORIES.find(
+          (c) => c.id === resolvedCategoryId,
+        );
+
+        knownDriveIdsRef.current.add(uploaded.driveFileId);
+        const createdId = await createBookRecord(user.uid, {
+          title: resolvedTitle,
+          author: resolvedAuthor,
+          categoryId: resolvedCategoryId,
+          categoryLabel: catObj?.nameMy || 'ကုရ်အာန်နှင့် သဖ်စီးရ်',
+          type: bookType,
+          hijriYear: bookHijriYear,
+          pages: isSingle ? bookPages : 0,
+          fileSize: uploaded.fileSize,
+          summary: isSingle ? bookSummary : '',
+          driveFileId: uploaded.driveFileId,
+          driveViewUrl: uploaded.driveViewUrl,
+          driveDownloadUrl: uploaded.driveDownloadUrl,
+          coverTheme: bookCoverTheme,
+          downloads: 0,
+          published: true,
+        });
+
+        lastCreatedId = createdId || null;
+        lastUploadedTitle = resolvedTitle;
+        lastUploadedAuthor = resolvedAuthor;
+        lastUploadedCategory = resolvedCategoryId;
+        lastUploadedFileId = uploaded.driveFileId;
+        lastUploadedSize = uploaded.fileSize;
       }
-      showNotice(
-        'success',
-        `"${uploaded.fileName}" ကို Google Drive သို့ အောင်မြင်စွာ တင်ပြီးပါပြီ။ စာအုပ်အချက်အလက် ဖြည့်ပြီး သိမ်းဆည်းပါ။`,
-      );
-      await refreshDriveFiles();
+
+      setUploadProgress(null);
+
+      if (selectedFiles.length === 1 && lastCreatedId) {
+        setEditingBookId(lastCreatedId);
+        setBookTitle(lastUploadedTitle);
+        setBookAuthor(lastUploadedAuthor);
+        setBookCategoryId(lastUploadedCategory);
+        setBookDriveFileId(lastUploadedFileId);
+        setBookFileSize(lastUploadedSize);
+        setBookPublished(true);
+        showNotice(
+          'success',
+          `“${lastUploadedTitle}” ကို Google Drive သို့ တင်ပြီး ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ ချက်ချင်းလွှင့်တင်ပြီးပါပြီ။ (အချက်အလက် ထပ်ပြင်လိုပါက အောက်တွင် ပြင်ဆင်သိမ်းဆည်းနိုင်ပါသည်)`,
+        );
+      } else {
+        resetBookForm();
+        showNotice(
+          'success',
+          `PDF စာအုပ် ${selectedFiles.length} အုပ်ကို Google Drive သို့ တင်ပြီး ဝက်ဘ်ဆိုက်ပေါ်သို့ ချက်ချင်းလွှင့်တင်ပြီးပါပြီ။`,
+        );
+      }
+      await refreshDriveFiles({silent: true});
     } catch (err) {
       setUploadProgress(null);
       handleDriveError(err, 'PDF Upload မအောင်မြင်ပါ။');
@@ -350,10 +504,10 @@ export function AdminPanelView({
     e.preventDefault();
     if (!user) return;
     const normalizedDriveId = extractDriveFileId(bookDriveFileId);
-    if (!bookTitle.trim() || !bookAuthor.trim() || !normalizedDriveId) {
+    if (!normalizedDriveId) {
       showNotice(
         'error',
-        'စာအုပ်အမည်၊ စာရေးဆရာနှင့် Google Drive PDF Link (သို့မဟုတ် File ID) တို့ကို ပြည့်စုံစွာ ဖြည့်သွင်းပါ။',
+        'Google Drive PDF Link (သို့မဟုတ် File ID) ကို ဖြည့်သွင်းပါ။',
       );
       return;
     }
@@ -365,11 +519,45 @@ export function AdminPanelView({
       return;
     }
 
-    const catObj = BOOK_CATEGORIES.find((c) => c.id === bookCategoryId);
-    const urls = buildDriveUrls(normalizedDriveId);
-
     setIsSavingBook(true);
     try {
+      let resolvedTitle = bookTitle.trim();
+      let resolvedAuthor = bookAuthor.trim();
+      let resolvedCategoryId = bookCategoryId;
+      let resolvedFileSize = bookFileSize.trim();
+
+      // Pull file metadata directly from Google Drive when title/size is omitted
+      const cachedMatch = driveFiles.find((f) => f.id === normalizedDriveId);
+      const driveMeta =
+        cachedMatch ??
+        (driveToken
+          ? await getDriveFileMetadata(driveToken, normalizedDriveId).catch(
+              () => null,
+            )
+          : null);
+
+      if (driveMeta) {
+        const inferred = inferBookMetadataFromFileName(driveMeta.name);
+        if (!resolvedTitle) resolvedTitle = inferred.title;
+        if (!resolvedAuthor && inferred.author) resolvedAuthor = inferred.author;
+        if (!resolvedFileSize) resolvedFileSize = formatBytes(driveMeta.size);
+        if (!editingBookId && bookCategoryId === 'quran-tafsir') {
+          resolvedCategoryId = inferred.categoryId;
+        }
+      }
+
+      if (!resolvedTitle) {
+        setIsSavingBook(false);
+        showNotice(
+          'error',
+          'စာအုပ်အမည် ဖြည့်သွင်းပါ (သို့မဟုတ် Drive ချိတ်ဆက်ပြီး Drive မှ တိုက်ရိုက်ဆွဲယူပါ)။',
+        );
+        return;
+      }
+
+      const catObj = BOOK_CATEGORIES.find((c) => c.id === resolvedCategoryId);
+      const urls = buildDriveUrls(normalizedDriveId);
+
       if (driveToken) {
         // Ensure picked/pasted Google Drive PDFs created via this app are readable by every visitor
         await makeDriveFilePublicReadable(driveToken, normalizedDriveId).catch(
@@ -378,14 +566,14 @@ export function AdminPanelView({
       }
       if (editingBookId) {
         await updateBookRecord(editingBookId, {
-          title: bookTitle,
-          author: bookAuthor,
-          categoryId: bookCategoryId,
+          title: resolvedTitle,
+          author: resolvedAuthor,
+          categoryId: resolvedCategoryId,
           categoryLabel: catObj?.nameMy || '',
           type: bookType,
           hijriYear: bookHijriYear,
           pages: bookPages,
-          fileSize: bookFileSize || 'PDF',
+          fileSize: resolvedFileSize || 'PDF',
           summary: bookSummary,
           driveFileId: normalizedDriveId,
           driveViewUrl: urls.driveViewUrl,
@@ -395,15 +583,16 @@ export function AdminPanelView({
         });
         showNotice('success', 'စာအုပ်အချက်အလက်ကို ပြင်ဆင်သိမ်းဆည်းပြီးပါပြီ။');
       } else {
+        knownDriveIdsRef.current.add(normalizedDriveId);
         await createBookRecord(user.uid, {
-          title: bookTitle,
-          author: bookAuthor,
-          categoryId: bookCategoryId,
+          title: resolvedTitle,
+          author: resolvedAuthor,
+          categoryId: resolvedCategoryId,
           categoryLabel: catObj?.nameMy || '',
           type: bookType,
           hijriYear: bookHijriYear,
           pages: bookPages,
-          fileSize: bookFileSize || 'PDF',
+          fileSize: resolvedFileSize || 'PDF',
           summary: bookSummary,
           driveFileId: normalizedDriveId,
           driveViewUrl: urls.driveViewUrl,
@@ -414,7 +603,7 @@ export function AdminPanelView({
         });
         showNotice(
           'success',
-          'PDF စာအုပ်အသစ်ကို စာကြည့်တိုက်ထဲသို့ အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။',
+          'PDF စာအုပ်အသစ်ကို စာကြည့်တိုက်ထဲသို့ အောင်မြင်စွာ တင်ပြီးပါပြီ။',
         );
       }
       resetBookForm();
@@ -829,9 +1018,10 @@ export function AdminPanelView({
                 ) : (
                   <label className="w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors">
                     <Upload className="w-4 h-4" />
-                    <span>PDF ဖိုင်ရွေးချယ်တင်သွင်းရန် (Max 50MB)</span>
+                    <span>PDF ဖိုင်ရွေးချယ်တင်သွင်းရန် (တစ်အုပ် / အများအပြား)</span>
                     <input
                       type="file"
+                      multiple
                       accept="application/pdf,.pdf"
                       onChange={handlePdfFileSelected}
                       className="sr-only"
@@ -854,12 +1044,12 @@ export function AdminPanelView({
                 )}
 
                 {driveFiles.length > 0 && (
-                  <div>
+                  <div className="space-y-2">
                     <label
                       htmlFor="pick-existing-drive-pdf"
-                      className="block text-[11px] font-semibold text-[#4A5850] mb-1"
+                      className="block text-[11px] font-semibold text-[#4A5850]"
                     >
-                      သို့မဟုတ် Drive ထဲရှိပြီးသား PDF ရွေးချယ်ရန်
+                      သို့မဟုတ် Drive ထဲရှိပြီးသား PDF ရွေးချယ်၍ တန်းတင်ရန်
                     </label>
                     <select
                       id="pick-existing-drive-pdf"
@@ -869,10 +1059,13 @@ export function AdminPanelView({
                         setBookDriveFileId(fid);
                         const match = driveFiles.find((f) => f.id === fid);
                         if (match) {
+                          const inferred = inferBookMetadataFromFileName(
+                            match.name,
+                          );
                           setBookFileSize(formatBytes(match.size));
-                          if (!bookTitle.trim()) {
-                            setBookTitle(match.name.replace(/\.pdf$/i, ''));
-                          }
+                          setBookTitle(inferred.title);
+                          setBookAuthor(inferred.author);
+                          setBookCategoryId(inferred.categoryId);
                         }
                       }}
                       className="w-full min-h-[40px] px-3 py-1.5 text-xs bg-white border border-[#D4DDD7] rounded-lg"
@@ -903,34 +1096,33 @@ export function AdminPanelView({
                   className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
                 />
                 <p className="text-[11px] text-[#5A6860] mt-1">
-                  ဥပမာ - https://drive.google.com/file/d/1ABC.../view ကူးထည့်လျှင် File ID ကို အလိုအလျောက် ထုတ်ယူပေးပါမည်
+                  Drive ချိတ်ဆက်ထားပါက Link ထည့်ရုံဖြင့် စာအုပ်အမည်နှင့် ဖိုင်အရွယ်အစားကို Drive မှ တိုက်ရိုက်ဆွဲယူပေးပါမည်
                 </p>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#35433A] mb-1">
-                  စာအုပ်အမည် *
+                  စာအုပ်အမည် {driveToken ? '(Drive မှ အလိုအလျောက် ယူနိုင်သည်)' : '*'}
                 </label>
                 <input
                   type="text"
-                  required
+                  required={!driveToken}
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
-                  placeholder="ဥပမာ - ကုရ်အာန်ဘာသာပြန်ကျမ်း"
+                  placeholder="မထည့်ပါက Google Drive ဖိုင်အမည်အတိုင်း တင်ပေးပါမည်"
                   className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-[#35433A] mb-1">
-                  စာရေးဆရာ / ပြုစုသူ *
+                  စာရေးဆရာ / ပြုစုသူ (မပါလည်း တင်နိုင်သည်)
                 </label>
                 <input
                   type="text"
-                  required
                   value={bookAuthor}
                   onChange={(e) => setBookAuthor(e.target.value)}
-                  placeholder="စာရေးဆရာအမည်"
+                  placeholder="စာရေးဆရာအမည် (မပါလျှင် အလွတ်ထားနိုင်သည်)"
                   className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
                 />
               </div>
@@ -1085,26 +1277,33 @@ export function AdminPanelView({
                       key={book.id}
                       className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
-                      <div className="min-w-0 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] font-semibold text-[#9B7417]">
-                            {book.categoryLabel}
-                          </span>
-                          <span className="text-[11px] text-[#5A6860]">
-                            · {book.fileSize || 'PDF'}
-                          </span>
-                          {!book.published && (
-                            <span className="text-[11px] font-semibold text-amber-700">
-                              · ဖျောက်ထားသည်
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-14 rounded-md overflow-hidden border border-[#E2E8E4] shrink-0 bg-[#F3F5F4]">
+                          <BookCoverFrame book={book} compact />
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-semibold text-[#9B7417]">
+                              {book.categoryLabel}
                             </span>
+                            <span className="text-[11px] text-[#5A6860]">
+                              · {book.fileSize || 'PDF'}
+                            </span>
+                            {!book.published && (
+                              <span className="text-[11px] font-semibold text-amber-700">
+                                · ဖျောက်ထားသည်
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold text-[#1A241E] truncate">
+                            {book.title}
+                          </p>
+                          {book.author.trim() && (
+                            <p className="text-xs text-[#5A6860] truncate">
+                              {book.author}
+                            </p>
                           )}
                         </div>
-                        <p className="text-sm font-bold text-[#1A241E] truncate">
-                          {book.title}
-                        </p>
-                        <p className="text-xs text-[#5A6860] truncate">
-                          {book.author}
-                        </p>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">
@@ -1306,7 +1505,7 @@ export function AdminPanelView({
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {!driveToken ? (
                   <button
                     type="button"
@@ -1316,17 +1515,59 @@ export function AdminPanelView({
                     Google Drive ချိတ်ဆက်ရန်
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => void refreshDriveFiles()}
-                    disabled={isLoadingDrive}
-                    className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] text-xs font-semibold text-[#115E34] hover:bg-[#EBF4EE] inline-flex items-center gap-1.5"
-                  >
-                    <RefreshCw
-                      className={`w-3.5 h-3.5 ${isLoadingDrive ? 'animate-spin' : ''}`}
-                    />
-                    <span>ပြန်လည်စစ်ဆေးရန်</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextMode =
+                          driveScopeMode === 'folder' ? 'all' : 'folder';
+                        setDriveScopeMode(nextMode);
+                        void refreshDriveFiles({
+                          scope: nextMode,
+                          autoSync: false,
+                        });
+                      }}
+                      disabled={isLoadingDrive}
+                      className={`min-h-[40px] px-3.5 py-2 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
+                        driveScopeMode === 'all'
+                          ? 'bg-[#EBF4EE] border-[#146B3A] text-[#115E34]'
+                          : 'border-[#D4DDD7] text-[#35433A] hover:bg-[#F5F8F6]'
+                      }`}
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>
+                        {driveScopeMode === 'all'
+                          ? 'Drive တစ်ခုလုံး ပြနေသည်'
+                          : 'Drive တစ်ခုလုံးမှ PDF ရှာရန်'}
+                      </span>
+                    </button>
+
+                    {driveFiles.some(
+                      (f) => !books.some((b) => b.driveFileId === f.id),
+                    ) && (
+                      <button
+                        type="button"
+                        onClick={() => void syncDriveFilesToWebsite(driveFiles)}
+                        disabled={isLoadingDrive}
+                        className="min-h-[40px] px-3.5 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold inline-flex items-center gap-1.5"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>PDF အသစ်အားလုံး ဝက်ဘ်သို့ တန်းတင်မည်</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => void refreshDriveFiles()}
+                      disabled={isLoadingDrive}
+                      className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] text-xs font-semibold text-[#115E34] hover:bg-[#EBF4EE] inline-flex items-center gap-1.5"
+                    >
+                      <RefreshCw
+                        className={`w-3.5 h-3.5 ${isLoadingDrive ? 'animate-spin' : ''}`}
+                      />
+                      <span>ပြန်လည်စစ်ဆေးရန်</span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -1338,58 +1579,81 @@ export function AdminPanelView({
               </p>
             ) : driveFiles.length === 0 ? (
               <p className="text-sm text-[#4A5850] py-6 text-center">
-                Google Drive ဖိုလ်ဒါထဲတွင် PDF ဖိုင် မရှိသေးပါ။
+                {driveScopeMode === 'all'
+                  ? 'သင့် Google Drive ထဲတွင် PDF ဖိုင် မတွေ့ရှိသေးပါ။'
+                  : 'Google Drive ဖိုလ်ဒါထဲတွင် PDF ဖိုင် မရှိသေးပါ။ ("Drive တစ်ခုလုံးမှ PDF ရှာရန်" ဖြင့်လည်း စစ်ဆေးနိုင်ပါသည်)'}
               </p>
             ) : (
-              <div className="divide-y divide-[#EDF1EE]">
-                {driveFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#1A241E] truncate">
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-[#5A6860] tabular-nums">
-                        {formatBytes(file.size)} · ID: {file.id}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setBookDriveFileId(file.id);
-                          setBookFileSize(formatBytes(file.size));
-                          if (!bookTitle.trim()) {
-                            setBookTitle(file.name.replace(/\.pdf$/i, ''));
-                          }
-                          setActiveTab('books');
-                        }}
-                        className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] text-[#115E34] text-xs font-semibold hover:bg-[#DCECE1]"
+                <div className="divide-y divide-[#EDF1EE]">
+                  {driveFiles.map((file) => {
+                    const matchedBook = books.find(
+                      (b) => b.driveFileId === file.id,
+                    );
+                    return (
+                      <div
+                        key={file.id}
+                        className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
-                        စာအုပ်အဖြစ်တွဲမည်
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPendingDelete({
-                            kind: 'driveFile',
-                            id: file.id,
-                            label: file.name,
-                          })
-                        }
-                        className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
-                      >
-                        Drive မှ ဖျက်ရန်
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                        <div className="min-w-0 space-y-0.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-semibold text-[#1A241E] truncate">
+                              {file.name}
+                            </p>
+                            {matchedBook && (
+                              <span className="text-[11px] font-semibold text-[#115E34]">
+                                · ဝက်ဘ်ပေါ်တွင် {matchedBook.published ? 'တင်ပြီး' : 'ဖျောက်ထား'}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#5A6860] tabular-nums">
+                            {formatBytes(file.size)} · ID: {file.id}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {matchedBook ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleEditBook(matchedBook);
+                                setActiveTab('books');
+                              }}
+                              className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] text-[#115E34] text-xs font-semibold hover:bg-[#DCECE1]"
+                            >
+                              စာအုပ်အချက်အလက်ပြင်ရန်
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => void syncDriveFilesToWebsite([file])}
+                              className="px-3 py-1.5 rounded-lg bg-[#146B3A] text-white text-xs font-semibold hover:bg-[#0F522D]"
+                            >
+                              ဝက်ဘ်သို့ တင်မည်
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPendingDelete({
+                                kind: 'driveFile',
+                                id: file.id,
+                                label: file.name,
+                              })
+                            }
+                            className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                          >
+                            Drive မှ ဖျက်ရန်
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-xs text-[#5A6860] pt-3 border-t border-[#EDF1EE] leading-relaxed">
+                Google Drive ({siteSettings.driveFolderName}) ဖိုလ်ဒါထဲသို့ PDF ဖိုင်အသစ်များ တိုက်ရိုက်ထည့်သွင်းတိုင်း ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ အလိုအလျောက် Sync လုပ်၍ တင်ပြပေးပါမည်။ ဝက်ဘ်ပေါ်တွင် ခေတ္တမပြလိုပါက စာအုပ်စာရင်းမှ &ldquo;ဖျောက်ရန်&rdquo; ကို နှိပ်နိုင်ပါသည်။
+              </p>
+            </div>
+          )}
 
         {/* TAB 4: DUAS / VIDEOS / ARTICLES CRUD */}
         {activeTab === 'content' && (

@@ -6,7 +6,7 @@
       "type": "object",
       "properties": {
         "title": { "type": "string", "minLength": 1, "maxLength": 240 },
-        "author": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "author": { "type": "string", "maxLength": 160 },
         "categoryId": {
           "type": "string",
           "enum": [

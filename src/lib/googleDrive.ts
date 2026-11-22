@@ -20,6 +20,16 @@ export function buildDriveUrls(fileId: string) {
   };
 }
 
+export function buildDriveThumbnailUrls(fileId: string): string[] {
+  const cleanId = fileId.trim();
+  if (!isValidDriveFileId(cleanId)) return [];
+  const encoded = encodeURIComponent(cleanId);
+  return [
+    `https://drive.google.com/thumbnail?id=${encoded}&sz=w800`,
+    `https://lh3.googleusercontent.com/d/${encoded}=w800`,
+  ];
+}
+
 export function isValidSafeHttpsUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
@@ -187,6 +197,9 @@ export async function ensureLibraryDriveFolder(
         trashed?: boolean;
       };
       if (existingData.id && !existingData.trashed) {
+        await makeDriveFilePublicReadable(accessToken, existingData.id).catch(
+          () => {},
+        );
         return {folderId: existingData.id, folderName: existingData.name};
       }
     } else if (checkRes.status === 403 || checkRes.status === 401) {
@@ -199,10 +212,15 @@ export async function ensureLibraryDriveFolder(
     }
   }
 
-  // Search for existing folder created by this app
-  const safeName = folderName.replace(/'/g, "\\'");
+  // Search for existing folder created by this app (current or legacy name)
+  const candidateNames = Array.from(
+    new Set([folderName, 'Myanmar Islamic Library PDFs']),
+  );
+  const nameFilter = candidateNames
+    .map((n) => `name='${n.replace(/'/g, "\\'")}'`)
+    .join(' or ');
   const q = encodeURIComponent(
-    `name='${safeName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    `(${nameFilter}) and mimeType='application/vnd.google-apps.folder' and trashed=false`,
   );
   const searchRes = await fetch(
     `${DRIVE_API_BASE}/files?q=${q}&fields=files(id,name)&pageSize=5`,
@@ -215,9 +233,15 @@ export async function ensureLibraryDriveFolder(
       files?: {id: string; name: string}[];
     };
     if (searchJson.files && searchJson.files.length > 0) {
+      const matched =
+        searchJson.files.find((f) => f.name === folderName) ||
+        searchJson.files[0];
+      await makeDriveFilePublicReadable(accessToken, matched.id).catch(
+        () => {},
+      );
       return {
-        folderId: searchJson.files[0].id,
-        folderName: searchJson.files[0].name,
+        folderId: matched.id,
+        folderName: matched.name,
       };
     }
   } else if (searchRes.status === 403 || searchRes.status === 401) {
@@ -252,7 +276,64 @@ export async function ensureLibraryDriveFolder(
   }
 
   const created = (await createRes.json()) as {id: string; name: string};
+  await makeDriveFilePublicReadable(accessToken, created.id).catch(() => {});
   return {folderId: created.id, folderName: created.name};
+}
+
+export function inferBookMetadataFromFileName(fileName: string): {
+  title: string;
+  author: string;
+  categoryId:
+    | 'quran-tafsir'
+    | 'hadith'
+    | 'shariah'
+    | 'dua-amal'
+    | 'aqeedah'
+    | 'history'
+    | 'ethics'
+    | 'children'
+    | 'periodicals'
+    | 'research'
+    | 'azan';
+} {
+  const baseName = fileName.replace(/\.pdf$/i, '').trim() || 'Untitled PDF';
+  const parts = baseName.split(/\s+-\s+/);
+  const rawTitle = (parts[0] || baseName).replace(/_/g, ' ').trim();
+  const rawAuthor =
+    parts.length > 1
+      ? parts.slice(1).join(' - ').replace(/_/g, ' ').trim()
+      : '';
+
+  const lower = baseName.toLowerCase();
+  let categoryId:
+    | 'quran-tafsir'
+    | 'hadith'
+    | 'shariah'
+    | 'dua-amal'
+    | 'aqeedah'
+    | 'history'
+    | 'ethics'
+    | 'children'
+    | 'periodicals'
+    | 'research'
+    | 'azan' = 'quran-tafsir';
+
+  if (/hadith|ဟဒီးစ်|ဟဒီးသ်/.test(lower)) categoryId = 'hadith';
+  else if (/shariah|fiqh|ရှရီအသ်|ဖိကဟ်/.test(lower)) categoryId = 'shariah';
+  else if (/dua|amal|ဒိုအာ|အအ်မာလ်/.test(lower)) categoryId = 'dua-amal';
+  else if (/aqeedah|aqidah|အကီဒဟ်|ယုံကြည်ချက်/.test(lower)) categoryId = 'aqeedah';
+  else if (/history|seerah|သမိုင်း/.test(lower)) categoryId = 'history';
+  else if (/ethics|akhlaq|ကိုယ်ကျင့်/.test(lower)) categoryId = 'ethics';
+  else if (/child|kids|ကလေး|ရင်သွေး/.test(lower)) categoryId = 'children';
+  else if (/periodical|magazine|journal|စာစောင်/.test(lower)) categoryId = 'periodicals';
+  else if (/research|paper|သုတေသန/.test(lower)) categoryId = 'research';
+  else if (/azan|adhan|prayer|timetable|အဇာန်|ဆွလာသ်/.test(lower)) categoryId = 'azan';
+
+  return {
+    title: rawTitle.slice(0, 240) || 'PDF စာအုပ်',
+    author: rawAuthor.slice(0, 160),
+    categoryId,
+  };
 }
 
 export async function makeDriveFilePublicReadable(
@@ -377,6 +458,32 @@ export function uploadPdfToGoogleDrive(
   });
 }
 
+export async function getDriveFileMetadata(
+  accessToken: string,
+  fileId: string,
+): Promise<DriveFileSummary | null> {
+  const cleanId = fileId.trim();
+  if (!isValidDriveFileId(cleanId)) return null;
+  const res = await fetch(
+    `${DRIVE_API_BASE}/files/${encodeURIComponent(cleanId)}?fields=id,name,size,mimeType,webViewLink,webContentLink,modifiedTime,trashed`,
+    {
+      headers: {Authorization: `Bearer ${accessToken}`},
+    },
+  );
+  if (!res.ok) {
+    if (res.status === 404) return null;
+    const errText = await res.text();
+    throw parseDriveApiError(
+      res.status,
+      errText,
+      'Google Drive ဖိုင်အချက်အလက် ရယူမှု မအောင်မြင်ပါ',
+    );
+  }
+  const file = (await res.json()) as DriveFileSummary & {trashed?: boolean};
+  if (file.trashed) return null;
+  return file;
+}
+
 export async function listLibraryDrivePdfs(
   accessToken: string,
   folderId?: string,
@@ -386,7 +493,7 @@ export async function listLibraryDrivePdfs(
     `mimeType='application/pdf' and trashed=false${folderClause}`,
   );
   const res = await fetch(
-    `${DRIVE_API_BASE}/files?q=${q}&orderBy=modifiedTime desc&pageSize=50&fields=files(id,name,size,mimeType,webViewLink,webContentLink,modifiedTime)`,
+    `${DRIVE_API_BASE}/files?q=${q}&orderBy=modifiedTime desc&pageSize=100&fields=files(id,name,size,mimeType,webViewLink,webContentLink,modifiedTime)`,
     {
       headers: {Authorization: `Bearer ${accessToken}`},
     },

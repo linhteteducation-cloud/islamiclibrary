@@ -161,9 +161,15 @@ export function HomeView({
                   key={book.id}
                   className="group bg-[#F9FBFA] border border-[#E2E8E4] rounded-xl overflow-hidden flex flex-col transition-shadow duration-150 hover:shadow-md"
                 >
-                  <div className="aspect-[4/3] w-full overflow-hidden border-b border-[#E2E8E4]">
+                  <button
+                    type="button"
+                    onClick={() => onOpenBook(book)}
+                    aria-label={`${book.title} ကြည့်ရှုရန်`}
+                    className="relative aspect-[4/3] w-full overflow-hidden border-b border-[#E2E8E4] bg-[#F3F5F4] block text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#146B3A]"
+                  >
                     <BookCoverFrame book={book} />
-                  </div>
+                    <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                  </button>
                   <div className="p-4 flex flex-col flex-1">
                     <p className="text-[11.5px] font-medium text-[#9B7417] mb-1">
                       {book.categoryLabel}
@@ -171,9 +177,13 @@ export function HomeView({
                     <h3 className="text-sm font-semibold text-[#1A241E] leading-snug line-clamp-2 mb-1.5">
                       {book.title}
                     </h3>
-                    <p className="text-xs text-[#5A6860] truncate mb-4">
-                      {book.author}
-                    </p>
+                    {book.author.trim() ? (
+                      <p className="text-xs text-[#5A6860] truncate mb-4">
+                        {book.author}
+                      </p>
+                    ) : (
+                      <div className="mb-3" />
+                    )}
                     <div className="mt-auto pt-3 border-t border-[#E8ECE9] flex items-center justify-between gap-2">
                       <span className="text-xs text-[#5A6860] tabular-nums">
                         {book.fileSize || 'PDF'}

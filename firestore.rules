@@ -51,7 +51,7 @@ service cloud.firestore {
         'uploadedByUid', 'createdAt', 'updatedAt'
       ]) &&
       data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
-      data.author is string && data.author.size() >= 1 && data.author.size() <= 160 &&
+      data.author is string && data.author.size() <= 160 &&
       data.categoryId in [
         'quran-tafsir', 'hadith', 'shariah', 'dua-amal', 'aqeedah',
         'history', 'ethics', 'children', 'periodicals', 'research', 'azan'

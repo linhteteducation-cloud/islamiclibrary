@@ -23,6 +23,7 @@ export const BOOTSTRAPPED_ADMIN_EMAIL = 'linhteteducation@gmail.com';
 
 const driveProvider = new GoogleAuthProvider();
 driveProvider.addScope('https://www.googleapis.com/auth/drive.file');
+driveProvider.addScope('https://www.googleapis.com/auth/drive.readonly');
 driveProvider.setCustomParameters({prompt: 'consent select_account'});
 
 // In-memory cache ONLY for Google Drive OAuth access token (never localStorage/sessionStorage)
