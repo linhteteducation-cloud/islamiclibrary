@@ -50,7 +50,7 @@ export function HomeView({
           </p>
 
           <h1 className="font-serif text-3xl sm:text-4xl lg:text-[46px] font-bold tracking-tight text-white [text-wrap:balance] mb-5">
-            Myanmar Islamic Library
+            Myanmar Muslim Library
           </h1>
 
           <p className="max-w-3xl mx-auto text-[14.5px] sm:text-base leading-[1.85] text-[#E6EFE9] font-normal mb-8">

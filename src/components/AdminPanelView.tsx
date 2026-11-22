@@ -22,7 +22,11 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import {CATEGORIES, MANAGEABLE_SECTIONS} from '../data/libraryData';
+import {
+  CATEGORIES,
+  DEFAULT_HERO_DESCRIPTION,
+  MANAGEABLE_SECTIONS,
+} from '../data/libraryData';
 import {
   createArticleRecord,
   createBookRecord,
@@ -244,7 +248,7 @@ export function AdminPanelView({
     try {
       const folder = await ensureLibraryDriveFolder(
         driveToken,
-        siteSettings.driveFolderName || 'Myanmar Islamic Library PDFs',
+        siteSettings.driveFolderName || 'Myanmar Muslim Library PDFs',
         siteSettings.driveFolderId,
       );
       if (folder.folderId !== siteSettings.driveFolderId) {
@@ -307,7 +311,7 @@ export function AdminPanelView({
     try {
       const folder = await ensureLibraryDriveFolder(
         driveToken,
-        siteSettings.driveFolderName || 'Myanmar Islamic Library PDFs',
+        siteSettings.driveFolderName || 'Myanmar Muslim Library PDFs',
         siteSettings.driveFolderId,
       );
 
@@ -1249,12 +1253,21 @@ export function AdminPanelView({
             </div>
 
             <div className="space-y-2 pt-2 border-t border-[#EDF1EE]">
-              <label
-                htmlFor="hero-desc-editor"
-                className="block text-sm font-bold text-[#115E34]"
-              >
-                မူလစာမျက်နှာ မိတ်ဆက်စာသား (Hero Description)
-              </label>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label
+                  htmlFor="hero-desc-editor"
+                  className="block text-sm font-bold text-[#115E34]"
+                >
+                  မူလစာမျက်နှာ မိတ်ဆက်စာသား (Hero Description)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setHeroDescDraft(DEFAULT_HERO_DESCRIPTION)}
+                  className="text-xs font-semibold text-[#146B3A] hover:underline"
+                >
+                  မူလစာသားအသစ် ပြန်ထည့်ရန်
+                </button>
+              </div>
               <textarea
                 id="hero-desc-editor"
                 rows={3}

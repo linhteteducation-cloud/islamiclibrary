@@ -14,7 +14,7 @@ export function Footer({onNavigate, siteSettings}: FooterProps) {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12">
           <div className="md:col-span-5 space-y-3">
             <h3 className="font-serif text-xl font-bold text-white">
-              Myanmar Muslim Islamic Online Library
+              Myanmar Muslim Library
             </h3>
             <p className="text-sm leading-relaxed text-[#BED2C6] max-w-md">
               ကုရ်အာန်၊ အဲဟ်လေဗိုက်သ် (အ.စ) ၏ ဟဒီးစ်တော်များ၊ ရှရီအသ်ဥပဒေ၊ ဒိုအာနှင့်
@@ -134,7 +134,7 @@ export function Footer({onNavigate, siteSettings}: FooterProps) {
         </div>
 
         <div className="mt-10 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#9BB7A7]">
-          <p>© {new Date().getFullYear()} Myanmar Muslim Islamic Online Library.</p>
+          <p>© {new Date().getFullYear()} Myanmar Muslim Library.</p>
           <p className="font-[Amiri] text-sm text-[#E7C664]" dir="rtl">
             وَقُل رَّبِّ زِدْنِي عِلْمًا
           </p>

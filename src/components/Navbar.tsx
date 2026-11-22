@@ -62,7 +62,7 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
             </svg>
           </span>
           <span className="font-serif text-base sm:text-lg font-bold tracking-tight text-[#115E34]">
-            Myanmar Islamic Library
+            Myanmar Muslim Library
           </span>
         </button>
 

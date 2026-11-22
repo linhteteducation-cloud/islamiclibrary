@@ -25,7 +25,7 @@ export function AboutView({onNavigate}: {onNavigate: (p: PageRoute) => void}) {
             ကျွန်ုပ်တို့အကြောင်း
           </h1>
           <p className="text-sm sm:text-[15px] text-[#E4EFE7] max-w-2xl leading-relaxed">
-            Myanmar Muslim Islamic Online Library ၏ ရည်မှန်းချက်နှင့် စာပေထိန်းသိမ်းရေး လုပ်ငန်းစဉ်များ
+            Myanmar Muslim Library ၏ ရည်မှန်းချက်နှင့် စာပေထိန်းသိမ်းရေး လုပ်ငန်းစဉ်များ
           </p>
         </div>
       </section>
@@ -42,7 +42,7 @@ export function AboutView({onNavigate}: {onNavigate: (p: PageRoute) => void}) {
           </div>
           <div className="lg:col-span-6 space-y-4">
             <p className="text-xs font-semibold text-[#9B7417]">
-              Myanmar Islamic Library
+              Myanmar Muslim Library
             </p>
             <h2 className="text-xl sm:text-2xl font-bold text-[#1A241E] leading-snug">
               စစ်မှန်သော အစ္စလာမ့်အသိပညာများကို အခမဲ့ မျှဝေပေးခြင်း
