@@ -178,6 +178,34 @@ export function parseDriveApiError(
   return new DriveApiError(`${fallbackActionLabel} (${status})`, {status});
 }
 
+async function verifyDriveFolderWritable(
+  accessToken: string,
+  folderId: string,
+): Promise<boolean> {
+  const res = await fetch(
+    `${DRIVE_API_BASE}/files/${encodeURIComponent(folderId)}?fields=id`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        appProperties: {mmlWritable: '1'},
+      }),
+    },
+  );
+  if (res.status === 401) {
+    const errText = await res.text();
+    throw parseDriveApiError(
+      res.status,
+      errText,
+      'Google Drive ဖိုလ်ဒါ စစ်ဆေးမှု မအောင်မြင်ပါ',
+    );
+  }
+  return res.ok;
+}
+
 export async function ensureLibraryDriveFolder(
   accessToken: string,
   folderName: string,
@@ -185,7 +213,7 @@ export async function ensureLibraryDriveFolder(
 ): Promise<{folderId: string; folderName: string}> {
   if (existingFolderId) {
     const checkRes = await fetch(
-      `${DRIVE_API_BASE}/files/${encodeURIComponent(existingFolderId)}?fields=id,name,trashed`,
+      `${DRIVE_API_BASE}/files/${encodeURIComponent(existingFolderId)}?fields=id,name,trashed,capabilities(canAddChildren)`,
       {
         headers: {Authorization: `Bearer ${accessToken}`},
       },
@@ -195,54 +223,73 @@ export async function ensureLibraryDriveFolder(
         id: string;
         name: string;
         trashed?: boolean;
+        capabilities?: {canAddChildren?: boolean};
       };
-      if (existingData.id && !existingData.trashed) {
+      if (
+        existingData.id &&
+        !existingData.trashed &&
+        existingData.capabilities?.canAddChildren !== false &&
+        (await verifyDriveFolderWritable(accessToken, existingData.id))
+      ) {
         await makeDriveFilePublicReadable(accessToken, existingData.id).catch(
           () => {},
         );
         return {folderId: existingData.id, folderName: existingData.name};
       }
-    } else if (checkRes.status === 403 || checkRes.status === 401) {
+    } else if (checkRes.status === 401) {
       const errText = await checkRes.text();
       throw parseDriveApiError(
         checkRes.status,
         errText,
         'Google Drive ဖိုလ်ဒါ စစ်ဆေးမှု မအောင်မြင်ပါ',
       );
+    } else if (checkRes.status === 403) {
+      const errText = await checkRes.text();
+      if (errText.includes('SERVICE_DISABLED')) {
+        throw parseDriveApiError(
+          checkRes.status,
+          errText,
+          'Google Drive ဖိုလ်ဒါ စစ်ဆေးမှု မအောင်မြင်ပါ',
+        );
+      }
     }
   }
 
-  // Search for existing folder created by this app (current or legacy name)
+  // Search for existing writable folder owned by the signed-in Google user
   const candidateNames = Array.from(
-    new Set([folderName, 'Myanmar Islamic Library PDFs']),
+    new Set([folderName, 'Myanmar Muslim Library PDFs']),
   );
   const nameFilter = candidateNames
     .map((n) => `name='${n.replace(/'/g, "\\'")}'`)
     .join(' or ');
   const q = encodeURIComponent(
-    `(${nameFilter}) and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    `(${nameFilter}) and mimeType='application/vnd.google-apps.folder' and trashed=false and 'me' in owners`,
   );
   const searchRes = await fetch(
-    `${DRIVE_API_BASE}/files?q=${q}&fields=files(id,name)&pageSize=5`,
+    `${DRIVE_API_BASE}/files?q=${q}&fields=files(id,name,capabilities(canAddChildren))&pageSize=10`,
     {
       headers: {Authorization: `Bearer ${accessToken}`},
     },
   );
   if (searchRes.ok) {
     const searchJson = (await searchRes.json()) as {
-      files?: {id: string; name: string}[];
+      files?: Array<{
+        id: string;
+        name: string;
+        capabilities?: {canAddChildren?: boolean};
+      }>;
     };
-    if (searchJson.files && searchJson.files.length > 0) {
-      const matched =
-        searchJson.files.find((f) => f.name === folderName) ||
-        searchJson.files[0];
-      await makeDriveFilePublicReadable(accessToken, matched.id).catch(
-        () => {},
-      );
-      return {
-        folderId: matched.id,
-        folderName: matched.name,
-      };
+    for (const candidate of searchJson.files || []) {
+      if (candidate.capabilities?.canAddChildren === false) continue;
+      if (await verifyDriveFolderWritable(accessToken, candidate.id)) {
+        await makeDriveFilePublicReadable(accessToken, candidate.id).catch(
+          () => {},
+        );
+        return {
+          folderId: candidate.id,
+          folderName: candidate.name,
+        };
+      }
     }
   } else if (searchRes.status === 403 || searchRes.status === 401) {
     const errText = await searchRes.text();
@@ -253,7 +300,7 @@ export async function ensureLibraryDriveFolder(
     );
   }
 
-  // Create new folder in Google Drive
+  // Create new folder owned and writable by this app + current Google user
   const createRes = await fetch(`${DRIVE_API_BASE}/files?fields=id,name`, {
     method: 'POST',
     headers: {
@@ -263,6 +310,7 @@ export async function ensureLibraryDriveFolder(
     body: JSON.stringify({
       name: folderName,
       mimeType: 'application/vnd.google-apps.folder',
+      appProperties: {mmlWritable: '1'},
     }),
   });
 
@@ -318,16 +366,24 @@ export function inferBookMetadataFromFileName(fileName: string): {
     | 'research'
     | 'azan' = 'quran-tafsir';
 
-  if (/hadith|ဟဒီးစ်|ဟဒီးသ်/.test(lower)) categoryId = 'hadith';
-  else if (/shariah|fiqh|ရှရီအသ်|ဖိကဟ်/.test(lower)) categoryId = 'shariah';
-  else if (/dua|amal|ဒိုအာ|အအ်မာလ်/.test(lower)) categoryId = 'dua-amal';
-  else if (/aqeedah|aqidah|အကီဒဟ်|ယုံကြည်ချက်/.test(lower)) categoryId = 'aqeedah';
-  else if (/history|seerah|သမိုင်း/.test(lower)) categoryId = 'history';
-  else if (/ethics|akhlaq|ကိုယ်ကျင့်/.test(lower)) categoryId = 'ethics';
-  else if (/child|kids|ကလေး|ရင်သွေး/.test(lower)) categoryId = 'children';
-  else if (/periodical|magazine|journal|စာစောင်/.test(lower)) categoryId = 'periodicals';
-  else if (/research|paper|သုတေသန/.test(lower)) categoryId = 'research';
-  else if (/azan|adhan|prayer|timetable|အဇာန်|ဆွလာသ်/.test(lower)) categoryId = 'azan';
+  if (/hadith|ဟဒီးစ်|ဟဒီးသ်|ဗုခါရီ|မွတ်စလင်မ်/.test(lower)) categoryId = 'hadith';
+  else if (/shariah|fiqh|fatwa|ရှရီအသ်|ဖိကဟ်|ဖသာဝါ|မဆာအိလ်|ဟလာလ်|ဟရာမ်|နမာဇ်|ဇကားသ်|ဟဂျ်|ရိုဇာ|နိကာဟ်/.test(lower))
+    categoryId = 'shariah';
+  else if (/dua|amal|darud|zikr|ဒိုအာ|အအ်မာလ်|ဒရူးသ်|ဝဇီဖဟ်|ကလေမဟ်|ဇိက်ရ်|မုနာဂျာသ်/.test(lower))
+    categoryId = 'dua-amal';
+  else if (/aqeedah|aqidah|tawhid|iman|အကီဒဟ်|ယုံကြည်ချက်|သောင်ဟီးဒ်|အီမာန်/.test(lower))
+    categoryId = 'aqeedah';
+  else if (/history|seerah|nabi|sahaba|သမိုင်း|စီရသ်|တမန်တော်|ဆွဟာဗဟ်|ရစူလ်/.test(lower))
+    categoryId = 'history';
+  else if (/ethics|akhlaq|adab|islah|ကိုယ်ကျင့်|အခ်လာက်|စာရိတ္တ|ဆွဒကဟ်|အလှူ/.test(lower))
+    categoryId = 'ethics';
+  else if (/child|kids|ကလေး|ရင်သွေး|လူငယ်/.test(lower)) categoryId = 'children';
+  else if (/periodical|magazine|journal|စာစောင်|မဂ္ဂဇင်း/.test(lower))
+    categoryId = 'periodicals';
+  else if (/research|paper|dictionary|corpus|သုတေသန|အဘိဓာန်/.test(lower))
+    categoryId = 'research';
+  else if (/azan|adhan|prayer|timetable|အဇာန်|ဆွလာသ်|ဝတ်ပြုချိန်/.test(lower))
+    categoryId = 'azan';
 
   return {
     title: rawTitle.slice(0, 240) || 'PDF စာအုပ်',

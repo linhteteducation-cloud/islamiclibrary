@@ -4,23 +4,29 @@ import {
   AlertTriangle,
   BookPlus,
   Check,
+  CheckCircle2,
   Edit3,
   ExternalLink,
   Eye,
   EyeOff,
   FileText,
   FolderOpen,
+  Globe,
   HardDrive,
   Inbox,
   LayoutGrid,
+  Loader2,
   LogOut,
   Mail,
   Plus,
   RefreshCw,
+  Search,
   Shield,
   Sliders,
+  StopCircle,
   Trash2,
   Upload,
+  XCircle,
 } from 'lucide-react';
 import {
   CATEGORIES,
@@ -58,6 +64,11 @@ import {
   uploadPdfToGoogleDrive,
 } from '../lib/googleDrive';
 import {
+  BlogspotCatalogItem,
+  fetchBlogspotCatalog,
+  transferBlogspotBookToDrive,
+} from '../lib/blogspotImport';
+import {
   ArticleItem,
   BookCategoryId,
   BookItem,
@@ -84,7 +95,7 @@ interface AdminPanelViewProps {
   siteSettings: SiteSettings;
 }
 
-type AdminTab = 'books' | 'visibility' | 'drive' | 'content' | 'messages';
+type AdminTab = 'books' | 'import' | 'visibility' | 'drive' | 'content' | 'messages';
 
 interface PendingDelete {
   kind: 'book' | 'dua' | 'video' | 'article' | 'driveFile' | 'message';
@@ -153,6 +164,37 @@ export function AdminPanelView({
     }
     knownDriveIdsRef.current = nextSet;
   }, [books]);
+
+  // Blogspot / External Web Link importer state
+  const [importSourceUrl, setImportSourceUrl] = useState(
+    'https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0',
+  );
+  const [catalogItems, setCatalogItems] = useState<BlogspotCatalogItem[]>([]);
+  const [isFetchingCatalog, setIsFetchingCatalog] = useState(false);
+  const [importSearchQuery, setImportSearchQuery] = useState('');
+  const [selectedImportUrls, setSelectedImportUrls] = useState<
+    Record<string, boolean>
+  >({});
+  const [importCategoryOverride, setImportCategoryOverride] = useState<
+    'auto' | BookCategoryId
+  >('auto');
+  const [isImportingBatch, setIsImportingBatch] = useState(false);
+  const importStopRequestedRef = useRef(false);
+  const [importProgress, setImportProgress] = useState<{
+    current: number;
+    total: number;
+    currentTitle: string;
+  } | null>(null);
+  const [importStatuses, setImportStatuses] = useState<
+    Record<
+      string,
+      {
+        status: 'importing' | 'done' | 'error';
+        message?: string;
+        sourceType?: string;
+      }
+    >
+  >({});
 
   // Visibility settings draft
   const [hiddenSectionsDraft, setHiddenSectionsDraft] = useState<string[]>(
@@ -728,6 +770,230 @@ export function AdminPanelView({
     [messages],
   );
 
+  const existingBookTitleSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const b of books) {
+      const normalized = b.title.replace(/\s+/g, ' ').trim().toLowerCase();
+      if (normalized) set.add(normalized);
+    }
+    return set;
+  }, [books]);
+
+  const filteredCatalogItems = useMemo(() => {
+    const q = importSearchQuery.trim().toLowerCase();
+    if (!q) return catalogItems;
+    return catalogItems.filter((item) =>
+      item.title.toLowerCase().includes(q),
+    );
+  }, [catalogItems, importSearchQuery]);
+
+  const selectedImportCount = useMemo(
+    () =>
+      catalogItems.filter((item) => selectedImportUrls[item.postUrl]).length,
+    [catalogItems, selectedImportUrls],
+  );
+
+  const handleFetchCatalog = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!user) return;
+    setIsFetchingCatalog(true);
+    setStatusBanner(null);
+    try {
+      const data = await fetchBlogspotCatalog(user, importSourceUrl.trim());
+      setCatalogItems(data.items);
+      setSelectedImportUrls({});
+      setImportStatuses({});
+      if (data.items.length === 0) {
+        showNotice(
+          'error',
+          'ဤလင့်ခ်အတွင်း Blogspot စာအုပ်ပို့စ် လင့်ခ်များ မတွေ့ရှိပါ။ (Blogspot စာအုပ်စာရင်း စာမျက်နှာ သို့မဟုတ် စာအုပ်ပို့စ် URL ကို စစ်ဆေးပါ)',
+        );
+      } else {
+        showNotice(
+          'success',
+          `စာအုပ်စာရင်း စုစုပေါင်း ${data.items.length} အုပ် ရှာဖွေတွေ့ရှိပါသည်။ Drive ထဲသို့ ထည့်လိုသော စာအုပ်များကို ရွေးချယ်၍ စတင်နိုင်ပါပြီ။`,
+        );
+      }
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'စာအုပ်စာရင်း ရယူရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsFetchingCatalog(false);
+    }
+  };
+
+  const selectFirstUnimported = (limit: number | 'all') => {
+    const next: Record<string, boolean> = {};
+    let picked = 0;
+    for (const item of filteredCatalogItems) {
+      const normalizedTitle = item.title
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+      const alreadyExists =
+        existingBookTitleSet.has(normalizedTitle) ||
+        importStatuses[item.postUrl]?.status === 'done';
+      if (alreadyExists) continue;
+      next[item.postUrl] = true;
+      picked += 1;
+      if (limit !== 'all' && picked >= limit) break;
+    }
+    setSelectedImportUrls(next);
+  };
+
+  const runBatchImport = async (itemsToImport: BlogspotCatalogItem[]) => {
+    if (!user || !driveToken) {
+      showNotice(
+        'error',
+        'Google Drive ထဲသို့ စာအုပ်ထည့်ရန် ဦးစွာ "Google Drive ချိတ်ဆက်ရန်" ခလုတ်ကို နှိပ်၍ ချိတ်ဆက်ပါ။',
+      );
+      return;
+    }
+    if (itemsToImport.length === 0) {
+      showNotice('error', 'ထည့်သွင်းမည့် စာအုပ်ကို အနည်းဆုံး ၁ အုပ် ရွေးချယ်ပါ။');
+      return;
+    }
+
+    importStopRequestedRef.current = false;
+    setIsImportingBatch(true);
+    setStatusBanner(null);
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    try {
+      const folder = await ensureLibraryDriveFolder(
+        driveToken,
+        siteSettings.driveFolderName || 'Myanmar Muslim Library PDFs',
+        siteSettings.driveFolderId,
+      );
+
+      if (folder.folderId !== siteSettings.driveFolderId) {
+        await saveSiteSettings(user.uid, {
+          ...siteSettings,
+          driveFolderId: folder.folderId,
+          driveFolderName: folder.folderName,
+        });
+      }
+
+      for (let i = 0; i < itemsToImport.length; i += 1) {
+        if (importStopRequestedRef.current) break;
+
+        const item = itemsToImport[i];
+        setImportProgress({
+          current: i + 1,
+          total: itemsToImport.length,
+          currentTitle: item.title,
+        });
+        setImportStatuses((prev) => ({
+          ...prev,
+          [item.postUrl]: {status: 'importing'},
+        }));
+
+        try {
+          const result = await transferBlogspotBookToDrive(user, driveToken, {
+            postUrl: item.postUrl,
+            bookTitle: item.title,
+            folderId: folder.folderId,
+          });
+
+          const inferred = inferBookMetadataFromFileName(
+            result.title || item.title,
+          );
+          const resolvedCategoryId =
+            importCategoryOverride === 'auto'
+              ? inferred.categoryId
+              : importCategoryOverride;
+          const catObj = BOOK_CATEGORIES.find(
+            (c) => c.id === resolvedCategoryId,
+          );
+          const urls = buildDriveUrls(result.driveFileId);
+
+          knownDriveIdsRef.current.add(result.driveFileId);
+          await createBookRecord(user.uid, {
+            title: item.title || result.title,
+            author: inferred.author,
+            categoryId: resolvedCategoryId,
+            categoryLabel: catObj?.nameMy || 'ကုရ်အာန်နှင့် သဖ်စီးရ်',
+            type: 'Book',
+            hijriYear: '၁၄၄၇ ဟစ်ဂျရီ',
+            pages: 0,
+            fileSize: result.fileSize || 'PDF',
+            summary: '',
+            driveFileId: result.driveFileId,
+            driveViewUrl: urls.driveViewUrl,
+            driveDownloadUrl: urls.driveDownloadUrl,
+            coverTheme: 'emerald',
+            downloads: 0,
+            published: true,
+          });
+
+          successCount += 1;
+          setImportStatuses((prev) => ({
+            ...prev,
+            [item.postUrl]: {
+              status: 'done',
+              sourceType: result.sourceType,
+              message: `Drive (${result.fileSize}) ထဲသို့ ထည့်ပြီးပါပြီ`,
+            },
+          }));
+          setSelectedImportUrls((prev) => ({
+            ...prev,
+            [item.postUrl]: false,
+          }));
+        } catch (err) {
+          const status =
+            typeof err === 'object' &&
+            err !== null &&
+            'status' in err &&
+            typeof (err as {status: unknown}).status === 'number'
+              ? (err as {status: number}).status
+              : 0;
+          const msg =
+            err instanceof Error ? err.message : 'PDF ထည့်သွင်းမှု မအောင်မြင်ပါ';
+
+          errorCount += 1;
+          setImportStatuses((prev) => ({
+            ...prev,
+            [item.postUrl]: {status: 'error', message: msg},
+          }));
+
+          if (status === 401) {
+            showNotice(
+              'error',
+              'Google Drive ချိတ်ဆက်ခွင့် သက်တမ်းကုန်ဆုံးသွားပါသည်။ ထိပ်ရှိ ခလုတ်မှ ပြန်လည်ချိတ်ဆက်ပြီး ဆက်လက်တင်သွင်းပါ။',
+            );
+            break;
+          }
+        }
+      }
+
+      if (successCount > 0) {
+        await refreshDriveFiles({silent: true, autoSync: false});
+        showNotice(
+          'success',
+          `စာအုပ် ${successCount} အုပ်ကို သင့် Google Drive ထဲသို့ ကူးယူထည့်သွင်းပြီး ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ တင်ပြပြီးပါပြီ။${
+            errorCount > 0 ? ` (${errorCount} အုပ် မအောင်မြင်ပါ)` : ''
+          }`,
+        );
+      } else if (errorCount > 0) {
+        showNotice(
+          'error',
+          `ရွေးချယ်ထားသော စာအုပ် ${errorCount} အုပ်တွင် PDF ဖိုင်ရယူ၍ မရနိုင်ပါ။ အောက်ပါ စာရင်းတွင် အသေးစိတ် ကြည့်ရှုနိုင်ပါသည်။`,
+        );
+      }
+    } catch (err) {
+      handleDriveError(err, 'Google Drive သို့ စာအုပ်များ တင်သွင်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။');
+    } finally {
+      setIsImportingBatch(false);
+      setImportProgress(null);
+    }
+  };
+
   // Loading state
   if (authLoading) {
     return (
@@ -942,6 +1208,7 @@ export function AdminPanelView({
         <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-[#E2E8E4]">
           {[
             {id: 'books' as const, label: `စာအုပ်နှင့် PDF (${books.length})`, icon: BookPlus},
+            {id: 'import' as const, label: 'Web Link မှ စာအုပ်ဆွဲတင်ရန်', icon: Globe},
             {id: 'visibility' as const, label: 'ကဏ္ဍဖယ်ထုတ် / ပြသမှု', icon: Sliders},
             {id: 'drive' as const, label: 'Google Drive သိုလှောင်ခန်း', icon: HardDrive},
             {id: 'content' as const, label: 'ဒိုအာ · ဗီဒီယို · ဆောင်းပါး', icon: LayoutGrid},
@@ -1360,7 +1627,306 @@ export function AdminPanelView({
           </div>
         )}
 
-        {/* TAB 2: VISIBILITY & REMOVE UNNECESSARY SECTIONS */}
+        {/* TAB 2: WEB LINK / BLOGSPOT BATCH IMPORTER */}
+        {activeTab === 'import' && (
+          <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-6">
+            <div className="space-y-1.5 border-b border-[#EDF1EE] pb-4">
+              <h2 className="text-lg font-bold text-[#1A241E]">
+                Blogspot / Web Link မှ စာအုပ် PDF များ Drive ထဲသို့ တိုက်ရိုက်ဆွဲတင်ရန်
+              </h2>
+              <p className="text-sm text-[#4A5850] leading-relaxed">
+                ပြင်ပ Blogspot စာအုပ်စာရင်း URL (ဥပမာ - myanmarfreeislamicbooks.blogspot.com) မှ
+                စာအုပ်များကို စစ်ဆေးဆွဲယူပြီး သင့် Google Drive ဖိုလ်ဒါ ({siteSettings.driveFolderName})
+                ထဲသို့ အလိုအလျောက် ကူးယူသိမ်းဆည်းကာ ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ တိုက်ရိုက်တင်ပေးပါမည်။
+              </p>
+            </div>
+
+            {!driveToken && (
+              <div className="p-4 rounded-xl bg-[#FDF9EE] border border-[#C59B27]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs sm:text-sm text-[#6E500A]">
+                  စာအုပ် PDF များကို သင့် Google Drive ထဲသို့ ထည့်သွင်းနိုင်ရန် ဦးစွာ Google Drive ချိတ်ဆက်ပါ။
+                </p>
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isConnectingAuth}
+                  className="min-h-[40px] px-4 py-2 rounded-lg bg-[#C59B27] hover:bg-[#B2891B] text-white text-xs font-semibold inline-flex items-center gap-2 shrink-0"
+                >
+                  <HardDrive className="w-4 h-4" />
+                  <span>Google Drive ချိတ်ဆက်ရန်</span>
+                </button>
+              </div>
+            )}
+
+            {/* Source URL Fetch Form */}
+            <form
+              onSubmit={handleFetchCatalog}
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
+            >
+              <input
+                type="url"
+                required
+                value={importSourceUrl}
+                onChange={(e) => setImportSourceUrl(e.target.value)}
+                placeholder="https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0"
+                className="flex-1 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
+              />
+              <button
+                type="submit"
+                disabled={isFetchingCatalog || isImportingBatch}
+                className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
+              >
+                {isFetchingCatalog ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>စာရင်းဆွဲယူနေသည်...</span>
+                  </>
+                ) : (
+                  <>
+                    <Globe className="w-4 h-4" />
+                    <span>စာအုပ်စာရင်း စစ်ဆေးဆွဲယူရန်</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {catalogItems.length > 0 && (
+              <div className="space-y-4">
+                {/* Filter & Batch Controls */}
+                <div className="p-4 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                    <div className="md:col-span-6 relative">
+                      <Search className="w-4 h-4 text-[#6B7A70] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        value={importSearchQuery}
+                        onChange={(e) => setImportSearchQuery(e.target.value)}
+                        placeholder={`စာအုပ် ${catalogItems.length} အုပ်ထဲမှ ခေါင်းစဉ်ရှာရန်...`}
+                        className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#D4DDD7] rounded-lg"
+                      />
+                    </div>
+
+                    <div className="md:col-span-6 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[#35433A] shrink-0">
+                        ကဏ္ဍသတ်မှတ်ချက်:
+                      </span>
+                      <select
+                        value={importCategoryOverride}
+                        onChange={(e) =>
+                          setImportCategoryOverride(
+                            e.target.value as 'auto' | BookCategoryId,
+                          )
+                        }
+                        className="flex-1 min-h-[40px] px-3 py-1.5 text-xs bg-white border border-[#D4DDD7] rounded-lg"
+                      >
+                        <option value="auto">
+                          စာအုပ်အမည်အလိုက် အလိုအလျောက် ခွဲခြားမည် (Auto)
+                        </option>
+                        {BOOK_CATEGORIES.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.nameMy}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isImportingBatch}
+                        onClick={() => selectFirstUnimported(10)}
+                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-xs font-semibold text-[#115E34] disabled:opacity-50"
+                      >
+                        မတင်ရသေးသည့် ၁၀ အုပ် ရွေးမည်
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isImportingBatch}
+                        onClick={() => selectFirstUnimported(25)}
+                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-xs font-semibold text-[#115E34] disabled:opacity-50"
+                      >
+                        မတင်ရသေးသည့် ၂၅ အုပ် ရွေးမည်
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isImportingBatch}
+                        onClick={() => selectFirstUnimported('all')}
+                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-xs font-semibold text-[#35433A] disabled:opacity-50"
+                      >
+                        မြင်နေရသမျှ ရွေးမည် ({filteredCatalogItems.length})
+                      </button>
+                      {selectedImportCount > 0 && (
+                        <button
+                          type="button"
+                          disabled={isImportingBatch}
+                          onClick={() => setSelectedImportUrls({})}
+                          className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-red-50 text-xs font-medium text-[#5A6860]"
+                        >
+                          ရွေးချယ်မှု ဖျက်မည်
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {isImportingBatch ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            importStopRequestedRef.current = true;
+                          }}
+                          className="min-h-[40px] px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold inline-flex items-center gap-1.5"
+                        >
+                          <StopCircle className="w-4 h-4" />
+                          <span>လက်ရှိအုပ်ပြီးလျှင် ရပ်မည်</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={selectedImportCount === 0 || !driveToken}
+                          onClick={() =>
+                            void runBatchImport(
+                              catalogItems.filter(
+                                (item) => selectedImportUrls[item.postUrl],
+                              ),
+                            )
+                          }
+                          className="min-h-[40px] px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center gap-2 disabled:opacity-50"
+                        >
+                          <Upload className="w-4 h-4" />
+                          <span>
+                            ရွေးထားသော {selectedImportCount} အုပ်ကို Drive ထဲထည့်ပြီး Web တင်မည်
+                          </span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {importProgress && (
+                    <div className="space-y-1.5 pt-2 border-t border-[#E2E8E4]">
+                      <div className="flex items-center justify-between text-xs text-[#115E34] font-semibold">
+                        <span className="truncate pr-3">
+                          ထည့်သွင်းနေသည်: {importProgress.currentTitle}
+                        </span>
+                        <span className="tabular-nums shrink-0">
+                          {importProgress.current} / {importProgress.total}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-[#DCE6DF] rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#146B3A] transition-all duration-300"
+                          style={{
+                            width: `${Math.round(
+                              (importProgress.current / importProgress.total) *
+                                100,
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Catalog Book Rows */}
+                <div className="max-h-[540px] overflow-y-auto border border-[#E2E8E4] rounded-xl divide-y divide-[#EDF1EE]">
+                  {filteredCatalogItems.map((item) => {
+                    const normalizedTitle = item.title
+                      .replace(/\s+/g, ' ')
+                      .trim()
+                      .toLowerCase();
+                    const alreadyInLibrary =
+                      existingBookTitleSet.has(normalizedTitle);
+                    const rowState = importStatuses[item.postUrl];
+                    const isSelected = Boolean(
+                      selectedImportUrls[item.postUrl],
+                    );
+
+                    return (
+                      <div
+                        key={item.postUrl}
+                        className={`p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                          isSelected ? 'bg-[#F4FAF6]' : 'bg-white'
+                        }`}
+                      >
+                        <label className="flex items-start sm:items-center gap-3 min-w-0 cursor-pointer flex-1">
+                          <input
+                            type="checkbox"
+                            disabled={isImportingBatch}
+                            checked={isSelected}
+                            onChange={(e) =>
+                              setSelectedImportUrls((prev) => ({
+                                ...prev,
+                                [item.postUrl]: e.target.checked,
+                              }))
+                            }
+                            className="w-4 h-4 mt-0.5 sm:mt-0 accent-[#146B3A] shrink-0"
+                          />
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-[11px] font-mono text-[#6B7A70] tabular-nums">
+                                #{item.index}
+                              </span>
+                              <span className="text-xs sm:text-sm font-semibold text-[#1A241E]">
+                                {item.title}
+                              </span>
+                              {alreadyInLibrary && rowState?.status !== 'done' && (
+                                <span className="text-[11px] font-semibold text-[#115E34]">
+                                  · စာကြည့်တိုက်တွင် ရှိပြီး
+                                </span>
+                              )}
+                            </div>
+
+                            {rowState?.status === 'importing' && (
+                              <p className="text-[11px] text-[#9B7417] inline-flex items-center gap-1">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Google Drive ထဲသို့ PDF ကူးယူတင်သွင်းနေသည်...</span>
+                              </p>
+                            )}
+                            {rowState?.status === 'done' && (
+                              <p className="text-[11px] text-[#115E34] inline-flex items-center gap-1 font-medium">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>{rowState.message}</span>
+                              </p>
+                            )}
+                            {rowState?.status === 'error' && (
+                              <p className="text-[11px] text-red-700 inline-flex items-center gap-1">
+                                <XCircle className="w-3.5 h-3.5 shrink-0" />
+                                <span>{rowState.message}</span>
+                              </p>
+                            )}
+                          </div>
+                        </label>
+
+                        <div className="flex items-center gap-2 shrink-0 pl-7 sm:pl-0">
+                          <a
+                            href={item.postUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] text-[11px] font-medium text-[#526058] hover:bg-[#F5F8F6] inline-flex items-center gap-1"
+                          >
+                            <span>မူရင်း</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                          <button
+                            type="button"
+                            disabled={isImportingBatch || !driveToken}
+                            onClick={() => void runBatchImport([item])}
+                            className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] hover:bg-[#DCECE1] text-[#115E34] text-[11px] font-semibold disabled:opacity-50"
+                          >
+                            Drive ထဲထည့်မည်
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: VISIBILITY & REMOVE UNNECESSARY SECTIONS */}
         {activeTab === 'visibility' && (
           <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-7">
             <div>
