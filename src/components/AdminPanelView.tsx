@@ -1649,6 +1649,38 @@ export function AdminPanelView({
                   })}
                 </div>
               )}
+
+              {/* Drive Folder Name Configurator */}
+              <div className="pt-4 border-t border-[#EDF1EE] space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#115E34]">
+                  Google Drive ဖိုလ်ဒါ အမည်ပြောင်းလဲရန် (Folder Name Settings)
+                </h3>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+                  <input
+                    type="text"
+                    value={siteSettings.driveFolderName}
+                    onChange={async (e) => {
+                      if (!user) return;
+                      await saveSiteSettings(user.uid, {
+                        ...siteSettings,
+                        driveFolderName: e.target.value,
+                      });
+                    }}
+                    placeholder="ဥပမာ - Myanmar Muslim Library PDFs"
+                    className="flex-1 min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void refreshDriveFiles()}
+                    className="min-h-[40px] px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold whitespace-nowrap"
+                  >
+                    ဖိုလ်ဒါအသစ်ဖြင့် ချိတ်ဆက်ရန်
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                  ဖိုလ်ဒါအမည် ပြောင်းလဲလိုက်ပါက ဤအမည်ဖြင့် Google Drive တွင် ဖိုလ်ဒါအသစ် အလိုအလျောက် ဖန်တီးပေးမည်ဖြစ်ပြီး စာအုပ်အသစ်များကို ယင်းဖိုလ်ဒါအသစ်ထဲသို့ တင်သွားမည် ဖြစ်ပါသည်။
+                </p>
+              </div>
               <p className="text-xs text-[#5A6860] pt-3 border-t border-[#EDF1EE] leading-relaxed">
                 Google Drive ({siteSettings.driveFolderName}) ဖိုလ်ဒါထဲသို့ PDF ဖိုင်အသစ်များ တိုက်ရိုက်ထည့်သွင်းတိုင်း ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ အလိုအလျောက် Sync လုပ်၍ တင်ပြပေးပါမည်။ ဝက်ဘ်ပေါ်တွင် ခေတ္တမပြလိုပါက စာအုပ်စာရင်းမှ &ldquo;ဖျောက်ရန်&rdquo; ကို နှိပ်နိုင်ပါသည်။
               </p>

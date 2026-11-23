@@ -13,6 +13,7 @@ import {
 } from './components/InstitutionalViews';
 import {LibraryView} from './components/LibraryView';
 import {Navbar} from './components/Navbar';
+import {PrayerTimesTicker} from './components/PrayerTimesTicker';
 import {VideosView} from './components/VideosView';
 import {DEFAULT_SITE_SETTINGS} from './data/libraryData';
 import {
@@ -178,6 +179,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F7F8F7] text-[#1A241E]">
+      <PrayerTimesTicker />
       <Navbar
         currentPage={currentPage}
         onNavigate={handleNavigate}

@@ -20,6 +20,7 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'linhteteducation@gmail.com';
+export const SECOND_BOOTSTRAPPED_ADMIN_EMAIL = 'linhtetitservice@gmail.com';
 
 const driveProvider = new GoogleAuthProvider();
 driveProvider.addScope('https://www.googleapis.com/auth/drive.file');
@@ -139,7 +140,11 @@ export async function signOutAdmin(): Promise<void> {
 
 export async function checkIsAdminUser(user: User | null): Promise<boolean> {
   if (!user || !user.emailVerified) return false;
-  if (user.email === BOOTSTRAPPED_ADMIN_EMAIL) return true;
+  if (
+    user.email === BOOTSTRAPPED_ADMIN_EMAIL ||
+    user.email === SECOND_BOOTSTRAPPED_ADMIN_EMAIL
+  )
+    return true;
   try {
     const adminSnap = await getDoc(doc(db, 'admins', user.uid));
     return adminSnap.exists();
