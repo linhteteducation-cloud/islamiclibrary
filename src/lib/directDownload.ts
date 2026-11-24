@@ -6,7 +6,8 @@ import {
 } from './googleDrive';
 import {recordRecentDownload} from './recentDownloads';
 
-const CHUNK_DOWNLOAD_BYTES = 8 * 1024 * 1024; // 8 MB chunks stay safely below Cloud Run 32 MB response limits
+// 3 MB chunks fit safely below both Vercel (4.5 MB) and Cloud Run (32 MB) limits
+const CHUNK_DOWNLOAD_BYTES = 3 * 1024 * 1024;
 
 export interface DownloadToastState {
   id: number;
@@ -142,6 +143,13 @@ function containsPdfMagicHeader(chunk: Uint8Array): boolean {
   return false;
 }
 
+class BackendApiUnavailableError extends Error {
+  constructor() {
+    super('API_UNAVAILABLE');
+    this.name = 'BackendApiUnavailableError';
+  }
+}
+
 export async function verifyBookPdfSource(
   book: BookItem,
 ): Promise<PdfSourceVerification | null> {
@@ -203,6 +211,10 @@ async function fetchVerifiedPdfChunks(
     credentials,
   });
 
+  if (res.status === 404) {
+    throw new BackendApiUnavailableError();
+  }
+
   if (!res.ok) {
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
     if (contentType.includes('application/json')) {
@@ -224,7 +236,7 @@ async function fetchVerifiedPdfChunks(
     contentType.includes('text/xml')
   ) {
     await res.body?.cancel().catch(() => {});
-    throw new Error('NOT_PDF_HTML');
+    throw new BackendApiUnavailableError();
   }
 
   const rawLength = res.headers.get('content-length');
@@ -320,6 +332,9 @@ async function fetchChunkedPdfBlob(
         totalLoaded += attemptLoaded;
         break;
       } catch (err) {
+        if (err instanceof BackendApiUnavailableError) {
+          throw err;
+        }
         lastChunkErr = err;
       }
     }
@@ -350,6 +365,32 @@ function triggerBlobSave(blob: Blob, filename: string): void {
   }, 60_000);
 }
 
+function triggerDirectAttachmentFallback(
+  fileId: string,
+  sourceUrl: string,
+  filename: string,
+): boolean {
+  const targetUrl = fileId
+    ? `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`
+    : sourceUrl;
+  if (!targetUrl || !isValidSafeHttpsUrl(targetUrl)) {
+    return false;
+  }
+
+  // Trigger native navigation download (Sec-Fetch-Mode: navigate) so Drive sends Content-Disposition: attachment without opening Drive UI
+  const anchor = document.createElement('a');
+  anchor.href = targetUrl;
+  anchor.download = filename;
+  anchor.rel = 'noopener noreferrer';
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  window.setTimeout(() => {
+    anchor.remove();
+  }, 1500);
+  return true;
+}
+
 export async function downloadBookDirectly(book: BookItem): Promise<void> {
   const toastId = notifyDownloadStarting(book.title);
 
@@ -359,10 +400,27 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
       throw new Error('ဒေါင်းလုဒ်ရယူရန် PDF ဖိုင်လင့်ခ် မတွေ့ရှိပါ။');
     }
 
+    const filename = sanitizeDownloadFilename(book.title);
+
     // 1. Pre-verify the PDF URL source and MIME type on the server before initiating download
     const verification = await verifyBookPdfSource(book);
 
-    const filename = sanitizeDownloadFilename(book.title);
+    // If /api/books/verify returned 404 or HTML (static-only hosting), fall back cleanly to direct attachment download
+    if (!verification) {
+      if (triggerDirectAttachmentFallback(fileId, sourceUrl, filename)) {
+        recordRecentDownload(book);
+        emitToast({
+          id: toastId,
+          phase: 'done',
+          bookTitle: book.title || 'PDF Book',
+          message: 'Download started',
+        });
+        scheduleAutoDismiss(toastId, 3500);
+        return;
+      }
+      throw new Error('PDF ဖိုင်ကို တိုက်ရိုက်ဒေါင်းလုဒ်ရယူ၍ မရနိုင်ပါ။');
+    }
+
     const query = new URLSearchParams({
       title: book.title || filename,
     });
@@ -391,22 +449,21 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
     let pdfBlob: Blob | null = null;
     let lastError: unknown = null;
 
-    // 2. For files > 8 MB, stream in 8 MB verified byte-range chunks to avoid proxy response size limits
-    if (
-      verification &&
-      verification.contentLength &&
-      verification.contentLength > CHUNK_DOWNLOAD_BYTES &&
-      verification.supportsRange !== false
-    ) {
-      pdfBlob = await fetchChunkedPdfBlob(
-        query,
-        verification.contentLength,
-        (loaded, total) => handleProgress(loaded, total),
-      );
-    } else {
-      // 3. Single-stream verified download for files <= 8 MB
-      let singleLoaded = 0;
-      try {
+    try {
+      // 2. For files > 3 MB, stream in 3 MB verified byte-range chunks (safe on both Vercel and Cloud Run)
+      if (
+        verification.contentLength &&
+        verification.contentLength > CHUNK_DOWNLOAD_BYTES &&
+        verification.supportsRange !== false
+      ) {
+        pdfBlob = await fetchChunkedPdfBlob(
+          query,
+          verification.contentLength,
+          (loaded, total) => handleProgress(loaded, total),
+        );
+      } else {
+        // 3. Single-stream verified download for files <= 3 MB
+        let singleLoaded = 0;
         const parts = await fetchVerifiedPdfChunks(
           `/api/books/download?${query.toString()}`,
           'same-origin',
@@ -416,15 +473,28 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
               singleLoaded += delta;
               handleProgress(
                 singleLoaded,
-                verification?.contentLength ?? totalFromHeader,
+                verification.contentLength ?? totalFromHeader,
               );
             },
           },
         );
         pdfBlob = new Blob(parts, {type: 'application/pdf'});
-      } catch (primaryErr) {
-        lastError = primaryErr;
       }
+    } catch (primaryErr) {
+      if (primaryErr instanceof BackendApiUnavailableError) {
+        if (triggerDirectAttachmentFallback(fileId, sourceUrl, filename)) {
+          recordRecentDownload(book);
+          emitToast({
+            id: toastId,
+            phase: 'done',
+            bookTitle: book.title || 'PDF Book',
+            message: 'Download started',
+          });
+          scheduleAutoDismiss(toastId, 3500);
+          return;
+        }
+      }
+      lastError = primaryErr;
     }
 
     if (!pdfBlob) {
