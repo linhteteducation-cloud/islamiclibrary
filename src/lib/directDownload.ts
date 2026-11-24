@@ -6,6 +6,8 @@ import {
 } from './googleDrive';
 import {recordRecentDownload} from './recentDownloads';
 
+const CHUNK_DOWNLOAD_BYTES = 8 * 1024 * 1024; // 8 MB chunks stay safely below Cloud Run 32 MB response limits
+
 export interface DownloadToastState {
   id: number;
   phase: 'starting' | 'downloading' | 'done' | 'error';
@@ -21,6 +23,7 @@ export interface PdfSourceVerification {
   mimeType: string;
   upstreamMimeType?: string;
   contentLength: number | null;
+  supportsRange?: boolean;
   sourceType?: string;
 }
 
@@ -156,7 +159,6 @@ export async function verifyBookPdfSource(
     credentials: 'same-origin',
   });
 
-  // Static deployment fallback if backend endpoint is unavailable
   if (verifyRes.status === 404) {
     return null;
   }
@@ -188,11 +190,14 @@ export async function verifyBookPdfSource(
   return payload;
 }
 
-async function fetchVerifiedPdfBlob(
+async function fetchVerifiedPdfChunks(
   url: string,
   credentials: RequestCredentials,
-  onProgress: (loadedBytes: number, totalBytes: number | null) => void,
-): Promise<Blob> {
+  options: {
+    requirePdfMagicHeader: boolean;
+    onProgress: (deltaBytes: number, totalBytes: number | null) => void;
+  },
+): Promise<Uint8Array<ArrayBuffer>[]> {
   const res = await fetch(url, {
     method: 'GET',
     credentials,
@@ -229,16 +234,18 @@ async function fetchVerifiedPdfBlob(
   const reader = res.body?.getReader();
   if (!reader) {
     const buf = new Uint8Array(await res.arrayBuffer());
-    if (buf.byteLength === 0 || !containsPdfMagicHeader(buf)) {
+    if (
+      buf.byteLength === 0 ||
+      (options.requirePdfMagicHeader && !containsPdfMagicHeader(buf))
+    ) {
       throw new Error('NOT_PDF_MAGIC');
     }
-    onProgress(buf.byteLength, totalBytes ?? buf.byteLength);
-    return new Blob([buf], {type: 'application/pdf'});
+    options.onProgress(buf.byteLength, totalBytes ?? buf.byteLength);
+    return [buf];
   }
 
   const chunks: Uint8Array<ArrayBuffer>[] = [];
-  let loadedBytes = 0;
-  let verifiedHeader = false;
+  let verifiedHeader = !options.requirePdfMagicHeader;
   let headerProbe = new Uint8Array(0);
 
   while (true) {
@@ -266,15 +273,67 @@ async function fetchVerifiedPdfBlob(
     const copied = new Uint8Array(value.byteLength);
     copied.set(value);
     chunks.push(copied);
-    loadedBytes += value.byteLength;
-    onProgress(loadedBytes, totalBytes);
+    options.onProgress(value.byteLength, totalBytes);
   }
 
   if (!verifiedHeader && !containsPdfMagicHeader(headerProbe)) {
     throw new Error('NOT_PDF_MAGIC');
   }
 
-  return new Blob(chunks, {type: 'application/pdf'});
+  return chunks;
+}
+
+async function fetchChunkedPdfBlob(
+  baseQuery: URLSearchParams,
+  totalLength: number,
+  onProgress: (loadedBytes: number, totalBytes: number) => void,
+): Promise<Blob> {
+  const allParts: Uint8Array<ArrayBuffer>[] = [];
+  let totalLoaded = 0;
+
+  for (let start = 0; start < totalLength; start += CHUNK_DOWNLOAD_BYTES) {
+    const end = Math.min(totalLength - 1, start + CHUNK_DOWNLOAD_BYTES - 1);
+    const chunkQuery = new URLSearchParams(baseQuery);
+    chunkQuery.set('start', String(start));
+    chunkQuery.set('end', String(end));
+
+    let chunkParts: Uint8Array<ArrayBuffer>[] | null = null;
+    let lastChunkErr: unknown = null;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      let attemptLoaded = 0;
+      try {
+        chunkParts = await fetchVerifiedPdfChunks(
+          `/api/books/download?${chunkQuery.toString()}`,
+          'same-origin',
+          {
+            requirePdfMagicHeader: start === 0,
+            onProgress: (deltaBytes) => {
+              attemptLoaded += deltaBytes;
+              onProgress(
+                Math.min(totalLength, totalLoaded + attemptLoaded),
+                totalLength,
+              );
+            },
+          },
+        );
+        totalLoaded += attemptLoaded;
+        break;
+      } catch (err) {
+        lastChunkErr = err;
+      }
+    }
+
+    if (!chunkParts) {
+      throw lastChunkErr instanceof Error
+        ? lastChunkErr
+        : new Error('PDF chunk transfer failed.');
+    }
+
+    allParts.push(...chunkParts);
+  }
+
+  return new Blob(allParts, {type: 'application/pdf'});
 }
 
 function triggerBlobSave(blob: Blob, filename: string): void {
@@ -301,7 +360,7 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
     }
 
     // 1. Pre-verify the PDF URL source and MIME type on the server before initiating download
-    await verifyBookPdfSource(book);
+    const verification = await verifyBookPdfSource(book);
 
     const filename = sanitizeDownloadFilename(book.title);
     const query = new URLSearchParams({
@@ -332,27 +391,39 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
     let pdfBlob: Blob | null = null;
     let lastError: unknown = null;
 
-    // 2. Primary: stream verified %PDF- bytes via same-origin endpoint
-    try {
-      pdfBlob = await fetchVerifiedPdfBlob(
-        `/api/books/download?${query.toString()}`,
-        'same-origin',
-        handleProgress,
+    // 2. For files > 8 MB, stream in 8 MB verified byte-range chunks to avoid proxy response size limits
+    if (
+      verification &&
+      verification.contentLength &&
+      verification.contentLength > CHUNK_DOWNLOAD_BYTES &&
+      verification.supportsRange !== false
+    ) {
+      pdfBlob = await fetchChunkedPdfBlob(
+        query,
+        verification.contentLength,
+        (loaded, total) => handleProgress(loaded, total),
       );
-    } catch (primaryErr) {
-      lastError = primaryErr;
-    }
-
-    // 3. Fallback: direct Google UserContent CORS fetch (only if Drive ID exists)
-    if (!pdfBlob && fileId) {
+    } else {
+      // 3. Single-stream verified download for files <= 8 MB
+      let singleLoaded = 0;
       try {
-        pdfBlob = await fetchVerifiedPdfBlob(
-          `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
-          'omit',
-          handleProgress,
+        const parts = await fetchVerifiedPdfChunks(
+          `/api/books/download?${query.toString()}`,
+          'same-origin',
+          {
+            requirePdfMagicHeader: true,
+            onProgress: (delta, totalFromHeader) => {
+              singleLoaded += delta;
+              handleProgress(
+                singleLoaded,
+                verification?.contentLength ?? totalFromHeader,
+              );
+            },
+          },
         );
-      } catch (fallbackErr) {
-        if (!lastError) lastError = fallbackErr;
+        pdfBlob = new Blob(parts, {type: 'application/pdf'});
+      } catch (primaryErr) {
+        lastError = primaryErr;
       }
     }
 
@@ -364,8 +435,8 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
         );
       }
       throw new Error(
-        rawMsg && !rawMsg.startsWith('HTTP ')
-          ? rawMsg
+        rawMsg
+          ? `PDF ဖိုင်ကို တိုက်ရိုက်ဒေါင်းလုဒ်ရယူ၍ မရနိုင်ပါ (${rawMsg})။`
           : 'PDF ဖိုင်ကို တိုက်ရိုက်ဒေါင်းလုဒ်ရယူ၍ မရနိုင်ပါ။',
       );
     }

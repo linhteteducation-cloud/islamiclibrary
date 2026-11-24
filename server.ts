@@ -2122,16 +2122,25 @@ async function startServer() {
     };
   }
 
+  const resolvedDriveUrlCache = new Map<
+    string,
+    {url: string; expiresAt: number}
+  >();
+
   async function validatePdfUpstreamResponse(
     upstream: globalThis.Response,
     sourceLabel: string,
+    options?: {requirePdfMagicHeader?: boolean},
   ): Promise<{
     upstream: globalThis.Response;
     firstChunk: Uint8Array;
     reader: ReadableStreamDefaultReader<Uint8Array>;
     upstreamMimeType: string;
     contentLength: number | null;
+    supportsRange: boolean;
   }> {
+    const requireMagic = options?.requirePdfMagicHeader ?? true;
+
     if (!upstream.ok) {
       await upstream.body?.cancel().catch(() => {});
       throw Object.assign(
@@ -2178,9 +2187,17 @@ async function startServer() {
     if (
       /^\s*(?:<!doctype\s+html|<html|<head|<body|<script|<\?xml)/i.test(
         headLatin,
-      ) ||
-      !headSlice.includes('%PDF-')
+      )
     ) {
+      await reader.cancel().catch(() => {});
+      throw Object.assign(
+        new Error(
+          `${sourceLabel} returned HTML/XML instead of PDF data.`,
+        ),
+        {statusCode: 422},
+      );
+    }
+    if (requireMagic && !headSlice.includes('%PDF-')) {
       await reader.cancel().catch(() => {});
       throw Object.assign(
         new Error(
@@ -2193,6 +2210,8 @@ async function startServer() {
     const rawLength = upstream.headers.get('content-length');
     const contentLength =
       rawLength && /^\d+$/.test(rawLength) ? Number(rawLength) : null;
+    const supportsRange =
+      (upstream.headers.get('accept-ranges') || '').toLowerCase() === 'bytes';
 
     return {
       upstream,
@@ -2200,12 +2219,14 @@ async function startServer() {
       reader,
       upstreamMimeType: mimeCheck.baseMime || 'application/pdf',
       contentLength,
+      supportsRange,
     };
   }
 
   async function fetchUrlHopStream(
     initialUrl: string,
     hostCheck: (hostname: string) => boolean,
+    rangeHeader?: string,
   ): Promise<{res: globalThis.Response; finalUrl: string; cookies: string}> {
     let currentUrl = initialUrl;
     const cookieJar = new Map<string, string>();
@@ -2237,6 +2258,7 @@ async function startServer() {
             'User-Agent':
               'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
             Accept: 'application/pdf,application/octet-stream,*/*;q=0.8',
+            ...(rangeHeader ? {Range: rangeHeader} : {}),
             ...(cookieHeader ? {Cookie: cookieHeader} : {}),
           },
           signal: controller.signal,
@@ -2334,15 +2356,24 @@ async function startServer() {
     return null;
   }
 
-  async function resolvePublicDrivePdfUpstream(fileId: string): Promise<{
+  async function resolvePublicDrivePdfUpstream(
+    fileId: string,
+    options?: {rangeHeader?: string; requirePdfMagicHeader?: boolean},
+  ): Promise<{
     upstream: globalThis.Response;
     firstChunk: Uint8Array;
     reader: ReadableStreamDefaultReader<Uint8Array>;
     upstreamMimeType: string;
     contentLength: number | null;
+    supportsRange: boolean;
     sourceType: string;
   }> {
+    const cached = resolvedDriveUrlCache.get(fileId);
+    const validCachedUrl =
+      cached && cached.expiresAt > Date.now() ? cached.url : null;
+
     const candidates = [
+      ...(validCachedUrl ? [validCachedUrl] : []),
       `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
       `https://drive.google.com/uc?export=download&confirm=t&id=${encodeURIComponent(fileId)}`,
     ];
@@ -2351,6 +2382,7 @@ async function startServer() {
       let current = await fetchUrlHopStream(
         candidateUrl,
         isAllowedDriveDownloadHost,
+        options?.rangeHeader,
       ).catch(() => null);
       if (!current) continue;
 
@@ -2373,17 +2405,36 @@ async function startServer() {
         current = await fetchUrlHopStream(
           confirmedUrl,
           isAllowedDriveDownloadHost,
+          options?.rangeHeader,
         ).catch(() => null);
         if (!current) continue;
+      }
+
+      if (
+        options?.rangeHeader &&
+        !options.rangeHeader.startsWith('bytes=0-') &&
+        current.res.status !== 206
+      ) {
+        await current.res.body?.cancel().catch(() => {});
+        continue;
       }
 
       const validated = await validatePdfUpstreamResponse(
         current.res,
         'Google Drive',
+        {requirePdfMagicHeader: options?.requirePdfMagicHeader ?? true},
       ).catch(() => null);
       if (validated) {
+        resolvedDriveUrlCache.set(fileId, {
+          url: current.finalUrl,
+          expiresAt: Date.now() + 5 * 60_000,
+        });
         return {...validated, sourceType: 'google-drive'};
       }
+    }
+
+    if (validCachedUrl) {
+      resolvedDriveUrlCache.delete(fileId);
     }
 
     throw Object.assign(
@@ -2394,12 +2445,16 @@ async function startServer() {
     );
   }
 
-  async function resolveDirectUrlPdfUpstream(sourceUrl: string): Promise<{
+  async function resolveDirectUrlPdfUpstream(
+    sourceUrl: string,
+    options?: {rangeHeader?: string; requirePdfMagicHeader?: boolean},
+  ): Promise<{
     upstream: globalThis.Response;
     firstChunk: Uint8Array;
     reader: ReadableStreamDefaultReader<Uint8Array>;
     upstreamMimeType: string;
     contentLength: number | null;
+    supportsRange: boolean;
     sourceType: string;
   }> {
     const validatedUrl = await assertSafeExternalUrl(
@@ -2434,16 +2489,19 @@ async function startServer() {
         const directHop = await fetchUrlHopStream(
           decodeHtmlEntities(directMatch[0]),
           isAllowedMediaFireHost,
+          options?.rangeHeader,
         );
         const validated = await validatePdfUpstreamResponse(
           directHop.res,
           'MediaFire PDF',
+          {requirePdfMagicHeader: options?.requirePdfMagicHeader ?? true},
         );
         return {...validated, sourceType: 'mediafire-pdf'};
       }
       const validated = await validatePdfUpstreamResponse(
         pageHop.res,
         'MediaFire PDF',
+        {requirePdfMagicHeader: options?.requirePdfMagicHeader ?? true},
       );
       return {...validated, sourceType: 'mediafire-pdf'};
     }
@@ -2451,10 +2509,12 @@ async function startServer() {
     const hop = await fetchUrlHopStream(
       validatedUrl.toString(),
       isAllowedDirectPdfSourceHost,
+      options?.rangeHeader,
     );
     const validated = await validatePdfUpstreamResponse(
       hop.res,
       validatedUrl.hostname,
+      {requirePdfMagicHeader: options?.requirePdfMagicHeader ?? true},
     );
     return {...validated, sourceType: 'direct-url'};
   }
@@ -2462,6 +2522,8 @@ async function startServer() {
   async function resolveVerifiedPdfSource(params: {
     fileId: string;
     sourceUrl: string;
+    rangeHeader?: string;
+    requirePdfMagicHeader?: boolean;
   }) {
     const rawFileId = params.fileId.trim();
     const rawUrl = params.sourceUrl.trim();
@@ -2474,11 +2536,17 @@ async function startServer() {
           statusCode: 400,
         });
       }
-      return resolvePublicDrivePdfUpstream(derivedFileId);
+      return resolvePublicDrivePdfUpstream(derivedFileId, {
+        rangeHeader: params.rangeHeader,
+        requirePdfMagicHeader: params.requirePdfMagicHeader,
+      });
     }
 
     if (rawUrl) {
-      return resolveDirectUrlPdfUpstream(rawUrl);
+      return resolveDirectUrlPdfUpstream(rawUrl, {
+        rangeHeader: params.rangeHeader,
+        requirePdfMagicHeader: params.requirePdfMagicHeader,
+      });
     }
 
     throw Object.assign(
@@ -2505,6 +2573,7 @@ async function startServer() {
           mimeType: 'application/pdf',
           upstreamMimeType: verified.upstreamMimeType,
           contentLength: verified.contentLength,
+          supportsRange: verified.supportsRange,
           sourceType: verified.sourceType,
         });
       } catch (err) {
@@ -2521,6 +2590,31 @@ async function startServer() {
           typeof req.query.fileId === 'string' ? req.query.fileId.trim() : '';
         const sourceUrl =
           typeof req.query.url === 'string' ? req.query.url.trim() : '';
+
+        const rawStart =
+          typeof req.query.start === 'string' ? req.query.start.trim() : '';
+        const rawEnd =
+          typeof req.query.end === 'string' ? req.query.end.trim() : '';
+        let rangeHeader: string | undefined;
+        let requirePdfMagicHeader = true;
+
+        if (rawStart !== '' || rawEnd !== '') {
+          const startNum = Number(rawStart);
+          const endNum = Number(rawEnd);
+          if (
+            !Number.isInteger(startNum) ||
+            !Number.isInteger(endNum) ||
+            startNum < 0 ||
+            endNum < startNum ||
+            endNum - startNum + 1 > 16 * 1024 * 1024
+          ) {
+            throw Object.assign(new Error('Invalid byte chunk range.'), {
+              statusCode: 400,
+            });
+          }
+          rangeHeader = `bytes=${startNum}-${endNum}`;
+          requirePdfMagicHeader = startNum === 0;
+        }
 
         const rawTitle =
           typeof req.query.title === 'string'
@@ -2554,7 +2648,13 @@ async function startServer() {
           reader,
           upstreamMimeType,
           contentLength,
-        } = await resolveVerifiedPdfSource({fileId, sourceUrl});
+          supportsRange,
+        } = await resolveVerifiedPdfSource({
+          fileId,
+          sourceUrl,
+          rangeHeader,
+          requirePdfMagicHeader,
+        });
 
         if (checkOnly) {
           await reader.cancel().catch(() => {});
@@ -2565,16 +2665,19 @@ async function startServer() {
             upstreamMimeType,
             filename: utf8Filename,
             contentLength,
+            supportsRange,
           });
           return;
         }
 
         const upstreamLength = upstream.headers.get('content-length');
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader(
-          'Content-Disposition',
-          `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`,
-        );
+        if (!rangeHeader) {
+          res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`,
+          );
+        }
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Cache-Control', 'private, max-age=300');
         if (upstreamLength && /^\d+$/.test(upstreamLength)) {
