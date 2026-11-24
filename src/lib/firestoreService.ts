@@ -13,11 +13,13 @@ import {
 } from 'firebase/firestore';
 import {DEFAULT_SITE_SETTINGS} from '../data/libraryData';
 import {
+  AdminInviteItem,
   ArticleItem,
   BookItem,
   ContactMessageItem,
   DuaItem,
   SiteSettings,
+  TelegramSettings,
   VideoItem,
 } from '../types/library';
 import {OperationType, db, handleFirestoreError} from './firebase';
@@ -479,5 +481,132 @@ export async function deleteContactMessage(messageId: string) {
     await deleteDoc(doc(db, 'contactMessages', messageId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// ---------- Appointed Admins (Email-based) ----------
+
+export function subscribeAdminInvites(
+  onData: (invites: AdminInviteItem[]) => void,
+) {
+  const path = 'adminInvites';
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            email: String(data.email || d.id),
+            roleLabel: String(data.roleLabel || ''),
+            addedByUid: String(data.addedByUid || ''),
+            addedByEmail: String(data.addedByEmail || ''),
+            createdAtLabel: formatTimestamp(data.createdAt),
+          };
+        }),
+      );
+    },
+    (error) => handleFirestoreError(error, OperationType.LIST, path),
+  );
+}
+
+export async function appointAdminByEmail(
+  adderUid: string,
+  adderEmail: string,
+  targetEmail: string,
+  roleLabel: string,
+) {
+  const normalizedEmail = targetEmail.trim().toLowerCase();
+  const path = `adminInvites/${normalizedEmail}`;
+  if (!/^[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}$/.test(normalizedEmail)) {
+    throw new Error('မှန်ကန်သော Gmail / Email လိပ်စာ ထည့်သွင်းပါ။');
+  }
+  try {
+    await setDoc(doc(db, 'adminInvites', normalizedEmail), {
+      email: normalizedEmail.slice(0, 160),
+      roleLabel: roleLabel.trim().slice(0, 80) || 'Library Admin',
+      addedByUid: adderUid,
+      addedByEmail: (adderEmail || '').trim().slice(0, 160),
+      createdAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function revokeAdminInvite(targetEmail: string) {
+  const normalizedEmail = targetEmail.trim().toLowerCase();
+  const path = `adminInvites/${normalizedEmail}`;
+  try {
+    await deleteDoc(doc(db, 'adminInvites', normalizedEmail));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// ---------- Telegram Bot Non-Secret Settings ----------
+
+export const DEFAULT_TELEGRAM_SETTINGS: TelegramSettings = {
+  connected: false,
+  botUsername: '',
+  botFirstName: '',
+  allowedChatIds: '',
+  autoSyncToWebsite: true,
+  defaultCategoryId: 'auto',
+  lastUpdateId: 0,
+};
+
+export function subscribeTelegramSettings(
+  onData: (settings: TelegramSettings) => void,
+) {
+  const path = 'telegramSettings/main';
+  return onSnapshot(
+    doc(db, 'telegramSettings', 'main'),
+    (snap) => {
+      if (!snap.exists()) {
+        onData(DEFAULT_TELEGRAM_SETTINGS);
+        return;
+      }
+      const data = snap.data();
+      onData({
+        connected: Boolean(data.connected),
+        botUsername: String(data.botUsername || ''),
+        botFirstName: String(data.botFirstName || ''),
+        allowedChatIds: String(data.allowedChatIds || ''),
+        autoSyncToWebsite: data.autoSyncToWebsite !== false,
+        defaultCategoryId:
+          (data.defaultCategoryId as TelegramSettings['defaultCategoryId']) ||
+          'auto',
+        lastUpdateId: Math.max(0, Math.floor(Number(data.lastUpdateId) || 0)),
+      });
+    },
+    (error) => handleFirestoreError(error, OperationType.GET, path),
+  );
+}
+
+export async function saveTelegramSettings(
+  uid: string,
+  settings: TelegramSettings,
+) {
+  const path = 'telegramSettings/main';
+  try {
+    await setDoc(doc(db, 'telegramSettings', 'main'), {
+      connected: Boolean(settings.connected),
+      botUsername: settings.botUsername.trim().slice(0, 120),
+      botFirstName: settings.botFirstName.trim().slice(0, 120),
+      allowedChatIds: settings.allowedChatIds.trim().slice(0, 500),
+      autoSyncToWebsite: Boolean(settings.autoSyncToWebsite),
+      defaultCategoryId: String(settings.defaultCategoryId || 'auto').slice(
+        0,
+        60,
+      ),
+      lastUpdateId: Math.max(0, Math.floor(Number(settings.lastUpdateId) || 0)),
+      updatedByUid: uid,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
   }
 }

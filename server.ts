@@ -5,7 +5,28 @@ import path from 'node:path';
 import express from 'express';
 import type {NextFunction, Request, Response} from 'express';
 
-const PORT = Number(process.env.PORT) || 3000;
+function resolveListenPort(isProductionMode: boolean): number {
+  const eqArg = process.argv.find((arg) => arg.startsWith('--port='));
+  if (eqArg) {
+    const parsed = Number(eqArg.slice('--port='.length));
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  const idx = process.argv.indexOf('--port');
+  if (idx !== -1 && process.argv[idx + 1]) {
+    const parsed = Number(process.argv[idx + 1]);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  const envPort = Number(process.env.PORT);
+  if (Number.isFinite(envPort) && envPort > 0) {
+    // Container images often export PORT=8080 for nginx reverse proxy while dev server must listen on 3000
+    if (!isProductionMode && envPort === 8080) {
+      return 3000;
+    }
+    return envPort;
+  }
+  return 3000;
+}
+
 const DEFAULT_CATALOG_URL =
   'https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0';
 const MAX_HTML_BYTES = 6 * 1024 * 1024; // 6 MB
@@ -95,18 +116,24 @@ async function verifyAdminRequest(req: Request): Promise<VerifiedAdmin> {
     return {uid, email};
   }
 
-  // Fallback: check admins/{uid} document using the caller's Firebase ID token
+  // Fallback: check admins/{uid} or adminInvites/{email} using the caller's Firebase ID token
   if (cfg.projectId && cfg.firestoreDatabaseId) {
-    const adminDocUrl = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+    const baseFirestore = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
       cfg.projectId,
-    )}/databases/${encodeURIComponent(
-      cfg.firestoreDatabaseId,
-    )}/documents/admins/${encodeURIComponent(uid)}`;
-    const docRes = await fetch(adminDocUrl, {
-      headers: {Authorization: `Bearer ${idToken}`},
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (docRes.ok) {
+    )}/databases/${encodeURIComponent(cfg.firestoreDatabaseId)}/documents`;
+
+    const [uidRes, inviteRes] = await Promise.all([
+      fetch(`${baseFirestore}/admins/${encodeURIComponent(uid)}`, {
+        headers: {Authorization: `Bearer ${idToken}`},
+        signal: AbortSignal.timeout(8_000),
+      }).catch(() => null),
+      fetch(`${baseFirestore}/adminInvites/${encodeURIComponent(email)}`, {
+        headers: {Authorization: `Bearer ${idToken}`},
+        signal: AbortSignal.timeout(8_000),
+      }).catch(() => null),
+    ]);
+
+    if (uidRes?.ok || inviteRes?.ok) {
       return {uid, email};
     }
   }
@@ -165,11 +192,25 @@ function isPrivateOrReservedIp(rawIp: string): boolean {
   return true;
 }
 
+const ALLOWED_BLOGGER_CUSTOM_HOSTS = new Set(['library.ioumyanmar.com']);
+
 function isAllowedBloggerHost(hostname: string): boolean {
   const host = hostname.toLowerCase();
   return (
     /^[a-z0-9-]+\.blogspot\.(com|sg|co\.uk|in|jp)$/i.test(host) ||
-    host === 'www.blogger.com'
+    host === 'www.blogger.com' ||
+    ALLOWED_BLOGGER_CUSTOM_HOSTS.has(host)
+  );
+}
+
+function isAllowedShortenerHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    host === 'bit.ly' ||
+    host === 'j.mp' ||
+    host === 'tinyurl.com' ||
+    host === 'goo.gl' ||
+    host === 'is.gd'
   );
 }
 
@@ -343,10 +384,12 @@ function decodeHtmlEntities(input: string): string {
 }
 
 function normalizeBlogspotUrl(url: string): string {
-  return url
-    .trim()
-    .replace(/^http:\/\//i, 'https://')
-    .replace(/\.blogspot\.sg\//i, '.blogspot.com/');
+  const trimmed = url.trim().replace(/\.blogspot\.sg\//i, '.blogspot.com/');
+  // Only upgrade *.blogspot.* and www.blogger.com to HTTPS; custom Blogger domains like library.ioumyanmar.com may only serve HTTP
+  if (/^http:\/\/(?:[a-z0-9-]+\.blogspot\.|www\.blogger\.com)/i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, 'https://');
+  }
+  return trimmed;
 }
 
 function sanitizePdfFilename(rawTitle: string, fallback = 'book'): string {
@@ -359,42 +402,85 @@ function sanitizePdfFilename(rawTitle: string, fallback = 'book'): string {
   return base.toLowerCase().endsWith('.pdf') ? base : `${base}.pdf`;
 }
 
+function isGenericBlogNavText(text: string): boolean {
+  const lower = text.trim().toLowerCase();
+  return (
+    !lower ||
+    lower.length < 2 ||
+    lower === 'read more' ||
+    lower === 'read more »' ||
+    lower === 'ဆက်ဖတ်ရန်' ||
+    lower === 'comments' ||
+    /^\d+\s+comments?$/i.test(lower) ||
+    /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(lower)
+  );
+}
+
 function extractBlogspotCatalogItems(
   html: string,
   sourceUrl: string,
 ): Array<{index: number; title: string; postUrl: string}> {
   const seen = new Set<string>();
   const items: Array<{index: number; title: string; postUrl: string}> = [];
+  let sourceHost = '';
+  try {
+    sourceHost = new URL(sourceUrl).hostname.toLowerCase();
+  } catch {
+    sourceHost = '';
+  }
 
-  const anchorRegex =
-    /<a\b[^>]*href=["'](https?:\/\/[^"']*\.blogspot\.[^"']+\/\d{4}\/\d{2}\/[^"']+\.html)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  const pushCandidate = (rawHref: string, rawTitleHtml: string) => {
+    const cleanHref = rawHref.split('#')[0].replace(/\?showComment=\d+$/i, '');
+    let parsedHref: URL;
+    try {
+      parsedHref = new URL(cleanHref, sourceUrl);
+    } catch {
+      return;
+    }
+    const hrefHost = parsedHref.hostname.toLowerCase();
+    const isSameOrBlogger =
+      (sourceHost && hrefHost === sourceHost) ||
+      /\.blogspot\./i.test(hrefHost);
+    if (!isSameOrBlogger) return;
+    if (!/\/\d{4}\/\d{2}\/[^/?#]+\.html$/i.test(parsedHref.pathname)) return;
 
-  for (const match of html.matchAll(anchorRegex)) {
-    const rawHref = match[1];
-    const rawInner = match[2];
-    const postUrl = normalizeBlogspotUrl(rawHref);
-    const title = decodeHtmlEntities(rawInner.replace(/<[^>]+>/g, ' '))
+    const postUrl = normalizeBlogspotUrl(parsedHref.toString());
+    const title = decodeHtmlEntities(rawTitleHtml.replace(/<[^>]+>/g, ' '))
       .replace(/\s+/g, ' ')
       .trim();
 
-    if (!title || title.length < 2 || seen.has(postUrl)) continue;
+    if (isGenericBlogNavText(title) || seen.has(postUrl)) return;
     seen.add(postUrl);
     items.push({
       index: items.length + 1,
       title,
       postUrl,
     });
+  };
+
+  // Pass 1: Prefer explicit Blogger post-title headings first so real titles win over "Read more"
+  const headingAnchorRegex =
+    /<h[1-4]\b[^>]*class=["'][^"']*post-title[^"']*["'][^>]*>[\s\S]*?<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>[\s\S]*?<\/h[1-4]>/gi;
+  for (const match of html.matchAll(headingAnchorRegex)) {
+    pushCandidate(match[1], match[2]);
+  }
+
+  // Pass 2: General post links anywhere in the body (used by /p/book-list.html tables/lists)
+  const anchorRegex =
+    /<a\b[^>]*href=["'](https?:\/\/[^"']+\/\d{4}\/\d{2}\/[^"'?#]+\.html(?:\?[^"']*)?)["'][^>]*>([\s\S]*?)<\/a>/gi;
+  for (const match of html.matchAll(anchorRegex)) {
+    pushCandidate(match[1], match[2]);
   }
 
   // Fallback: if the user pasted a single post URL rather than an index page
-  if (items.length === 0 && /\/\d{4}\/\d{2}\/[^/]+\.html/i.test(sourceUrl)) {
+  if (items.length === 0 && /\/\d{4}\/\d{2}\/[^/?#]+\.html/i.test(sourceUrl)) {
     const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/i);
     const cleanedTitle = decodeHtmlEntities(
       (titleMatch?.[1] || '').replace(/^[^:]+:\s*/, ''),
     ).trim();
     items.push({
       index: 1,
-      title: cleanedTitle || 'Blogspot Book',
+      title: cleanedTitle || 'Islamic Library Book',
       postUrl: normalizeBlogspotUrl(sourceUrl),
     });
   }
@@ -402,21 +488,145 @@ function extractBlogspotCatalogItems(
   return items;
 }
 
+interface BloggerFeedJson {
+  feed?: {
+    openSearch$totalResults?: {$t?: string};
+    entry?: Array<{
+      title?: {$t?: string};
+      link?: Array<{rel?: string; href?: string}>;
+    }>;
+  };
+}
+
+async function tryFetchBloggerFeedCatalogItems(
+  sourceUrl: string,
+): Promise<Array<{index: number; title: string; postUrl: string}>> {
+  let parsed: URL;
+  try {
+    parsed = new URL(sourceUrl);
+  } catch {
+    return [];
+  }
+
+  const labelMatch = parsed.pathname.match(/^\/search\/label\/([^/]+)\/?$/i);
+  const feedBase = labelMatch
+    ? `${parsed.origin}/feeds/posts/default/-/${labelMatch[1]}?alt=json`
+    : `${parsed.origin}/feeds/posts/default?alt=json`;
+
+  const seen = new Set<string>();
+  const items: Array<{index: number; title: string; postUrl: string}> = [];
+
+  for (let page = 0; page < 3; page += 1) {
+    const startIndex = page * 150 + 1;
+    const feedUrl = `${feedBase}&max-results=150&start-index=${startIndex}`;
+    const res = await safeFetchExternal(feedUrl, isAllowedBloggerHost, {
+      maxBytes: MAX_HTML_BYTES,
+    }).catch(() => null);
+    if (!res) break;
+
+    let data: BloggerFeedJson;
+    try {
+      data = JSON.parse(res.buffer.toString('utf-8')) as BloggerFeedJson;
+    } catch {
+      break;
+    }
+
+    const entries = data.feed?.entry || [];
+    if (entries.length === 0) break;
+
+    for (const entry of entries) {
+      const altHref = entry.link?.find((l) => l.rel === 'alternate')?.href;
+      const rawTitle = entry.title?.$t || '';
+      const title = decodeHtmlEntities(rawTitle).replace(/\s+/g, ' ').trim();
+      if (!altHref || !title || title.length < 2) continue;
+
+      const postUrl = normalizeBlogspotUrl(altHref);
+      if (seen.has(postUrl)) continue;
+      seen.add(postUrl);
+      items.push({
+        index: items.length + 1,
+        title,
+        postUrl,
+      });
+    }
+
+    const totalResults = Number(data.feed?.openSearch$totalResults?.$t || 0);
+    if (entries.length < 150 || (totalResults > 0 && items.length >= totalResults)) {
+      break;
+    }
+  }
+
+  return items;
+}
+
+const DRIVE_FILE_ID_REGEX =
+  /(?:drive\.google\.com\/file\/d\/|drive\.google\.com\/open\?id=|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]{10,})/i;
+
+async function resolveShortLinkUrl(shortUrl: string): Promise<string | null> {
+  let currentUrl = shortUrl.trim();
+  for (let hop = 0; hop < 4; hop += 1) {
+    let parsed: URL;
+    try {
+      parsed = new URL(currentUrl);
+    } catch {
+      return null;
+    }
+
+    if (!isAllowedShortenerHost(parsed.hostname)) {
+      return parsed.toString();
+    }
+
+    const validated = await assertSafeExternalUrl(
+      parsed.toString(),
+      isAllowedShortenerHost,
+    ).catch(() => null);
+    if (!validated) return null;
+
+    const res = await fetch(validated.toString(), {
+      method: 'GET',
+      redirect: 'manual',
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      },
+      signal: AbortSignal.timeout(10_000),
+    }).catch(() => null);
+
+    if (!res) return null;
+    await res.body?.cancel().catch(() => {});
+
+    if (res.status >= 300 && res.status < 400) {
+      const loc = res.headers.get('location');
+      if (!loc) return null;
+      try {
+        currentUrl = new URL(loc, validated).toString();
+      } catch {
+        return null;
+      }
+      continue;
+    }
+    return null;
+  }
+  return null;
+}
+
 function extractPostResources(html: string): {
   postTitle: string;
   driveFileIds: string[];
   mediafireUrls: string[];
   directPdfUrls: string[];
+  shortUrls: string[];
 } {
   const h3Match = html.match(
-    /<h3[^>]*class=["'][^"']*post-title[^"']*["'][^>]*>([\s\S]*?)<\/h3>/i,
+    /<h[1-3][^>]*class=["'][^"']*post-title[^"']*["'][^>]*>([\s\S]*?)<\/h[1-3]>/i,
   );
   const titleMatch = html.match(/<title>([\s\S]*?)<\/title>/i);
   const rawTitle = h3Match?.[1] || titleMatch?.[1] || '';
   const postTitle = decodeHtmlEntities(
     rawTitle
       .replace(/<[^>]+>/g, ' ')
-      .replace(/^Myanmar Free Islamic Books:\s*/i, ''),
+      .replace(/^Myanmar Free Islamic Books:\s*/i, '')
+      .replace(/^IOU Myanmar Library:\s*/i, ''),
   )
     .replace(/\s+/g, ' ')
     .trim();
@@ -438,7 +648,7 @@ function extractPostResources(html: string): {
   const mediafireUrls = Array.from(
     new Set(
       rawHrefMatches
-        .filter((u) => /^https?:\/\/(?:www\.)?mediafire\.com\//i.test(u))
+        .filter((u) => /^https?:\/\/(?:www\.|download\d+\.)?mediafire\.com\//i.test(u))
         .map((u) =>
           u
             .replace(/^http:\/\//i, 'https://')
@@ -458,7 +668,23 @@ function extractPostResources(html: string): {
     ),
   );
 
-  return {postTitle, driveFileIds, mediafireUrls, directPdfUrls};
+  const shortUrls = Array.from(
+    new Set(
+      rawHrefMatches.filter((u) => {
+        try {
+          const parsed = new URL(u);
+          return (
+            isAllowedShortenerHost(parsed.hostname) &&
+            parsed.pathname.replace(/\//g, '').length >= 3
+          );
+        } catch {
+          return false;
+        }
+      }),
+    ),
+  );
+
+  return {postTitle, driveFileIds, mediafireUrls, directPdfUrls, shortUrls};
 }
 
 function formatBytes(bytesInput: number | string | undefined): string {
@@ -691,11 +917,935 @@ async function resolveMediaFirePdfBuffer(
   return {buffer: fileFetch.buffer, suggestedName};
 }
 
+// ---------- Telegram Bot Permanent Server Store & Helpers ----------
+
+const TELEGRAM_DATA_DIR = path.resolve(process.cwd(), '.data');
+const TELEGRAM_CONFIG_PATH = path.join(TELEGRAM_DATA_DIR, 'telegram-bot.json');
+
+interface StoredTelegramConfig {
+  botToken: string;
+  botUsername: string;
+  botFirstName: string;
+  allowedChatIds: string;
+  autoSyncToWebsite: boolean;
+  defaultCategoryId: string;
+  lastUpdateId: number;
+}
+
+const DEFAULT_STORED_TELEGRAM: StoredTelegramConfig = {
+  botToken: '',
+  botUsername: '',
+  botFirstName: '',
+  allowedChatIds: '',
+  autoSyncToWebsite: true,
+  defaultCategoryId: 'auto',
+  lastUpdateId: 0,
+};
+
+function readStoredTelegramConfig(): StoredTelegramConfig {
+  try {
+    if (!fs.existsSync(TELEGRAM_CONFIG_PATH)) {
+      return {...DEFAULT_STORED_TELEGRAM};
+    }
+    const raw = fs.readFileSync(TELEGRAM_CONFIG_PATH, 'utf-8');
+    const parsed = JSON.parse(raw) as Partial<StoredTelegramConfig>;
+    return {
+      botToken: typeof parsed.botToken === 'string' ? parsed.botToken.trim() : '',
+      botUsername:
+        typeof parsed.botUsername === 'string' ? parsed.botUsername.trim() : '',
+      botFirstName:
+        typeof parsed.botFirstName === 'string'
+          ? parsed.botFirstName.trim()
+          : '',
+      allowedChatIds:
+        typeof parsed.allowedChatIds === 'string'
+          ? parsed.allowedChatIds.trim()
+          : '',
+      autoSyncToWebsite: parsed.autoSyncToWebsite !== false,
+      defaultCategoryId:
+        typeof parsed.defaultCategoryId === 'string' && parsed.defaultCategoryId
+          ? parsed.defaultCategoryId
+          : 'auto',
+      lastUpdateId: Math.max(0, Math.floor(Number(parsed.lastUpdateId) || 0)),
+    };
+  } catch {
+    return {...DEFAULT_STORED_TELEGRAM};
+  }
+}
+
+function writeStoredTelegramConfig(cfg: StoredTelegramConfig): void {
+  fs.mkdirSync(TELEGRAM_DATA_DIR, {recursive: true, mode: 0o700});
+  fs.writeFileSync(TELEGRAM_CONFIG_PATH, JSON.stringify(cfg, null, 2), {
+    encoding: 'utf-8',
+    mode: 0o600,
+  });
+}
+
+function resolveBotToken(cfg: StoredTelegramConfig): {
+  token: string;
+  source: 'saved' | 'env' | 'none';
+} {
+  if (cfg.botToken) return {token: cfg.botToken, source: 'saved'};
+  const envToken = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+  if (envToken) return {token: envToken, source: 'env'};
+  return {token: '', source: 'none'};
+}
+
+function maskToken(token: string): string {
+  if (!token) return '';
+  if (token.length <= 12) return '***';
+  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+}
+
+interface TelegramUpdateMessage {
+  message_id?: number;
+  chat?: {id?: number | string; title?: string; username?: string; first_name?: string; type?: string};
+  from?: {id?: number | string; username?: string; first_name?: string};
+  caption?: string;
+  document?: {
+    file_id?: string;
+    file_unique_id?: string;
+    file_name?: string;
+    mime_type?: string;
+    file_size?: number;
+  };
+}
+
+interface TelegramUpdate {
+  update_id: number;
+  message?: TelegramUpdateMessage;
+  channel_post?: TelegramUpdateMessage;
+}
+
+async function callTelegramApi<T>(
+  botToken: string,
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<T> {
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/${method}`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(params || {}),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const json = (await res.json().catch(() => ({}))) as {
+    ok?: boolean;
+    description?: string;
+    error_code?: number;
+    result?: T;
+  };
+  if (!res.ok || !json.ok) {
+    const err = new Error(
+      json.description || `Telegram API error (${res.status})`,
+    ) as Error & {statusCode?: number; telegramCode?: number};
+    err.statusCode = res.status === 401 || res.status === 404 ? 400 : res.status;
+    err.telegramCode = json.error_code;
+    throw err;
+  }
+  return json.result as T;
+}
+
+async function fetchTelegramUpdatesSafe(
+  botToken: string,
+  offset?: number,
+): Promise<TelegramUpdate[]> {
+  try {
+    return await callTelegramApi<TelegramUpdate[]>(botToken, 'getUpdates', {
+      offset,
+      limit: 25,
+      timeout: 1,
+      allowed_updates: ['message', 'channel_post'],
+    });
+  } catch (err) {
+    const code =
+      typeof err === 'object' &&
+      err !== null &&
+      'telegramCode' in err &&
+      (err as {telegramCode?: number}).telegramCode;
+    // If another webhook was previously active on this token, clear it cleanly (preserving updates)
+    if (code === 409) {
+      await callTelegramApi(botToken, 'deleteWebhook', {
+        drop_pending_updates: false,
+      });
+      return callTelegramApi<TelegramUpdate[]>(botToken, 'getUpdates', {
+        offset,
+        limit: 25,
+        timeout: 1,
+        allowed_updates: ['message', 'channel_post'],
+      });
+    }
+    throw err;
+  }
+}
+
+let telegramSyncInFlight = false;
+
+// ---------- SEO & Google Search Console Helpers ----------
+
+const SEO_CONFIG_PATH = path.join(TELEGRAM_DATA_DIR, 'seo-config.json');
+const DEFAULT_PUBLIC_SITE_URL = 'https://islamiclibrary-three.vercel.app';
+const SITEMAP_CATEGORY_IDS = [
+  'quran-tafsir',
+  'hadith',
+  'shariah',
+  'dua-amal',
+  'aqeedah',
+  'history',
+  'ethics',
+  'children',
+  'periodicals',
+  'research',
+  'azan',
+];
+
+interface StoredSeoConfig {
+  canonicalOrigin: string;
+  googleSiteVerificationToken: string;
+  googleVerificationHtmlFilename: string;
+}
+
+const DEFAULT_SEO_CONFIG: StoredSeoConfig = {
+  canonicalOrigin: DEFAULT_PUBLIC_SITE_URL,
+  googleSiteVerificationToken: '',
+  googleVerificationHtmlFilename: '',
+};
+
+function sanitizeGoogleMetaToken(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const metaMatch = trimmed.match(/content=["']([a-zA-Z0-9_-]{12,128})["']/i);
+  const candidate = (metaMatch?.[1] || trimmed).trim();
+  if (!/^[a-zA-Z0-9_-]{12,128}$/.test(candidate)) {
+    throw Object.assign(
+      new Error(
+        'Google Verification Meta Token ဖော်မတ် မမှန်ကန်ပါ (content="..." တန်ဖိုး သို့မဟုတ် Token စာသားသီးသန့် ထည့်ပါ)။',
+      ),
+      {statusCode: 400},
+    );
+  }
+  return candidate;
+}
+
+function sanitizeGoogleHtmlFilename(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const base = trimmed.split('/').filter(Boolean).pop() || trimmed;
+  if (!/^google[a-f0-9]{10,40}\.html$/i.test(base)) {
+    throw Object.assign(
+      new Error(
+        'Google HTML Verification ဖိုင်နာမည် မမှန်ကန်ပါ (ဥပမာ - google1234abcd5678ef.html)။',
+      ),
+      {statusCode: 400},
+    );
+  }
+  return base;
+}
+
+function sanitizeCanonicalOrigin(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return DEFAULT_PUBLIC_SITE_URL;
+  try {
+    const parsed = new URL(trimmed.startsWith('http') ? trimmed : `https://${trimmed}`);
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      return DEFAULT_PUBLIC_SITE_URL;
+    }
+    return parsed.origin;
+  } catch {
+    return DEFAULT_PUBLIC_SITE_URL;
+  }
+}
+
+function readStoredSeoConfig(): StoredSeoConfig {
+  try {
+    if (!fs.existsSync(SEO_CONFIG_PATH)) {
+      return {...DEFAULT_SEO_CONFIG};
+    }
+    const raw = fs.readFileSync(SEO_CONFIG_PATH, 'utf-8');
+    const parsed = JSON.parse(raw) as Partial<StoredSeoConfig>;
+    return {
+      canonicalOrigin:
+        typeof parsed.canonicalOrigin === 'string' && parsed.canonicalOrigin.trim()
+          ? parsed.canonicalOrigin.trim()
+          : DEFAULT_PUBLIC_SITE_URL,
+      googleSiteVerificationToken:
+        typeof parsed.googleSiteVerificationToken === 'string' &&
+        /^[a-zA-Z0-9_-]{12,128}$/.test(parsed.googleSiteVerificationToken.trim())
+          ? parsed.googleSiteVerificationToken.trim()
+          : '',
+      googleVerificationHtmlFilename:
+        typeof parsed.googleVerificationHtmlFilename === 'string' &&
+        /^google[a-f0-9]{10,40}\.html$/i.test(
+          parsed.googleVerificationHtmlFilename.trim(),
+        )
+          ? parsed.googleVerificationHtmlFilename.trim()
+          : '',
+    };
+  } catch {
+    return {...DEFAULT_SEO_CONFIG};
+  }
+}
+
+function writeStoredSeoConfig(cfg: StoredSeoConfig): void {
+  fs.mkdirSync(TELEGRAM_DATA_DIR, {recursive: true, mode: 0o700});
+  fs.writeFileSync(SEO_CONFIG_PATH, JSON.stringify(cfg, null, 2), {
+    encoding: 'utf-8',
+    mode: 0o600,
+  });
+}
+
+function resolvePublicOrigin(req: Request, cfg: StoredSeoConfig): string {
+  const fwdHost = String(req.headers['x-forwarded-host'] || '')
+    .split(',')[0]
+    .trim();
+  const hostHeader = fwdHost || String(req.headers.host || '').trim();
+  const hostnameOnly = hostHeader.split(':')[0]?.toLowerCase() || '';
+  if (
+    hostnameOnly &&
+    hostnameOnly !== 'localhost' &&
+    hostnameOnly !== '127.0.0.1' &&
+    hostnameOnly !== '0.0.0.0'
+  ) {
+    const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https')
+      .split(',')[0]
+      .trim();
+    return `${proto === 'http' ? 'http' : 'https'}://${hostHeader}`;
+  }
+  return cfg.canonicalOrigin || DEFAULT_PUBLIC_SITE_URL;
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+async function fetchPublishedBookSitemapEntries(): Promise<
+  Array<{id: string; lastmod?: string}>
+> {
+  try {
+    const cfg = getFirebaseConfig();
+    if (!cfg.projectId || !cfg.firestoreDatabaseId) return [];
+    const endpoint = `https://firestore.googleapis.com/v1/projects/${encodeURIComponent(
+      cfg.projectId,
+    )}/databases/${encodeURIComponent(
+      cfg.firestoreDatabaseId,
+    )}/documents:runQuery`;
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        structuredQuery: {
+          from: [{collectionId: 'books'}],
+          where: {
+            fieldFilter: {
+              field: {fieldPath: 'published'},
+              op: 'EQUAL',
+              value: {booleanValue: true},
+            },
+          },
+          select: {
+            fields: [{fieldPath: 'updatedAt'}],
+          },
+          limit: 300,
+        },
+      }),
+      signal: AbortSignal.timeout(4_500),
+    });
+    if (!res.ok) return [];
+    const rows = (await res.json()) as Array<{
+      document?: {
+        name?: string;
+        updateTime?: string;
+        fields?: {
+          updatedAt?: {timestampValue?: string};
+        };
+      };
+    }>;
+
+    const entries: Array<{id: string; lastmod?: string}> = [];
+    for (const row of rows) {
+      const fullName = row.document?.name || '';
+      const id = fullName.split('/').pop() || '';
+      if (!/^[a-zA-Z0-9_-]{1,128}$/.test(id)) continue;
+      const rawDate =
+        row.document?.fields?.updatedAt?.timestampValue ||
+        row.document?.updateTime;
+      const isoDate =
+        rawDate && !Number.isNaN(Date.parse(rawDate))
+          ? new Date(rawDate).toISOString().slice(0, 10)
+          : undefined;
+      entries.push({id, lastmod: isoDate});
+    }
+    return entries;
+  } catch {
+    return [];
+  }
+}
+
+function injectGoogleVerificationMeta(html: string, token: string): string {
+  if (!token || !/^[a-zA-Z0-9_-]{12,128}$/.test(token)) {
+    return html;
+  }
+  const tag = `<meta name="google-site-verification" content="${token}" />`;
+  if (html.includes('name="google-site-verification"')) {
+    return html.replace(
+      /<meta\s+name=["']google-site-verification["'][^>]*>/i,
+      tag,
+    );
+  }
+  return html.replace('</head>', `    ${tag}\n  </head>`);
+}
+
 // ---------- Express App & Vite / Static Mounting ----------
 
 async function startServer() {
   const app = express();
   app.use(express.json({limit: '256kb'}));
+
+  // Protect internal server files & secrets directory from direct HTTP access
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const cleanPath = req.path.toLowerCase();
+    if (
+      cleanPath.startsWith('/.data') ||
+      cleanPath.startsWith('/.env') ||
+      cleanPath === '/server.ts' ||
+      cleanPath === '/firestore.rules' ||
+      cleanPath === '/firebase-blueprint.json'
+    ) {
+      res.status(404).end();
+      return;
+    }
+    next();
+  });
+
+  // Dynamic robots.txt, sitemap.xml & Google Search Console verification file routes
+  app.get('/robots.txt', (req: Request, res: Response) => {
+    const seo = readStoredSeoConfig();
+    const origin = resolvePublicOrigin(req, seo);
+    res.type('text/plain; charset=utf-8').send(
+      `User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${origin}/sitemap.xml\n`,
+    );
+  });
+
+  app.get('/sitemap.xml', async (req: Request, res: Response) => {
+    const seo = readStoredSeoConfig();
+    const origin = resolvePublicOrigin(req, seo);
+    const todayIso = new Date().toISOString().slice(0, 10);
+
+    const staticUrls: Array<{
+      loc: string;
+      changefreq: string;
+      priority: string;
+      lastmod?: string;
+    }> = [
+      {loc: `${origin}/`, changefreq: 'daily', priority: '1.0', lastmod: todayIso},
+      {loc: `${origin}/library`, changefreq: 'daily', priority: '0.9', lastmod: todayIso},
+      ...SITEMAP_CATEGORY_IDS.map((catId) => ({
+        loc: `${origin}/library?category=${encodeURIComponent(catId)}`,
+        changefreq: 'weekly',
+        priority: '0.8',
+      })),
+      {loc: `${origin}/duas`, changefreq: 'weekly', priority: '0.8'},
+      {loc: `${origin}/videos`, changefreq: 'weekly', priority: '0.8'},
+      {loc: `${origin}/articles`, changefreq: 'weekly', priority: '0.8'},
+      {loc: `${origin}/publishing`, changefreq: 'monthly', priority: '0.6'},
+      {loc: `${origin}/about`, changefreq: 'monthly', priority: '0.6'},
+      {loc: `${origin}/contact`, changefreq: 'monthly', priority: '0.5'},
+    ];
+
+    const bookEntries = await fetchPublishedBookSitemapEntries();
+    for (const book of bookEntries) {
+      staticUrls.push({
+        loc: `${origin}/library?book=${encodeURIComponent(book.id)}`,
+        changefreq: 'monthly',
+        priority: '0.7',
+        lastmod: book.lastmod,
+      });
+    }
+
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
+      staticUrls
+        .map(
+          (item) =>
+            `  <url>\n` +
+            `    <loc>${escapeXml(item.loc)}</loc>\n` +
+            (item.lastmod ? `    <lastmod>${escapeXml(item.lastmod)}</lastmod>\n` : '') +
+            `    <changefreq>${item.changefreq}</changefreq>\n` +
+            `    <priority>${item.priority}</priority>\n` +
+            `  </url>`,
+        )
+        .join('\n') +
+      `\n</urlset>\n`;
+
+    res
+      .header('Cache-Control', 'public, max-age=300')
+      .type('application/xml; charset=utf-8')
+      .send(xml);
+  });
+
+  app.get(/^\/(google[a-f0-9]{10,40}\.html)$/i, (req: Request, res: Response, next: NextFunction) => {
+    const requestedFile = req.params[0] || '';
+    const seo = readStoredSeoConfig();
+    if (
+      seo.googleVerificationHtmlFilename &&
+      seo.googleVerificationHtmlFilename.toLowerCase() === requestedFile.toLowerCase()
+    ) {
+      res
+        .type('text/html; charset=utf-8')
+        .send(`google-site-verification: ${seo.googleVerificationHtmlFilename}`);
+      return;
+    }
+    next();
+  });
+
+  app.get(
+    '/api/seo/config',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await verifyAdminRequest(req);
+        res.json(readStoredSeoConfig());
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  app.post(
+    '/api/seo/config',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await verifyAdminRequest(req);
+        const current = readStoredSeoConfig();
+        const nextOrigin =
+          typeof req.body?.canonicalOrigin === 'string'
+            ? sanitizeCanonicalOrigin(req.body.canonicalOrigin)
+            : current.canonicalOrigin;
+        const nextMetaToken =
+          typeof req.body?.googleSiteVerificationToken === 'string'
+            ? sanitizeGoogleMetaToken(req.body.googleSiteVerificationToken)
+            : current.googleSiteVerificationToken;
+        const nextHtmlFilename =
+          typeof req.body?.googleVerificationHtmlFilename === 'string'
+            ? sanitizeGoogleHtmlFilename(req.body.googleVerificationHtmlFilename)
+            : current.googleVerificationHtmlFilename;
+
+        const updated: StoredSeoConfig = {
+          canonicalOrigin: nextOrigin,
+          googleSiteVerificationToken: nextMetaToken,
+          googleVerificationHtmlFilename: nextHtmlFilename,
+        };
+        writeStoredSeoConfig(updated);
+        res.json(updated);
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  app.get(
+    '/api/telegram/config',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await verifyAdminRequest(req);
+        const stored = readStoredTelegramConfig();
+        const {token, source} = resolveBotToken(stored);
+
+        let botUsername = stored.botUsername;
+        let botFirstName = stored.botFirstName;
+        if (token && !botUsername) {
+          const me = await callTelegramApi<{
+            username?: string;
+            first_name?: string;
+          }>(token, 'getMe').catch(() => null);
+          if (me) {
+            botUsername = me.username || '';
+            botFirstName = me.first_name || '';
+          }
+        }
+
+        res.json({
+          tokenConfigured: Boolean(token),
+          tokenSource: source,
+          maskedToken: maskToken(token),
+          botUsername,
+          botFirstName,
+          allowedChatIds: stored.allowedChatIds,
+          autoSyncToWebsite: stored.autoSyncToWebsite,
+          defaultCategoryId: stored.defaultCategoryId,
+          lastUpdateId: stored.lastUpdateId,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  app.post(
+    '/api/telegram/config',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await verifyAdminRequest(req);
+        const stored = readStoredTelegramConfig();
+        const submittedToken =
+          typeof req.body?.botToken === 'string'
+            ? req.body.botToken.trim()
+            : '';
+        const {token: existingToken} = resolveBotToken(stored);
+        const effectiveToken = submittedToken || existingToken;
+
+        if (!effectiveToken) {
+          throw Object.assign(
+            new Error(
+              'Telegram Bot Token ကို ဖြည့်သွင်းပါ (ဥပမာ - @BotFather မှ ရရှိသော Token)။',
+            ),
+            {statusCode: 400},
+          );
+        }
+
+        if (!/^\d{6,}:[a-zA-Z0-9_-]{20,}$/.test(effectiveToken)) {
+          throw Object.assign(
+            new Error('Telegram Bot Token ပုံစံ မမှန်ကန်ပါ။'),
+            {statusCode: 400},
+          );
+        }
+
+        const me = await callTelegramApi<{
+          username?: string;
+          first_name?: string;
+        }>(effectiveToken, 'getMe');
+
+        // Ensure long polling / getUpdates works seamlessly
+        await callTelegramApi(effectiveToken, 'deleteWebhook', {
+          drop_pending_updates: false,
+        }).catch(() => {});
+
+        const nextConfig: StoredTelegramConfig = {
+          botToken: submittedToken ? effectiveToken : stored.botToken,
+          botUsername: me.username || '',
+          botFirstName: me.first_name || '',
+          allowedChatIds:
+            typeof req.body?.allowedChatIds === 'string'
+              ? req.body.allowedChatIds.trim().slice(0, 500)
+              : stored.allowedChatIds,
+          autoSyncToWebsite:
+            typeof req.body?.autoSyncToWebsite === 'boolean'
+              ? req.body.autoSyncToWebsite
+              : stored.autoSyncToWebsite,
+          defaultCategoryId:
+            typeof req.body?.defaultCategoryId === 'string' &&
+            req.body.defaultCategoryId.trim()
+              ? req.body.defaultCategoryId.trim().slice(0, 60)
+              : stored.defaultCategoryId,
+          lastUpdateId:
+            typeof req.body?.lastUpdateId === 'number' &&
+            req.body.lastUpdateId >= 0
+              ? Math.floor(req.body.lastUpdateId)
+              : stored.lastUpdateId,
+        };
+
+        writeStoredTelegramConfig(nextConfig);
+        const {token: activeToken, source} = resolveBotToken(nextConfig);
+
+        res.json({
+          tokenConfigured: Boolean(activeToken),
+          tokenSource: source,
+          maskedToken: maskToken(activeToken),
+          botUsername: nextConfig.botUsername,
+          botFirstName: nextConfig.botFirstName,
+          allowedChatIds: nextConfig.allowedChatIds,
+          autoSyncToWebsite: nextConfig.autoSyncToWebsite,
+          defaultCategoryId: nextConfig.defaultCategoryId,
+          lastUpdateId: nextConfig.lastUpdateId,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  app.post(
+    '/api/telegram/disconnect',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await verifyAdminRequest(req);
+        if (fs.existsSync(TELEGRAM_CONFIG_PATH)) {
+          fs.unlinkSync(TELEGRAM_CONFIG_PATH);
+        }
+        res.json({ok: true});
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  app.post(
+    '/api/telegram/check-chats',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        await verifyAdminRequest(req);
+        const stored = readStoredTelegramConfig();
+        const {token} = resolveBotToken(stored);
+        if (!token) {
+          throw Object.assign(
+            new Error('Telegram Bot ချိတ်ဆက်ထားခြင်း မရှိသေးပါ။'),
+            {statusCode: 400},
+          );
+        }
+
+        const updates = await fetchTelegramUpdatesSafe(
+          token,
+          stored.lastUpdateId > 0 ? stored.lastUpdateId + 1 : undefined,
+        );
+
+        const chatMap = new Map<
+          string,
+          {
+            chatId: string;
+            title: string;
+            type: string;
+            username: string;
+            pendingPdfCount: number;
+          }
+        >();
+        let pendingPdfCount = 0;
+
+        for (const u of updates) {
+          const msg = u.message || u.channel_post;
+          if (!msg?.chat?.id) continue;
+          const chatId = String(msg.chat.id);
+          const isPdf = Boolean(
+            msg.document &&
+              (msg.document.mime_type === 'application/pdf' ||
+                msg.document.file_name?.toLowerCase().endsWith('.pdf')),
+          );
+          if (isPdf) pendingPdfCount += 1;
+
+          const existing = chatMap.get(chatId);
+          if (existing) {
+            if (isPdf) existing.pendingPdfCount += 1;
+          } else {
+            chatMap.set(chatId, {
+              chatId,
+              title:
+                msg.chat.title ||
+                msg.chat.first_name ||
+                msg.from?.first_name ||
+                `Chat ${chatId}`,
+              type: msg.chat.type || 'private',
+              username: msg.chat.username || msg.from?.username || '',
+              pendingPdfCount: isPdf ? 1 : 0,
+            });
+          }
+        }
+
+        res.json({
+          chats: Array.from(chatMap.values()),
+          pendingPdfCount,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  app.post(
+    '/api/telegram/sync-to-drive',
+    async (req: Request, res: Response, next: NextFunction) => {
+      if (telegramSyncInFlight) {
+        res.status(409).json({
+          error: 'Telegram Sync လုပ်ဆောင်နေဆဲ ဖြစ်ပါသည်။ ခေတ္တစောင့်ပါ။',
+        });
+        return;
+      }
+
+      telegramSyncInFlight = true;
+      try {
+        await verifyAdminRequest(req);
+        const driveToken = String(req.headers['x-drive-token'] || '').trim();
+        if (!driveToken) {
+          throw Object.assign(
+            new Error('Google Drive access token missing.'),
+            {statusCode: 401},
+          );
+        }
+
+        const stored = readStoredTelegramConfig();
+        const {token: botToken} = resolveBotToken(stored);
+        if (!botToken) {
+          throw Object.assign(
+            new Error('Telegram Bot Token ချိတ်ဆက်သတ်မှတ်ထားခြင်း မရှိသေးပါ။'),
+            {statusCode: 400},
+          );
+        }
+
+        const folderId =
+          typeof req.body?.folderId === 'string' &&
+          /^[a-zA-Z0-9_-]{5,200}$/.test(req.body.folderId.trim())
+            ? req.body.folderId.trim()
+            : undefined;
+
+        const allowedSet = new Set(
+          stored.allowedChatIds
+            .split(/[,\s]+/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
+
+        const updates = await fetchTelegramUpdatesSafe(
+          botToken,
+          stored.lastUpdateId > 0 ? stored.lastUpdateId + 1 : undefined,
+        );
+
+        const uploadedBooks: Array<{
+          driveFileId: string;
+          fileName: string;
+          fileSize: string;
+          title: string;
+          telegramMessageId: number;
+          chatId: string;
+          chatTitle: string;
+        }> = [];
+        const errors: string[] = [];
+        let skippedCount = 0;
+        let maxUpdateId = stored.lastUpdateId;
+
+        for (const u of updates) {
+          if (u.update_id > maxUpdateId) maxUpdateId = u.update_id;
+          const msg = u.message || u.channel_post;
+          if (!msg?.chat?.id) {
+            skippedCount += 1;
+            continue;
+          }
+
+          const chatId = String(msg.chat.id);
+          if (allowedSet.size > 0 && !allowedSet.has(chatId)) {
+            skippedCount += 1;
+            continue;
+          }
+
+          const doc = msg.document;
+          const isPdf = Boolean(
+            doc?.file_id &&
+              (doc.mime_type === 'application/pdf' ||
+                doc.file_name?.toLowerCase().endsWith('.pdf')),
+          );
+          if (!isPdf || !doc?.file_id) {
+            skippedCount += 1;
+            continue;
+          }
+
+          const rawCaption = (msg.caption || '').split(/\r?\n/)[0]?.trim() || '';
+          const rawFileName =
+            doc.file_name?.trim() || `Telegram_Book_${u.update_id}.pdf`;
+          const displayTitle = (
+            rawCaption || rawFileName.replace(/\.pdf$/i, '')
+          ).slice(0, 240);
+          const safeDriveFileName = sanitizePdfFilename(
+            rawCaption || rawFileName,
+          );
+
+          try {
+            if (doc.file_size && doc.file_size > MAX_PDF_BYTES) {
+              throw new Error(`${displayTitle}: ဖိုင်အရွယ်အစား 50 MB ထက် ကျော်လွန်နေပါသည်။`);
+            }
+
+            const fileMeta = await callTelegramApi<{
+              file_path?: string;
+              file_size?: number;
+            }>(botToken, 'getFile', {file_id: doc.file_id});
+
+            if (!fileMeta.file_path) {
+              throw new Error(`${displayTitle}: Telegram ဖိုင်လမ်းကြောင်း ရယူ၍ မရပါ။`);
+            }
+
+            const fileUrl = `https://api.telegram.org/file/bot${botToken}/${fileMeta.file_path}`;
+            const fileRes = await fetch(fileUrl, {
+              signal: AbortSignal.timeout(45_000),
+            });
+            if (!fileRes.ok) {
+              throw new Error(
+                `${displayTitle}: Telegram မှ PDF ဒေါင်းလုဒ် မအောင်မြင်ပါ (${fileRes.status})`,
+              );
+            }
+
+            const arrBuf = await fileRes.arrayBuffer();
+            if (arrBuf.byteLength > MAX_PDF_BYTES) {
+              throw new Error(`${displayTitle}: PDF အရွယ်အစား 50 MB ထက် ကျော်နေပါသည်။`);
+            }
+            const pdfBuf = Buffer.from(arrBuf);
+            if (!isPdfBuffer(pdfBuf)) {
+              throw new Error(`${displayTitle}: PDF ဖိုင်အစစ် မဟုတ်ပါ။`);
+            }
+
+            const uploaded = await uploadPdfBufferToDrive(
+              driveToken,
+              pdfBuf,
+              safeDriveFileName,
+              folderId,
+            );
+
+            uploadedBooks.push({
+              driveFileId: uploaded.id,
+              fileName: uploaded.name,
+              fileSize: uploaded.size,
+              title: displayTitle,
+              telegramMessageId: msg.message_id || u.update_id,
+              chatId,
+              chatTitle:
+                msg.chat.title || msg.chat.first_name || `Chat ${chatId}`,
+            });
+
+            // Send friendly confirmation reply back in Telegram (best-effort)
+            await callTelegramApi(botToken, 'sendMessage', {
+              chat_id: chatId,
+              text: `✅ "${displayTitle}" (${uploaded.size}) ကို Google Drive နှင့် Website စာကြည့်တိုက်ပေါ်သို့ တင်ပြီးပါပြီ။`,
+              reply_to_message_id: msg.message_id,
+            }).catch(() => {});
+          } catch (itemErr) {
+            const status =
+              typeof itemErr === 'object' &&
+              itemErr !== null &&
+              'statusCode' in itemErr &&
+              typeof (itemErr as {statusCode: unknown}).statusCode === 'number'
+                ? (itemErr as {statusCode: number}).statusCode
+                : 0;
+            if (status === 401) {
+              throw itemErr;
+            }
+            errors.push(
+              itemErr instanceof Error
+                ? itemErr.message
+                : `${displayTitle}: တင်သွင်းမှု မအောင်မြင်ပါ။`,
+            );
+          }
+        }
+
+        if (maxUpdateId > stored.lastUpdateId) {
+          writeStoredTelegramConfig({
+            ...stored,
+            lastUpdateId: maxUpdateId,
+          });
+        }
+
+        res.json({
+          uploadedBooks,
+          skippedCount,
+          errors,
+          lastUpdateId: maxUpdateId,
+        });
+      } catch (err) {
+        next(err);
+      } finally {
+        telegramSyncInFlight = false;
+      }
+    },
+  );
 
   app.post(
     '/api/import/catalog',
@@ -711,7 +1861,35 @@ async function startServer() {
           maxBytes: MAX_HTML_BYTES,
         });
         const html = fetched.buffer.toString('utf-8');
-        const items = extractBlogspotCatalogItems(html, fetched.finalUrl);
+        let items = extractBlogspotCatalogItems(html, fetched.finalUrl);
+
+        let parsedFinal: URL | null = null;
+        try {
+          parsedFinal = new URL(fetched.finalUrl);
+        } catch {
+          parsedFinal = null;
+        }
+        const isLabelOrIndexPath = Boolean(
+          parsedFinal &&
+            (parsedFinal.pathname.startsWith('/search') ||
+              parsedFinal.pathname === '/'),
+        );
+
+        // For label/search/home pages or when HTML parsing yields empty, read clean entries from Blogger JSON feed
+        if (isLabelOrIndexPath || items.length === 0) {
+          const isSinglePostUrl = Boolean(
+            parsedFinal &&
+              /\/\d{4}\/\d{2}\/[^/?#]+\.html$/i.test(parsedFinal.pathname),
+          );
+          if (!isSinglePostUrl) {
+            const feedItems = await tryFetchBloggerFeedCatalogItems(
+              fetched.finalUrl,
+            );
+            if (feedItems.length > 0) {
+              items = feedItems;
+            }
+          }
+        }
 
         res.json({
           sourceUrl: fetched.finalUrl,
@@ -766,8 +1944,46 @@ async function startServer() {
           fallbackTitle || resources.postTitle || 'Islamic Book';
         const uploadFileName = sanitizePdfFilename(resolvedTitle);
 
+        const driveIdSet = new Set(resources.driveFileIds);
+        const mediafireSet = new Set(resources.mediafireUrls);
+        const directPdfSet = new Set(resources.directPdfUrls);
+
+        // Expand shortened links (bit.ly, goo.gl, tinyurl, etc.) via SSRF-checked redirect resolution
+        if (resources.shortUrls.length > 0) {
+          const resolvedTargets = await Promise.all(
+            resources.shortUrls.slice(0, 8).map((s) => resolveShortLinkUrl(s)),
+          );
+          for (const target of resolvedTargets) {
+            if (!target) continue;
+            const driveMatch = target.match(DRIVE_FILE_ID_REGEX);
+            if (driveMatch?.[1]) {
+              driveIdSet.add(driveMatch[1]);
+              continue;
+            }
+            try {
+              const targetUrl = new URL(target);
+              if (isAllowedMediaFireHost(targetUrl.hostname)) {
+                mediafireSet.add(
+                  target
+                    .replace(/^http:\/\//i, 'https://')
+                    .replace(/mediafire\.com\/view\//i, 'mediafire.com/file/'),
+                );
+                continue;
+              }
+              if (
+                /\.pdf(?:\?[^#\s]*)?$/i.test(targetUrl.pathname) &&
+                isAllowedPdfFetchHost(targetUrl.hostname)
+              ) {
+                directPdfSet.add(target);
+              }
+            } catch {
+              // ignore invalid redirect targets
+            }
+          }
+        }
+
         // 1. Try direct server-side Google Drive copy first
-        for (const driveId of resources.driveFileIds) {
+        for (const driveId of driveIdSet) {
           const copied = await tryCopyDrivePdf(
             driveToken,
             driveId,
@@ -787,7 +2003,7 @@ async function startServer() {
         }
 
         // 2. Fallback to MediaFire direct PDF mirror -> upload straight into user's Drive
-        for (const mfUrl of resources.mediafireUrls) {
+        for (const mfUrl of mediafireSet) {
           const mfPdf = await resolveMediaFirePdfBuffer(mfUrl).catch(
             () => null,
           );
@@ -810,7 +2026,7 @@ async function startServer() {
         }
 
         // 3. Fallback to any direct .pdf link on allowlisted hosts
-        for (const pdfUrl of resources.directPdfUrls) {
+        for (const pdfUrl of directPdfSet) {
           const pdfFetch = await safeFetchExternal(
             pdfUrl,
             isAllowedPdfFetchHost,
@@ -873,22 +2089,33 @@ async function startServer() {
     (process.env.npm_lifecycle_event === 'start' &&
       fs.existsSync(path.join(distDir, 'index.html')));
 
+  const listenPort = resolveListenPort(useStaticProd);
+
   if (!useStaticProd) {
     const {createServer: createViteServer} = await import('vite');
     const vite = await createViteServer({
-      server: {middlewareMode: true},
+      server: {middlewareMode: true, hmr: false},
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(distDir));
+    app.use(express.static(distDir, {index: false}));
     app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(distDir, 'index.html'));
+      const seo = readStoredSeoConfig();
+      const indexPath = path.join(distDir, 'index.html');
+      if (seo.googleSiteVerificationToken && fs.existsSync(indexPath)) {
+        const html = fs.readFileSync(indexPath, 'utf-8');
+        res
+          .type('text/html; charset=utf-8')
+          .send(injectGoogleVerificationMeta(html, seo.googleSiteVerificationToken));
+        return;
+      }
+      res.sendFile(indexPath);
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server listening on http://0.0.0.0:${PORT}`);
+  app.listen(listenPort, '0.0.0.0', () => {
+    console.log(`Server listening on http://0.0.0.0:${listenPort}`);
   });
 }
 

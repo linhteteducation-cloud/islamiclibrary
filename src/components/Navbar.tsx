@@ -39,37 +39,32 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#E2E8E4]">
-      <div className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4 lg:gap-8">
+    <header className="sticky top-0 z-40 bg-[#0D1830]/98 backdrop-blur-md border-b border-[#1D2F57]">
+      {/* Subtle 5-color editorial hairline inspired by the curatorial spectrum */}
+      <div aria-hidden="true" className="h-[3px] w-full grid grid-cols-5">
+        <span className="bg-[#1D4ED8]" />
+        <span className="bg-[#E06D2B]" />
+        <span className="bg-[#DDA0BD]" />
+        <span className="bg-[#7D8C3F]" />
+        <span className="bg-[#A64B3E]" />
+      </div>
+
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4 lg:gap-8">
         {/* Zone 1: Brand wordmark */}
         <button
           type="button"
           onClick={() => handleSelect('home')}
-          className="flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#146B3A] rounded-md py-1"
+          className="flex items-center gap-2.5 text-left whitespace-nowrap shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD] rounded-sm py-1"
         >
-          <span className="w-8 h-8 rounded-lg bg-[#146B3A] text-[#F2D675] flex items-center justify-center shrink-0">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="w-5 h-5"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              aria-hidden="true"
-            >
-              <path d="M12 3c2.5 2.5 5 4.2 5 7.5a5 5 0 0 1-10 0C7 7.2 9.5 5.5 12 3Z" />
-              <path d="M4 20h16" />
-              <path d="M6 20v-6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6" />
-            </svg>
-          </span>
-          <span className="font-serif text-base sm:text-lg font-bold tracking-tight text-[#115E34]">
+          <span className="font-serif text-lg sm:text-xl font-bold tracking-tight text-white">
             Myanmar Muslim Library
           </span>
         </button>
 
-        {/* Zone 2: Desktop concise navigation links */}
+        {/* Zone 2: Desktop concise single-line navigation links */}
         <nav
           aria-label="Primary Navigation"
-          className="hidden lg:flex items-center gap-6 text-[13.5px] font-medium text-[#46544B]"
+          className="hidden lg:flex items-center gap-7 text-[13.5px] font-medium text-[#CBD5E1]"
         >
           {visibleDesktopLinks.map((item) => {
             const isActive = currentPage === item.id;
@@ -78,17 +73,17 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
                 key={item.id}
                 type="button"
                 onClick={() => handleSelect(item.id)}
-                className={`relative py-2 whitespace-nowrap shrink-0 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#146B3A] rounded-sm ${
+                className={`relative py-2 whitespace-nowrap shrink-0 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD] rounded-sm ${
                   isActive
-                    ? 'text-[#115E34] font-semibold'
-                    : 'hover:text-[#115E34]'
+                    ? 'text-white font-semibold'
+                    : 'hover:text-white'
                 }`}
               >
                 {item.label}
                 {isActive && (
                   <span
                     aria-hidden="true"
-                    className="absolute inset-x-0 -bottom-[1px] h-0.5 bg-[#146B3A] rounded-full"
+                    className="absolute inset-x-0 -bottom-[1px] h-[2px] bg-[#60A5FA]"
                   />
                 )}
               </button>
@@ -101,10 +96,10 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
           <button
             type="button"
             onClick={() => handleSelect('admin')}
-            className={`hidden lg:inline-flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-semibold rounded-lg whitespace-nowrap shrink-0 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#146B3A] ${
+            className={`hidden lg:inline-flex items-center justify-center gap-1.5 min-h-[40px] px-4 py-2 text-[13px] font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD] ${
               currentPage === 'admin'
-                ? 'bg-[#C59B27] text-white'
-                : 'bg-[#146B3A] text-white hover:bg-[#0F522D]'
+                ? 'bg-[#B85338] text-white'
+                : 'bg-[#1D4ED8] text-white hover:bg-[#1E40AF]'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
@@ -116,7 +111,7 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-expanded={mobileOpen}
             aria-label={mobileOpen ? 'မီနူးပိတ်ရန်' : 'မီနူးဖွင့်ရန်'}
-            className="lg:hidden inline-flex items-center justify-center w-11 h-11 rounded-lg text-[#1A241E] hover:bg-[#EBF4EE] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#146B3A]"
+            className="lg:hidden inline-flex items-center justify-center w-11 h-11 rounded-md text-[#E2E8F0] hover:bg-white/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
           >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -125,10 +120,10 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
 
       {/* Mobile Navigation Drawer */}
       {mobileOpen && (
-        <div className="lg:hidden border-t border-[#E2E8E4] bg-white shadow-lg">
+        <div className="lg:hidden border-t border-[#1D2F57] bg-[#0D1830] shadow-xl">
           <nav
             aria-label="Mobile Navigation"
-            className="max-w-[1320px] mx-auto px-4 py-3 grid grid-cols-1 gap-1"
+            className="max-w-[1280px] mx-auto px-4 py-3 grid grid-cols-1 gap-1"
           >
             {visibleMobileLinks.map((item) => {
               const isActive = currentPage === item.id;
@@ -137,15 +132,15 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
                   key={item.id}
                   type="button"
                   onClick={() => handleSelect(item.id)}
-                  className={`w-full text-left px-3.5 min-h-[44px] rounded-lg text-sm font-medium flex items-center justify-between transition-colors ${
+                  className={`w-full text-left px-3.5 min-h-[44px] rounded-md text-sm font-medium flex items-center justify-between transition-colors ${
                     isActive
-                      ? 'bg-[#146B3A] text-white font-semibold'
-                      : 'text-[#2D3B33] hover:bg-[#EBF4EE] hover:text-[#115E34]'
+                      ? 'bg-[#1D4ED8] text-white font-semibold'
+                      : 'text-[#E2E8F0] hover:bg-white/8 hover:text-white'
                   }`}
                 >
                   <span>{item.label}</span>
                   {isActive && (
-                    <span className="text-xs opacity-90">လက်ရှိ</span>
+                    <span className="text-xs text-[#DBEAFE]">လက်ရှိ</span>
                   )}
                 </button>
               );
@@ -154,10 +149,10 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
             <button
               type="button"
               onClick={() => handleSelect('admin')}
-              className={`w-full text-left px-3.5 min-h-[44px] rounded-lg text-sm font-semibold flex items-center gap-2 mt-1 border-t border-[#EDF1EE] pt-2 transition-colors ${
+              className={`w-full text-left px-3.5 min-h-[44px] rounded-md text-sm font-semibold flex items-center gap-2 mt-1 border-t border-[#1D2F57] pt-2.5 transition-colors ${
                 currentPage === 'admin'
-                  ? 'bg-[#C59B27] text-white'
-                  : 'text-[#115E34] hover:bg-[#EBF4EE]'
+                  ? 'bg-[#B85338] text-white'
+                  : 'text-[#93C5FD] hover:bg-white/8 hover:text-white'
               }`}
             >
               <Shield className="w-4 h-4" />

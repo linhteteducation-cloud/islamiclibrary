@@ -1,4 +1,4 @@
-import {initializeApp} from 'firebase/app';
+import {getApps, initializeApp} from 'firebase/app';
 import {
   GoogleAuthProvider,
   User,
@@ -12,11 +12,28 @@ import {
   getDoc,
   getDocFromServer,
   getFirestore,
+  initializeFirestore,
+  type Firestore,
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
+
+function createFirestoreClient(): Firestore {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        experimentalForceLongPolling: true,
+      },
+      firebaseConfig.firestoreDatabaseId,
+    );
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+}
+
+export const db = createFirestoreClient();
 export const auth = getAuth(app);
 
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'linhteteducation@gmail.com';
@@ -140,14 +157,21 @@ export async function signOutAdmin(): Promise<void> {
 
 export async function checkIsAdminUser(user: User | null): Promise<boolean> {
   if (!user || !user.emailVerified) return false;
+  const normalizedEmail = (user.email || '').trim().toLowerCase();
   if (
-    user.email === BOOTSTRAPPED_ADMIN_EMAIL ||
-    user.email === SECOND_BOOTSTRAPPED_ADMIN_EMAIL
-  )
+    normalizedEmail === BOOTSTRAPPED_ADMIN_EMAIL ||
+    normalizedEmail === SECOND_BOOTSTRAPPED_ADMIN_EMAIL
+  ) {
     return true;
+  }
   try {
     const adminSnap = await getDoc(doc(db, 'admins', user.uid));
-    return adminSnap.exists();
+    if (adminSnap.exists()) return true;
+    if (normalizedEmail) {
+      const inviteSnap = await getDoc(doc(db, 'adminInvites', normalizedEmail));
+      if (inviteSnap.exists()) return true;
+    }
+    return false;
   } catch {
     return false;
   }

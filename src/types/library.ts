@@ -132,3 +132,23 @@ export interface DriveFileSummary {
   webContentLink?: string;
   modifiedTime?: string;
 }
+
+export interface AdminInviteItem {
+  id: string; // lowercase email
+  email: string;
+  roleLabel: string;
+  addedByUid: string;
+  addedByEmail: string;
+  createdAtLabel?: string;
+}
+
+export interface TelegramSettings {
+  connected: boolean;
+  botUsername: string;
+  botFirstName: string;
+  allowedChatIds: string;
+  autoSyncToWebsite: boolean;
+  defaultCategoryId: 'auto' | BookCategoryId;
+  lastUpdateId: number;
+}
+

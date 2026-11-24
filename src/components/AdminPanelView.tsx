@@ -3,8 +3,10 @@ import {User} from 'firebase/auth';
 import {
   AlertTriangle,
   BookPlus,
+  Bot,
   Check,
   CheckCircle2,
+  Copy,
   Edit3,
   ExternalLink,
   Eye,
@@ -21,11 +23,15 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Send,
+  Settings,
   Shield,
   Sliders,
+  Sparkles,
   StopCircle,
   Trash2,
   Upload,
+  UserPlus,
   XCircle,
 } from 'lucide-react';
 import {
@@ -34,18 +40,29 @@ import {
   MANAGEABLE_SECTIONS,
 } from '../data/libraryData';
 import {
+  BOOTSTRAPPED_ADMIN_EMAIL,
+  SECOND_BOOTSTRAPPED_ADMIN_EMAIL,
+} from '../lib/firebase';
+import {findDuplicateBooks, normalizeBookTitle} from '../lib/bookDedupe';
+import {
+  appointAdminByEmail,
   createArticleRecord,
   createBookRecord,
   createDuaRecord,
   createVideoRecord,
+  DEFAULT_TELEGRAM_SETTINGS,
   deleteArticleRecord,
   deleteBookRecord,
   deleteContactMessage,
   deleteDuaRecord,
   deleteVideoRecord,
   markContactMessageRead,
+  revokeAdminInvite,
   saveSiteSettings,
+  saveTelegramSettings,
+  subscribeAdminInvites,
   subscribeContactMessages,
+  subscribeTelegramSettings,
   updateBookRecord,
 } from '../lib/firestoreService';
 import {
@@ -69,6 +86,16 @@ import {
   transferBlogspotBookToDrive,
 } from '../lib/blogspotImport';
 import {
+  checkTelegramChats,
+  disconnectTelegramBotConfig,
+  getTelegramConfigStatus,
+  saveTelegramBotConfig,
+  syncTelegramPdfsToDrive,
+  TelegramConfigStatus,
+  TelegramDiscoveredChat,
+} from '../lib/telegramIntegration';
+import {
+  AdminInviteItem,
   ArticleItem,
   BookCategoryId,
   BookItem,
@@ -77,6 +104,7 @@ import {
   DuaItem,
   MaterialType,
   SiteSettings,
+  TelegramSettings,
   VideoItem,
 } from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
@@ -95,10 +123,24 @@ interface AdminPanelViewProps {
   siteSettings: SiteSettings;
 }
 
-type AdminTab = 'books' | 'import' | 'visibility' | 'drive' | 'content' | 'messages';
+type AdminTab =
+  | 'books'
+  | 'import'
+  | 'visibility'
+  | 'drive'
+  | 'content'
+  | 'messages'
+  | 'settings';
 
 interface PendingDelete {
-  kind: 'book' | 'dua' | 'video' | 'article' | 'driveFile' | 'message';
+  kind:
+    | 'book'
+    | 'dua'
+    | 'video'
+    | 'article'
+    | 'driveFile'
+    | 'message'
+    | 'adminInvite';
   id: string;
   label: string;
   driveFileId?: string;
@@ -146,6 +188,28 @@ export function AdminPanelView({
   const [bookPublished, setBookPublished] = useState(true);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isSavingBook, setIsSavingBook] = useState(false);
+
+  // Dedicated Book Edit Modal state (opens immediately when clicking "ပြင်ရန်" next to any book)
+  const [bookListSearch, setBookListSearch] = useState('');
+  const [editModalBookId, setEditModalBookId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editAuthor, setEditAuthor] = useState('');
+  const [editCategoryId, setEditCategoryId] =
+    useState<BookCategoryId>('quran-tafsir');
+  const [editType, setEditType] =
+    useState<Exclude<MaterialType, 'All Types'>>('Book');
+  const [editHijriYear, setEditHijriYear] = useState('၁၄၄၇ ဟစ်ဂျရီ');
+  const [editPages, setEditPages] = useState<number>(0);
+  const [editFileSize, setEditFileSize] = useState('');
+  const [editSummary, setEditSummary] = useState('');
+  const [editDriveFileId, setEditDriveFileId] = useState('');
+  const [editCoverTheme, setEditCoverTheme] =
+    useState<BookItem['coverTheme']>('emerald');
+  const [editPublished, setEditPublished] = useState(true);
+  const [editModalError, setEditModalError] = useState<string | null>(null);
+  const [isSavingEditModal, setIsSavingEditModal] = useState(false);
+  const [isUploadingReplacementPdf, setIsUploadingReplacementPdf] =
+    useState(false);
 
   // Google Drive files list
   const [driveFiles, setDriveFiles] = useState<DriveFileSummary[]>([]);
@@ -240,6 +304,66 @@ export function AdminPanelView({
   // Contact messages
   const [messages, setMessages] = useState<ContactMessageItem[]>([]);
 
+  // Auto-dedupe state
+  const duplicateEntries = useMemo(() => findDuplicateBooks(books), [books]);
+  const [selectedDuplicateIds, setSelectedDuplicateIds] = useState<
+    Record<string, boolean>
+  >({});
+  const [dedupeDeleteDriveFiles, setDedupeDeleteDriveFiles] = useState(true);
+  const [isRemovingDuplicates, setIsRemovingDuplicates] = useState(false);
+
+  // Auto-select all detected duplicates whenever the duplicate list updates
+  useEffect(() => {
+    setSelectedDuplicateIds((prev) => {
+      const next: Record<string, boolean> = {};
+      for (const entry of duplicateEntries) {
+        next[entry.duplicate.id] =
+          entry.duplicate.id in prev ? prev[entry.duplicate.id] : true;
+      }
+      return next;
+    });
+  }, [duplicateEntries]);
+
+  // Admin management state
+  const [adminInvites, setAdminInvites] = useState<AdminInviteItem[]>([]);
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminRoleLabel, setNewAdminRoleLabel] = useState('Library Admin');
+  const [isAppointingAdmin, setIsAppointingAdmin] = useState(false);
+
+  // Telegram Bot permanent integration state
+  const [telegramSettings, setTelegramSettings] = useState<TelegramSettings>(
+    DEFAULT_TELEGRAM_SETTINGS,
+  );
+  const [telegramConfigStatus, setTelegramConfigStatus] =
+    useState<TelegramConfigStatus | null>(null);
+  const [telegramTokenInput, setTelegramTokenInput] = useState('');
+  const [telegramAllowedChatsInput, setTelegramAllowedChatsInput] =
+    useState('');
+  const [telegramDefaultCatInput, setTelegramDefaultCatInput] = useState<
+    'auto' | BookCategoryId
+  >('auto');
+  const [telegramAutoSyncInput, setTelegramAutoSyncInput] = useState(true);
+  const [isSavingTelegram, setIsSavingTelegram] = useState(false);
+  const [isCheckingTelegramChats, setIsCheckingTelegramChats] = useState(false);
+  const [discoveredTelegramChats, setDiscoveredTelegramChats] = useState<
+    TelegramDiscoveredChat[]
+  >([]);
+  const [telegramPendingCount, setTelegramPendingCount] = useState<
+    number | null
+  >(null);
+  const [isSyncingTelegramToDrive, setIsSyncingTelegramToDrive] =
+    useState(false);
+  const [telegramLiveAutoPoll, setTelegramLiveAutoPoll] = useState(false);
+  const [lastTelegramSyncResult, setLastTelegramSyncResult] = useState<{
+    uploadedCount: number;
+    publishedCount: number;
+    skippedCount: number;
+    errors: string[];
+    timestamp: string;
+  } | null>(null);
+  const telegramSyncLockRef = useRef(false);
+  const telegramHydratedRef = useRef(false);
+
   // Confirmation modal for destructive actions (MANDATORY per workspace-integration)
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(
     null,
@@ -256,11 +380,148 @@ export function AdminPanelView({
   useEffect(() => {
     if (!isAdmin) {
       setMessages([]);
+      setAdminInvites([]);
+      setTelegramSettings(DEFAULT_TELEGRAM_SETTINGS);
       return;
     }
-    const unsub = subscribeContactMessages(setMessages);
-    return () => unsub();
+    const unsubMsgs = subscribeContactMessages(setMessages);
+    const unsubInvites = subscribeAdminInvites(setAdminInvites);
+    const unsubTelegram = subscribeTelegramSettings((next) => {
+      setTelegramSettings(next);
+      if (!telegramHydratedRef.current) {
+        setTelegramAllowedChatsInput(next.allowedChatIds);
+        setTelegramDefaultCatInput(next.defaultCategoryId);
+        setTelegramAutoSyncInput(next.autoSyncToWebsite);
+      }
+    });
+    return () => {
+      unsubMsgs();
+      unsubInvites();
+      unsubTelegram();
+    };
   }, [isAdmin]);
+
+  const [seoCanonicalOriginInput, setSeoCanonicalOriginInput] = useState(
+    'https://islamiclibrary-three.vercel.app',
+  );
+  const [seoMetaTokenInput, setSeoMetaTokenInput] = useState('');
+  const [seoHtmlFilenameInput, setSeoHtmlFilenameInput] = useState('');
+  const [isSavingSeoConfig, setIsSavingSeoConfig] = useState(false);
+  const [copiedSeoKey, setCopiedSeoKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAdmin || !user) {
+      setTelegramConfigStatus(null);
+      telegramHydratedRef.current = false;
+      return;
+    }
+    let cancelled = false;
+    void getTelegramConfigStatus(user)
+      .then((status) => {
+        if (cancelled) return;
+        setTelegramConfigStatus(status);
+        telegramHydratedRef.current = true;
+        if (status.allowedChatIds) {
+          setTelegramAllowedChatsInput(status.allowedChatIds);
+        }
+        setTelegramDefaultCatInput(status.defaultCategoryId || 'auto');
+        setTelegramAutoSyncInput(status.autoSyncToWebsite);
+      })
+      .catch(() => {
+        // Ignore silent status check errors on mount
+      });
+
+    void user
+      .getIdToken()
+      .then((idToken) =>
+        fetch('/api/seo/config', {
+          headers: {Authorization: `Bearer ${idToken}`},
+        }),
+      )
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (
+          cfg: {
+            canonicalOrigin?: string;
+            googleSiteVerificationToken?: string;
+            googleVerificationHtmlFilename?: string;
+          } | null,
+        ) => {
+          if (cancelled || !cfg) return;
+          if (cfg.canonicalOrigin) setSeoCanonicalOriginInput(cfg.canonicalOrigin);
+          if (cfg.googleSiteVerificationToken) {
+            setSeoMetaTokenInput(cfg.googleSiteVerificationToken);
+          }
+          if (cfg.googleVerificationHtmlFilename) {
+            setSeoHtmlFilenameInput(cfg.googleVerificationHtmlFilename);
+          }
+        },
+      )
+      .catch(() => {
+        // Ignore silent SEO config fetch errors
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin, user]);
+
+  const handleSaveSeoConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setIsSavingSeoConfig(true);
+    setStatusBanner(null);
+    try {
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/seo/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
+          canonicalOrigin: seoCanonicalOriginInput.trim(),
+          googleSiteVerificationToken: seoMetaTokenInput.trim(),
+          googleVerificationHtmlFilename: seoHtmlFilenameInput.trim(),
+        }),
+      });
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        canonicalOrigin?: string;
+        googleSiteVerificationToken?: string;
+        googleVerificationHtmlFilename?: string;
+      };
+      if (!res.ok) {
+        throw new Error(payload.error || 'SEO အချက်အလက် သိမ်းဆည်းမှု မအောင်မြင်ပါ။');
+      }
+      setSeoCanonicalOriginInput(
+        payload.canonicalOrigin || seoCanonicalOriginInput,
+      );
+      setSeoMetaTokenInput(payload.googleSiteVerificationToken || '');
+      setSeoHtmlFilenameInput(payload.googleVerificationHtmlFilename || '');
+      showNotice(
+        'success',
+        'Google Search Console Verification နှင့် SEO အချက်အလက်များကို သိမ်းဆည်းပြီးပါပြီ။',
+      );
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error ? err.message : 'SEO အချက်အလက် သိမ်းဆည်းမှု မအောင်မြင်ပါ။',
+      );
+    } finally {
+      setIsSavingSeoConfig(false);
+    }
+  };
+
+  const handleCopySeoValue = async (key: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedSeoKey(key);
+      window.setTimeout(() => setCopiedSeoKey(null), 2000);
+    } catch {
+      // Ignore clipboard permission errors
+    }
+  };
 
   const showNotice = (type: 'success' | 'error', text: string) => {
     setStatusBanner({type, text});
@@ -306,14 +567,25 @@ export function AdminPanelView({
     syncInFlightRef.current = true;
     let addedCount = 0;
     try {
+      const existingTitles = new Set(
+        books.map((b) => normalizeBookTitle(b.title)).filter(Boolean),
+      );
+
       for (const file of files) {
         if (!file.id || !isValidDriveFileId(file.id)) continue;
         if (knownDriveIdsRef.current.has(file.id)) continue;
 
+        const inferred = inferBookMetadataFromFileName(file.name);
+        const normalizedKey = normalizeBookTitle(inferred.title);
+        if (normalizedKey && existingTitles.has(normalizedKey)) {
+          knownDriveIdsRef.current.add(file.id);
+          continue;
+        }
+
         knownDriveIdsRef.current.add(file.id);
+        if (normalizedKey) existingTitles.add(normalizedKey);
         await makeDriveFilePublicReadable(driveToken, file.id).catch(() => {});
 
-        const inferred = inferBookMetadataFromFileName(file.name);
         const catObj = BOOK_CATEGORIES.find((c) => c.id === inferred.categoryId);
         const urls = buildDriveUrls(file.id);
 
@@ -400,7 +672,7 @@ export function AdminPanelView({
     void refreshDriveFiles();
     const timer = window.setInterval(() => {
       void refreshDriveFiles({silent: true, scope: 'folder', autoSync: true});
-    }, 20000);
+    }, 5000);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, driveToken]);
@@ -597,7 +869,27 @@ export function AdminPanelView({
         return;
       }
 
-      const catObj = BOOK_CATEGORIES.find((c) => c.id === resolvedCategoryId);
+      const safeCategory =
+        BOOK_CATEGORIES.find((c) => c.id === resolvedCategoryId) ??
+        BOOK_CATEGORIES[0];
+      const safeType: Exclude<MaterialType, 'All Types'> = [
+        'Book',
+        'Periodical',
+        'Research',
+        'Dua',
+        'Timetable',
+      ].includes(bookType)
+        ? bookType
+        : 'Book';
+      const safeCoverTheme: BookItem['coverTheme'] = [
+        'emerald',
+        'gold',
+        'teal',
+        'burgundy',
+        'slate',
+      ].includes(bookCoverTheme)
+        ? bookCoverTheme
+        : 'emerald';
       const urls = buildDriveUrls(normalizedDriveId);
 
       if (driveToken) {
@@ -610,9 +902,9 @@ export function AdminPanelView({
         await updateBookRecord(editingBookId, {
           title: resolvedTitle,
           author: resolvedAuthor,
-          categoryId: resolvedCategoryId,
-          categoryLabel: catObj?.nameMy || '',
-          type: bookType,
+          categoryId: safeCategory.id,
+          categoryLabel: safeCategory.nameMy,
+          type: safeType,
           hijriYear: bookHijriYear,
           pages: bookPages,
           fileSize: resolvedFileSize || 'PDF',
@@ -620,7 +912,7 @@ export function AdminPanelView({
           driveFileId: normalizedDriveId,
           driveViewUrl: urls.driveViewUrl,
           driveDownloadUrl: urls.driveDownloadUrl,
-          coverTheme: bookCoverTheme,
+          coverTheme: safeCoverTheme,
           published: bookPublished,
         });
         showNotice('success', 'စာအုပ်အချက်အလက်ကို ပြင်ဆင်သိမ်းဆည်းပြီးပါပြီ။');
@@ -629,9 +921,9 @@ export function AdminPanelView({
         await createBookRecord(user.uid, {
           title: resolvedTitle,
           author: resolvedAuthor,
-          categoryId: resolvedCategoryId,
-          categoryLabel: catObj?.nameMy || '',
-          type: bookType,
+          categoryId: safeCategory.id,
+          categoryLabel: safeCategory.nameMy,
+          type: safeType,
           hijriYear: bookHijriYear,
           pages: bookPages,
           fileSize: resolvedFileSize || 'PDF',
@@ -639,7 +931,7 @@ export function AdminPanelView({
           driveFileId: normalizedDriveId,
           driveViewUrl: urls.driveViewUrl,
           driveDownloadUrl: urls.driveDownloadUrl,
-          coverTheme: bookCoverTheme,
+          coverTheme: safeCoverTheme,
           downloads: 0,
           published: bookPublished,
         });
@@ -650,29 +942,180 @@ export function AdminPanelView({
       }
       resetBookForm();
     } catch (err) {
-      showNotice(
-        'error',
-        err instanceof Error ? err.message : 'စာအုပ်သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
-      );
+      showNotice('error', formatReadableError(err, 'စာအုပ်သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။'));
     } finally {
       setIsSavingBook(false);
     }
   };
 
+  function formatReadableError(err: unknown, fallback: string): string {
+    const raw = err instanceof Error ? err.message : String(err || '');
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw) as {error?: string};
+      if (parsed && typeof parsed.error === 'string' && parsed.error) {
+        return parsed.error;
+      }
+    } catch {
+      // Raw text error
+    }
+    return raw;
+  }
+
   const handleEditBook = (book: BookItem) => {
-    setEditingBookId(book.id);
-    setBookTitle(book.title);
-    setBookAuthor(book.author);
-    setBookCategoryId(book.categoryId);
-    setBookType(book.type);
-    setBookHijriYear(book.hijriYear);
-    setBookPages(book.pages);
-    setBookFileSize(book.fileSize);
-    setBookSummary(book.summary);
-    setBookDriveFileId(book.driveFileId);
-    setBookCoverTheme(book.coverTheme);
-    setBookPublished(book.published);
-    window.scrollTo({top: 0, behavior: 'smooth'});
+    const validCat = BOOK_CATEGORIES.some((c) => c.id === book.categoryId)
+      ? book.categoryId
+      : 'quran-tafsir';
+    const validType: Exclude<MaterialType, 'All Types'> = [
+      'Book',
+      'Periodical',
+      'Research',
+      'Dua',
+      'Timetable',
+    ].includes(book.type)
+      ? book.type
+      : 'Book';
+    const validTheme: BookItem['coverTheme'] = [
+      'emerald',
+      'gold',
+      'teal',
+      'burgundy',
+      'slate',
+    ].includes(book.coverTheme)
+      ? book.coverTheme
+      : 'emerald';
+
+    setEditModalBookId(book.id);
+    setEditTitle(book.title || '');
+    setEditAuthor(book.author || '');
+    setEditCategoryId(validCat);
+    setEditType(validType);
+    setEditHijriYear(book.hijriYear || '၁၄၄၇ ဟစ်ဂျရီ');
+    setEditPages(Number.isFinite(book.pages) ? book.pages : 0);
+    setEditFileSize(book.fileSize || 'PDF');
+    setEditSummary(book.summary || '');
+    setEditDriveFileId(book.driveFileId || '');
+    setEditCoverTheme(validTheme);
+    setEditPublished(Boolean(book.published));
+    setEditModalError(null);
+  };
+
+  const handleReplacePdfInEditModal = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !user || !driveToken) return;
+    setEditModalError(null);
+    setIsUploadingReplacementPdf(true);
+    try {
+      const folder = await ensureLibraryDriveFolder(
+        driveToken,
+        siteSettings.driveFolderName || 'Myanmar Muslim Library PDFs',
+        siteSettings.driveFolderId,
+      );
+      const uploaded = await uploadPdfToGoogleDrive(
+        driveToken,
+        file,
+        folder.folderId,
+      );
+      setEditDriveFileId(uploaded.driveFileId);
+      setEditFileSize(uploaded.fileSize);
+      if (!editTitle.trim()) {
+        setEditTitle(inferBookMetadataFromFileName(uploaded.fileName).title);
+      }
+      await refreshDriveFiles({silent: true, autoSync: false});
+    } catch (err) {
+      setEditModalError(
+        formatReadableError(err, 'PDF အသစ် အစားထိုးတင်ရာတွင် အမှားဖြစ်ပေါ်ပါသည်။'),
+      );
+    } finally {
+      setIsUploadingReplacementPdf(false);
+    }
+  };
+
+  const handleSaveEditModal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editModalBookId) return;
+
+    const trimmedTitle = editTitle.trim();
+    if (!trimmedTitle) {
+      setEditModalError('စာအုပ်အမည် ဖြည့်သွင်းပါ။');
+      return;
+    }
+
+    const normalizedDriveId = extractDriveFileId(editDriveFileId);
+    if (!normalizedDriveId || !isValidDriveFileId(normalizedDriveId)) {
+      setEditModalError(
+        'Google Drive File ID သို့မဟုတ် Share Link ပုံစံ မမှန်ကန်ပါ။ (ဥပမာ - https://drive.google.com/file/d/.../view)',
+      );
+      return;
+    }
+
+    setIsSavingEditModal(true);
+    setEditModalError(null);
+    try {
+      const safeCat =
+        BOOK_CATEGORIES.find((c) => c.id === editCategoryId) ??
+        BOOK_CATEGORIES[0];
+      const safeType: Exclude<MaterialType, 'All Types'> = [
+        'Book',
+        'Periodical',
+        'Research',
+        'Dua',
+        'Timetable',
+      ].includes(editType)
+        ? editType
+        : 'Book';
+      const safeTheme: BookItem['coverTheme'] = [
+        'emerald',
+        'gold',
+        'teal',
+        'burgundy',
+        'slate',
+      ].includes(editCoverTheme)
+        ? editCoverTheme
+        : 'emerald';
+      const urls = buildDriveUrls(normalizedDriveId);
+
+      if (driveToken) {
+        await makeDriveFilePublicReadable(driveToken, normalizedDriveId).catch(
+          () => {},
+        );
+      }
+
+      await updateBookRecord(editModalBookId, {
+        title: trimmedTitle,
+        author: editAuthor.trim(),
+        categoryId: safeCat.id,
+        categoryLabel: safeCat.nameMy,
+        type: safeType,
+        hijriYear: editHijriYear.trim(),
+        pages: Math.max(0, Math.min(10000, Math.round(Number(editPages) || 0))),
+        fileSize: editFileSize.trim() || 'PDF',
+        summary: editSummary.trim(),
+        driveFileId: normalizedDriveId,
+        driveViewUrl: urls.driveViewUrl,
+        driveDownloadUrl: urls.driveDownloadUrl,
+        coverTheme: safeTheme,
+        published: editPublished,
+      });
+
+      setEditModalBookId(null);
+      showNotice(
+        'success',
+        `“${trimmedTitle}” စာအုပ်အချက်အလက်ကို ပြင်ဆင်သိမ်းဆည်းပြီးပါပြီ။`,
+      );
+    } catch (err) {
+      setEditModalError(
+        formatReadableError(
+          err,
+          'စာအုပ်အချက်အလက် ပြင်ဆင်သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+        ),
+      );
+    } finally {
+      setIsSavingEditModal(false);
+    }
   };
 
   const handleTogglePublish = async (book: BookItem) => {
@@ -753,6 +1196,12 @@ export function AdminPanelView({
       } else if (pendingDelete.kind === 'message') {
         await deleteContactMessage(pendingDelete.id);
         showNotice('success', 'မက်ဆေ့ချ်ကို ဖျက်လိုက်ပါပြီ။');
+      } else if (pendingDelete.kind === 'adminInvite') {
+        await revokeAdminInvite(pendingDelete.id);
+        showNotice(
+          'success',
+          `${pendingDelete.label} ကို Admin စာရင်းမှ ဖယ်ရှားပြီးပါပြီ။`,
+        );
       }
       setPendingDelete(null);
     } catch (err) {
@@ -765,6 +1214,383 @@ export function AdminPanelView({
     }
   };
 
+  const selectedDuplicatesList = useMemo(
+    () =>
+      duplicateEntries.filter(
+        (entry) => selectedDuplicateIds[entry.duplicate.id],
+      ),
+    [duplicateEntries, selectedDuplicateIds],
+  );
+
+  const handleRemoveSelectedDuplicates = async () => {
+    if (selectedDuplicatesList.length === 0) return;
+    setIsRemovingDuplicates(true);
+    setStatusBanner(null);
+    let removedCount = 0;
+    let driveRemovedCount = 0;
+    try {
+      for (const entry of selectedDuplicatesList) {
+        await deleteBookRecord(entry.duplicate.id);
+        removedCount += 1;
+
+        if (
+          dedupeDeleteDriveFiles &&
+          entry.canSafelyDeleteDriveFile &&
+          driveToken &&
+          entry.duplicate.driveFileId
+        ) {
+          const deleted = await deletePdfFromGoogleDrive(
+            driveToken,
+            entry.duplicate.driveFileId,
+          )
+            .then(() => true)
+            .catch(() => false);
+          if (deleted) driveRemovedCount += 1;
+        }
+      }
+
+      if (driveRemovedCount > 0 && driveToken) {
+        await refreshDriveFiles({silent: true, autoSync: false});
+      }
+
+      showNotice(
+        'success',
+        `ထပ်နေသော စာအုပ် ${removedCount} အုပ်ကို အလိုအလျောက် ဖယ်ရှားပြီးပါပြီ။${
+          driveRemovedCount > 0
+            ? ` (Google Drive ထဲမှ ထပ်နေသည့် PDF ${driveRemovedCount} ဖိုင်ကိုပါ ရှင်းလင်းပြီး)`
+            : ''
+        }`,
+      );
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'ထပ်နေသော စာအုပ်များ ဖယ်ရှားရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsRemovingDuplicates(false);
+    }
+  };
+
+  const handleAppointAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const targetEmail = newAdminEmail.trim().toLowerCase();
+    if (!targetEmail) return;
+    if (
+      targetEmail === BOOTSTRAPPED_ADMIN_EMAIL ||
+      targetEmail === SECOND_BOOTSTRAPPED_ADMIN_EMAIL
+    ) {
+      showNotice(
+        'error',
+        `${targetEmail} သည် မူလ Admin အဖြစ် ပါဝင်ပြီးသား ဖြစ်ပါသည်။`,
+      );
+      return;
+    }
+
+    setIsAppointingAdmin(true);
+    setStatusBanner(null);
+    try {
+      await appointAdminByEmail(
+        user.uid,
+        user.email || '',
+        targetEmail,
+        newAdminRoleLabel,
+      );
+      setNewAdminEmail('');
+      setNewAdminRoleLabel('Library Admin');
+      showNotice(
+        'success',
+        `${targetEmail} ကို Admin အဖြစ် ခန့်အပ်ပြီးပါပြီ။ ၎င်းအကောင့်ဖြင့် Google Sign-In ဝင်ရောက်ရုံဖြင့် Admin Panel ကို အသုံးပြုနိုင်ပါပြီ။`,
+      );
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'Admin ခန့်အပ်ရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsAppointingAdmin(false);
+    }
+  };
+
+  const handleSaveTelegramConfig = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!user) return;
+    setIsSavingTelegram(true);
+    setStatusBanner(null);
+    try {
+      const saved = await saveTelegramBotConfig(user, {
+        botToken: telegramTokenInput.trim() || undefined,
+        allowedChatIds: telegramAllowedChatsInput.trim(),
+        autoSyncToWebsite: telegramAutoSyncInput,
+        defaultCategoryId: telegramDefaultCatInput,
+        lastUpdateId: telegramSettings.lastUpdateId,
+      });
+
+      await saveTelegramSettings(user.uid, {
+        connected: saved.tokenConfigured,
+        botUsername: saved.botUsername,
+        botFirstName: saved.botFirstName,
+        allowedChatIds: saved.allowedChatIds,
+        autoSyncToWebsite: saved.autoSyncToWebsite,
+        defaultCategoryId: saved.defaultCategoryId,
+        lastUpdateId: saved.lastUpdateId,
+      });
+
+      setTelegramConfigStatus(saved);
+      setTelegramTokenInput('');
+      showNotice(
+        'success',
+        `Telegram Bot (@${saved.botUsername}) ကို ဝက်ဘ်ဆိုက်နှင့် အပြီးတိုင် ချိတ်ဆက်သိမ်းဆည်းပြီးပါပြီ။`,
+      );
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'Telegram Bot ချိတ်ဆက်သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsSavingTelegram(false);
+    }
+  };
+
+  const handleDisconnectTelegram = async () => {
+    if (!user) return;
+    setIsSavingTelegram(true);
+    setStatusBanner(null);
+    try {
+      setTelegramLiveAutoPoll(false);
+      await disconnectTelegramBotConfig(user);
+      await saveTelegramSettings(user.uid, DEFAULT_TELEGRAM_SETTINGS);
+      const refreshed = await getTelegramConfigStatus(user).catch(() => null);
+      setTelegramConfigStatus(refreshed);
+      setDiscoveredTelegramChats([]);
+      setTelegramPendingCount(null);
+      showNotice('success', 'Telegram Bot ချိတ်ဆက်မှုကို ဖြုတ်သိမ်းပြီးပါပြီ။');
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'Telegram Bot ချိတ်ဆက်မှု ဖြုတ်သိမ်း၍ မရပါ။',
+      );
+    } finally {
+      setIsSavingTelegram(false);
+    }
+  };
+
+  const handleCheckTelegramChats = async () => {
+    if (!user) return;
+    setIsCheckingTelegramChats(true);
+    setStatusBanner(null);
+    try {
+      const res = await checkTelegramChats(user);
+      setDiscoveredTelegramChats(res.chats);
+      setTelegramPendingCount(res.pendingPdfCount);
+      if (res.chats.length === 0) {
+        showNotice(
+          'success',
+          'Telegram Bot ထံသို့ မကြာသေးမီက ပို့ထားသော Chat/PDF မတွေ့သေးပါ။ Bot (သို့မဟုတ် Bot ပါသော Group/Channel) ထဲသို့ PDF ဖိုင် ၁ ဖိုင် စမ်းပို့ပြီး ထပ်မံစစ်ဆေးပါ။',
+        );
+      } else {
+        showNotice(
+          'success',
+          `Telegram Chat ${res.chats.length} ခုနှင့် Drive တင်ရန်အသင့် PDF ${res.pendingPdfCount} ဖိုင် တွေ့ရှိပါသည်။`,
+        );
+      }
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'Telegram Chat များ စစ်ဆေးရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsCheckingTelegramChats(false);
+    }
+  };
+
+  const handleSyncTelegramToDrive = async (options?: {silent?: boolean}) => {
+    if (!user || telegramSyncLockRef.current) return;
+    if (!driveToken) {
+      if (!options?.silent) {
+        showNotice(
+          'error',
+          'Telegram Bot မှ PDF များကို Google Drive ပေါ်တင်ရန် ဦးစွာ "Google Drive ချိတ်ဆက်ရန်" ခလုတ်ကို နှိပ်ပါ။',
+        );
+      }
+      return;
+    }
+
+    telegramSyncLockRef.current = true;
+    if (!options?.silent) {
+      setIsSyncingTelegramToDrive(true);
+      setStatusBanner(null);
+    }
+
+    try {
+      const folder = await ensureLibraryDriveFolder(
+        driveToken,
+        siteSettings.driveFolderName || 'Myanmar Muslim Library PDFs',
+        siteSettings.driveFolderId,
+      );
+      if (folder.folderId !== siteSettings.driveFolderId) {
+        await saveSiteSettings(user.uid, {
+          ...siteSettings,
+          driveFolderId: folder.folderId,
+          driveFolderName: folder.folderName,
+        });
+      }
+
+      const syncRes = await syncTelegramPdfsToDrive(
+        user,
+        driveToken,
+        folder.folderId,
+      );
+
+      await saveTelegramSettings(user.uid, {
+        connected: Boolean(telegramConfigStatus?.tokenConfigured),
+        botUsername:
+          telegramConfigStatus?.botUsername || telegramSettings.botUsername,
+        botFirstName:
+          telegramConfigStatus?.botFirstName || telegramSettings.botFirstName,
+        allowedChatIds: telegramAllowedChatsInput.trim(),
+        autoSyncToWebsite: telegramAutoSyncInput,
+        defaultCategoryId: telegramDefaultCatInput,
+        lastUpdateId: syncRes.lastUpdateId,
+      });
+
+      let publishedCount = 0;
+      if (telegramAutoSyncInput && syncRes.uploadedBooks.length > 0) {
+        const existingTitles = new Set(
+          books.map((b) => normalizeBookTitle(b.title)).filter(Boolean),
+        );
+
+        for (const uploaded of syncRes.uploadedBooks) {
+          const inferred = inferBookMetadataFromFileName(
+            uploaded.title || uploaded.fileName,
+          );
+          const resolvedTitle = uploaded.title || inferred.title;
+          const normalizedKey = normalizeBookTitle(resolvedTitle);
+
+          if (
+            knownDriveIdsRef.current.has(uploaded.driveFileId) ||
+            (normalizedKey && existingTitles.has(normalizedKey))
+          ) {
+            knownDriveIdsRef.current.add(uploaded.driveFileId);
+            continue;
+          }
+
+          knownDriveIdsRef.current.add(uploaded.driveFileId);
+          if (normalizedKey) existingTitles.add(normalizedKey);
+
+          const resolvedCategoryId =
+            telegramDefaultCatInput === 'auto'
+              ? inferred.categoryId
+              : telegramDefaultCatInput;
+          const catObj = BOOK_CATEGORIES.find(
+            (c) => c.id === resolvedCategoryId,
+          );
+          const urls = buildDriveUrls(uploaded.driveFileId);
+
+          await createBookRecord(user.uid, {
+            title: resolvedTitle,
+            author: inferred.author,
+            categoryId: resolvedCategoryId,
+            categoryLabel: catObj?.nameMy || 'ကုရ်အာန်နှင့် သဖ်စီးရ်',
+            type: 'Book',
+            hijriYear: '၁၄၄၇ ဟစ်ဂျရီ',
+            pages: 0,
+            fileSize: uploaded.fileSize || 'PDF',
+            summary: '',
+            driveFileId: uploaded.driveFileId,
+            driveViewUrl: urls.driveViewUrl,
+            driveDownloadUrl: urls.driveDownloadUrl,
+            coverTheme: 'emerald',
+            downloads: 0,
+            published: true,
+          });
+          publishedCount += 1;
+        }
+      }
+
+      if (syncRes.uploadedBooks.length > 0) {
+        // Trigger immediate fast Drive-to-Website verification sync
+        await refreshDriveFiles({
+          silent: true,
+          scope: 'folder',
+          autoSync: true,
+        });
+      }
+
+      setTelegramPendingCount(0);
+      setLastTelegramSyncResult({
+        uploadedCount: syncRes.uploadedBooks.length,
+        publishedCount,
+        skippedCount: syncRes.skippedCount,
+        errors: syncRes.errors,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+
+      if (syncRes.uploadedBooks.length > 0) {
+        showNotice(
+          'success',
+          `Telegram Bot မှ PDF ${syncRes.uploadedBooks.length} အုပ်ကို Google Drive ထဲသို့ တင်ပြီး ${
+            publishedCount > 0
+              ? `ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ ${publishedCount} အုပ် ချက်ချင်း Sync လုပ်တင်ပြပြီးပါပြီ။`
+              : 'Drive နှင့် ချိတ်ဆက်ပြီးပါပြီ။'
+          }`,
+        );
+      } else if (!options?.silent) {
+        showNotice(
+          'success',
+          syncRes.errors.length > 0
+            ? `Telegram စစ်ဆေးမှု ပြီးဆုံးပါသည်။ (သတိပြုရန်: ${syncRes.errors[0]})`
+            : 'Telegram Bot ထံတွင် Drive တင်ရန် PDF အသစ် မရှိသေးပါ။',
+        );
+      }
+    } catch (err) {
+      if (!options?.silent) {
+        handleDriveError(
+          err,
+          'Telegram Bot မှ Google Drive သို့ PDF တင်ရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+        );
+      }
+    } finally {
+      telegramSyncLockRef.current = false;
+      if (!options?.silent) {
+        setIsSyncingTelegramToDrive(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (
+      !telegramLiveAutoPoll ||
+      !isAdmin ||
+      !user ||
+      !driveToken ||
+      !telegramConfigStatus?.tokenConfigured
+    ) {
+      return;
+    }
+    const timer = window.setInterval(() => {
+      void handleSyncTelegramToDrive({silent: true});
+    }, 8000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    telegramLiveAutoPoll,
+    isAdmin,
+    user,
+    driveToken,
+    telegramConfigStatus?.tokenConfigured,
+  ]);
+
   const unreadMessageCount = useMemo(
     () => messages.filter((m) => m.status === 'unread').length,
     [messages],
@@ -773,7 +1599,7 @@ export function AdminPanelView({
   const existingBookTitleSet = useMemo(() => {
     const set = new Set<string>();
     for (const b of books) {
-      const normalized = b.title.replace(/\s+/g, ' ').trim().toLowerCase();
+      const normalized = normalizeBookTitle(b.title);
       if (normalized) set.add(normalized);
     }
     return set;
@@ -806,7 +1632,7 @@ export function AdminPanelView({
       if (data.items.length === 0) {
         showNotice(
           'error',
-          'ဤလင့်ခ်အတွင်း Blogspot စာအုပ်ပို့စ် လင့်ခ်များ မတွေ့ရှိပါ။ (Blogspot စာအုပ်စာရင်း စာမျက်နှာ သို့မဟုတ် စာအုပ်ပို့စ် URL ကို စစ်ဆေးပါ)',
+          'ဤလင့်ခ်အတွင်း Blogspot / Library စာအုပ်ပို့စ် လင့်ခ်များ မတွေ့ရှိပါ။ (စာအုပ်စာရင်း စာမျက်နှာ၊ Label စာမျက်နှာ သို့မဟုတ် စာအုပ်ပို့စ် URL ကို စစ်ဆေးပါ)',
         );
       } else {
         showNotice(
@@ -997,7 +1823,7 @@ export function AdminPanelView({
   // Loading state
   if (authLoading) {
     return (
-      <div className="max-w-[900px] mx-auto px-4 py-16 text-center text-sm text-[#5A6860]">
+      <div className="max-w-[900px] mx-auto px-4 py-16 text-center text-sm text-[#525E75]">
         စနစ်ကို စစ်ဆေးနေပါသည်...
       </div>
     );
@@ -1007,15 +1833,15 @@ export function AdminPanelView({
   if (!user) {
     return (
       <div className="max-w-[560px] mx-auto px-4 py-14 sm:py-20">
-        <div className="bg-white border border-[#E2E8E4] rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center mx-auto">
+        <div className="bg-white border border-[#E2E6EE] rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-[#EFF3FA] text-[#1E3A8A] flex items-center justify-center mx-auto">
             <Shield className="w-6 h-6" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#1A241E]">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#131B2E]">
               Admin Panel သို့ ဝင်ရောက်ရန်
             </h1>
-            <p className="text-sm text-[#4A5850] leading-relaxed">
+            <p className="text-sm text-[#525E75] leading-relaxed">
               စာအုပ် PDF များကို Google Drive ထဲသို့ တင်သွင်းရန်၊ မလိုအပ်သော ကဏ္ဍများကို
               ဖယ်ထုတ်စီမံရန်နှင့် ဝက်ဘ်ဆိုက်တစ်ခုလုံးကို ထိန်းချုပ်ရန် Admin Google Account
               ဖြင့် ဝင်ရောက်ပါ။
@@ -1072,19 +1898,19 @@ export function AdminPanelView({
   if (!isAdmin) {
     return (
       <div className="max-w-[560px] mx-auto px-4 py-14 sm:py-20">
-        <div className="bg-white border border-[#E2E8E4] rounded-2xl p-6 sm:p-8 text-center space-y-4">
-          <AlertTriangle className="w-10 h-10 text-[#C59B27] mx-auto" />
-          <h1 className="text-lg font-bold text-[#1A241E]">
+        <div className="bg-white border border-[#E2E6EE] rounded-2xl p-6 sm:p-8 text-center space-y-4">
+          <AlertTriangle className="w-10 h-10 text-[#B85338] mx-auto" />
+          <h1 className="text-lg font-bold text-[#131B2E]">
             Admin ခွင့်ပြုချက် မရှိပါ
           </h1>
-          <p className="text-sm text-[#4A5850]">
+          <p className="text-sm text-[#525E75]">
             လက်ရှိ ဝင်ရောက်ထားသော အကောင့် ({user.email}) သည် Admin အဖြစ်
             သတ်မှတ်ထားခြင်း မရှိပါ။ Admin အကောင့်ဖြင့် ပြန်လည်ဝင်ရောက်ပါ။
           </p>
           <button
             type="button"
             onClick={() => void onSignOut()}
-            className="px-4 py-2 rounded-lg bg-[#146B3A] text-white text-sm font-semibold hover:bg-[#0F522D]"
+            className="px-4 py-2 rounded-lg bg-[#1E3A8A] text-white text-sm font-semibold hover:bg-[#172D6B]"
           >
             Sign Out
           </button>
@@ -1101,15 +1927,15 @@ export function AdminPanelView({
           aria-hidden="true"
           className="absolute inset-0 islamic-pattern-overlay pointer-events-none"
         />
-        <div className="relative max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-9 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="relative max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-7 sm:py-9 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-[#E8C868] mb-1">
-              ADMINISTRATION & GOOGLE DRIVE PDF STORAGE
+            <p className="text-xs font-semibold text-[#E2C792] mb-1">
+              ADMINISTRATION &amp; GOOGLE DRIVE PDF STORAGE
             </p>
-            <h1 className="text-2xl sm:text-3xl font-bold">
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold">
               Admin Panel — စာကြည့်တိုက် စီမံခန့်ခွဲမှု
             </h1>
-            <p className="text-xs sm:text-sm text-[#DCEAE1] mt-1">
+            <p className="text-xs sm:text-sm text-[#DCE4F2] mt-1">
               ဝင်ရောက်ထားသူ: {user.email}
             </p>
           </div>
@@ -1120,7 +1946,7 @@ export function AdminPanelView({
                 type="button"
                 onClick={handleGoogleLogin}
                 disabled={isConnectingAuth}
-                className="min-h-[42px] px-4 py-2 rounded-lg bg-[#C59B27] hover:bg-[#B2891B] text-white text-xs sm:text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                className="min-h-[42px] px-4 py-2 rounded-lg bg-[#B85338] hover:bg-[#9E452E] text-white text-xs sm:text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
                 <HardDrive className="w-4 h-4" />
                 <span>
@@ -1131,7 +1957,7 @@ export function AdminPanelView({
               </button>
             ) : (
               <span className="px-3.5 py-2 rounded-lg bg-white/15 border border-white/25 text-xs font-semibold inline-flex items-center gap-1.5">
-                <Check className="w-4 h-4 text-[#E8C868]" />
+                <Check className="w-4 h-4 text-[#E2C792]" />
                 <span>Google Drive ချိတ်ဆက်ပြီး</span>
               </span>
             )}
@@ -1148,12 +1974,12 @@ export function AdminPanelView({
         </div>
       </section>
 
-      <section className="max-w-[1320px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <section className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
         {statusBanner && (
           <div
             className={`p-4 rounded-xl border text-sm space-y-3 ${
               statusBanner.type === 'success'
-                ? 'bg-[#EBF4EE] border-[#146B3A]/30 text-[#115E34]'
+                ? 'bg-[#EFF3FA] border-[#1E3A8A]/30 text-[#1E3A8A]'
                 : 'bg-red-50 border-red-200 text-red-800'
             }`}
           >
@@ -1178,7 +2004,7 @@ export function AdminPanelView({
                     href={driveActivationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-[38px] px-3.5 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="min-h-[38px] px-3.5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172E6E] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
                   >
                     <span>Google Drive API ဖွင့်ရန် (Google Cloud Console)</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -1205,7 +2031,7 @@ export function AdminPanelView({
         )}
 
         {/* Admin Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-[#E2E8E4]">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-[#E2E6EE]">
           {[
             {id: 'books' as const, label: `စာအုပ်နှင့် PDF (${books.length})`, icon: BookPlus},
             {id: 'import' as const, label: 'Web Link မှ စာအုပ်ဆွဲတင်ရန်', icon: Globe},
@@ -1217,6 +2043,11 @@ export function AdminPanelView({
               label: `ဆက်သွယ်စာများ (${unreadMessageCount})`,
               icon: Inbox,
             },
+            {
+              id: 'settings' as const,
+              label: 'Admin & Telegram Bot',
+              icon: Settings,
+            },
           ].map((tab) => {
             const active = activeTab === tab.id;
             return (
@@ -1226,8 +2057,8 @@ export function AdminPanelView({
                 onClick={() => setActiveTab(tab.id)}
                 className={`min-h-[42px] px-4 py-2 rounded-t-lg text-xs sm:text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap shrink-0 border-b-2 transition-colors ${
                   active
-                    ? 'border-[#146B3A] text-[#115E34] bg-white'
-                    : 'border-transparent text-[#526058] hover:text-[#115E34]'
+                    ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
+                    : 'border-transparent text-[#525D73] hover:text-[#1E3A8A]'
                 }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -1519,11 +2350,159 @@ export function AdminPanelView({
             </form>
 
             {/* Existing Books Table / List */}
-            <div className="lg:col-span-7 bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#EDF1EE] pb-3">
+            <div className="lg:col-span-7 space-y-5">
+              {/* Auto Duplicate Detection & Cleanup Panel */}
+              <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 space-y-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-[#FDF9EE] text-[#9B7417] flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-[#1A241E]">
+                        ထပ်နေသော စာအုပ်များ အလိုအလျောက် ရွေးချယ်ဖယ်ရှားစနစ်
+                      </h3>
+                      <p className="text-[11.5px] text-[#5A6860]">
+                        ခေါင်းစဉ်တူ (သို့) Drive File ID တူနေသော စာအုပ်ပွားများကို စစ်ဆေးပြီး
+                        အလိုအလျောက် အမှန်ခြစ်ရွေးပေးထားပါသည်
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
+                      duplicateEntries.length > 0
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : 'bg-[#EBF4EE] text-[#115E34]'
+                    }`}
+                  >
+                    {duplicateEntries.length > 0
+                      ? `ထပ်နေသည့်စာအုပ် ${duplicateEntries.length} အုပ် တွေ့ရှိ`
+                      : 'ထပ်နေသော စာအုပ်မရှိပါ'}
+                  </span>
+                </div>
+
+                {duplicateEntries.length > 0 && (
+                  <div className="space-y-3 pt-1">
+                    <div className="max-h-[260px] overflow-y-auto border border-[#E2E8E4] rounded-lg divide-y divide-[#EDF1EE]">
+                      {duplicateEntries.map((entry) => {
+                        const checked = Boolean(
+                          selectedDuplicateIds[entry.duplicate.id],
+                        );
+                        return (
+                          <label
+                            key={entry.duplicate.id}
+                            className={`p-3 flex items-start gap-2.5 cursor-pointer text-xs ${
+                              checked ? 'bg-red-50/50' : 'bg-white'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={isRemovingDuplicates}
+                              onChange={(e) =>
+                                setSelectedDuplicateIds((prev) => ({
+                                  ...prev,
+                                  [entry.duplicate.id]: e.target.checked,
+                                }))
+                              }
+                              className="w-4 h-4 mt-0.5 accent-red-600 shrink-0"
+                            />
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-bold text-[#1A241E] truncate">
+                                  {entry.duplicate.title}
+                                </span>
+                                <span className="text-[11px] font-semibold text-amber-700">
+                                  ·{' '}
+                                  {entry.reason === 'drive-id'
+                                    ? 'Drive File ID တူ'
+                                    : 'စာအုပ်ခေါင်းစဉ်တူ'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-[#5A6860] truncate">
+                                မူရင်းအဖြစ် ချန်ထားမည်: &ldquo;{entry.keptOriginal.title}&rdquo; ·{' '}
+                                {entry.duplicate.fileSize || 'PDF'}
+                              </p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next: Record<string, boolean> = {};
+                            for (const e of duplicateEntries)
+                              next[e.duplicate.id] = true;
+                            setSelectedDuplicateIds(next);
+                          }}
+                          className="text-xs font-semibold text-[#115E34] hover:underline"
+                        >
+                          အားလုံး အော်တိုရွေးမည်
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDuplicateIds({})}
+                          className="text-xs font-medium text-[#5A6860] hover:underline"
+                        >
+                          ရွေးချယ်မှု ဖျက်မည်
+                        </button>
+                        {driveToken && (
+                          <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[#35433A] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={dedupeDeleteDriveFiles}
+                              onChange={(e) =>
+                                setDedupeDeleteDriveFiles(e.target.checked)
+                              }
+                              className="w-3.5 h-3.5 accent-red-600"
+                            />
+                            <span>Drive ထဲမှ ထပ်နေသော PDF ပါ ဖျက်မည်</span>
+                          </label>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={
+                          isRemovingDuplicates ||
+                          selectedDuplicatesList.length === 0
+                        }
+                        onClick={() => void handleRemoveSelectedDuplicates()}
+                        className="min-h-[38px] px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-semibold inline-flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>
+                          {isRemovingDuplicates
+                            ? 'ဖယ်ရှားနေပါသည်...'
+                            : `ရွေးထားသော ထပ်နေသည့်စာအုပ် (${selectedDuplicatesList.length}) အုပ် ဖယ်ရှားမည်`}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] pb-3">
                 <h2 className="text-base font-bold text-[#1A241E]">
                   စာကြည့်တိုက်ရှိ စာအုပ်စာရင်း ({books.length})
                 </h2>
+                {books.length > 0 && (
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-3.5 h-3.5 text-[#6B7A70] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={bookListSearch}
+                      onChange={(e) => setBookListSearch(e.target.value)}
+                      placeholder="စာအုပ်အမည် ရှာဖွေရန်..."
+                      className="w-full min-h-[36px] pl-8 pr-3 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    />
+                  </div>
+                )}
               </div>
 
               {books.length === 0 ? (
@@ -1539,7 +2518,17 @@ export function AdminPanelView({
                 </div>
               ) : (
                 <div className="divide-y divide-[#EDF1EE]">
-                  {books.map((book) => (
+                  {books
+                    .filter((b) => {
+                      const q = bookListSearch.trim().toLowerCase();
+                      if (!q) return true;
+                      return (
+                        b.title.toLowerCase().includes(q) ||
+                        b.author.toLowerCase().includes(q) ||
+                        b.categoryLabel.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((book) => (
                     <div
                       key={book.id}
                       className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
@@ -1623,6 +2612,7 @@ export function AdminPanelView({
                   ))}
                 </div>
               )}
+              </div>
             </div>
           </div>
         )}
@@ -1635,8 +2625,8 @@ export function AdminPanelView({
                 Blogspot / Web Link မှ စာအုပ် PDF များ Drive ထဲသို့ တိုက်ရိုက်ဆွဲတင်ရန်
               </h2>
               <p className="text-sm text-[#4A5850] leading-relaxed">
-                ပြင်ပ Blogspot စာအုပ်စာရင်း URL (ဥပမာ - myanmarfreeislamicbooks.blogspot.com) မှ
-                စာအုပ်များကို စစ်ဆေးဆွဲယူပြီး သင့် Google Drive ဖိုလ်ဒါ ({siteSettings.driveFolderName})
+                ပြင်ပ Blogspot နှင့် အစ္စလာမ့်စာကြည့်တိုက် URL များ (ဥပမာ - myanmarfreeislamicbooks.blogspot.com၊ library.ioumyanmar.com)
+                မှ စာအုပ်များ (bit.ly / Google Drive / MediaFire လင့်ခ်များအပါအဝင်) ကို စစ်ဆေးဆွဲယူပြီး သင့် Google Drive ဖိုလ်ဒါ ({siteSettings.driveFolderName})
                 ထဲသို့ အလိုအလျောက် ကူးယူသိမ်းဆည်းကာ ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ တိုက်ရိုက်တင်ပေးပါမည်။
               </p>
             </div>
@@ -1659,36 +2649,76 @@ export function AdminPanelView({
             )}
 
             {/* Source URL Fetch Form */}
-            <form
-              onSubmit={handleFetchCatalog}
-              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
-            >
-              <input
-                type="url"
-                required
-                value={importSourceUrl}
-                onChange={(e) => setImportSourceUrl(e.target.value)}
-                placeholder="https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0"
-                className="flex-1 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
-              />
-              <button
-                type="submit"
-                disabled={isFetchingCatalog || isImportingBatch}
-                className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
+            <div className="space-y-2.5">
+              <form
+                onSubmit={handleFetchCatalog}
+                className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3"
               >
-                {isFetchingCatalog ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>စာရင်းဆွဲယူနေသည်...</span>
-                  </>
-                ) : (
-                  <>
-                    <Globe className="w-4 h-4" />
-                    <span>စာအုပ်စာရင်း စစ်ဆေးဆွဲယူရန်</span>
-                  </>
-                )}
-              </button>
-            </form>
+                <input
+                  type="url"
+                  required
+                  value={importSourceUrl}
+                  onChange={(e) => setImportSourceUrl(e.target.value)}
+                  placeholder="https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0"
+                  className="flex-1 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={isFetchingCatalog || isImportingBatch}
+                  className="min-h-[44px] px-5 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 shrink-0 disabled:opacity-60"
+                >
+                  {isFetchingCatalog ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>စာရင်းဆွဲယူနေသည်...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Globe className="w-4 h-4" />
+                      <span>စာအုပ်စာရင်း စစ်ဆေးဆွဲယူရန်</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-[#5A6860] font-medium">အသင့်သုံး လင့်ခ်များ -</span>
+                <button
+                  type="button"
+                  disabled={isFetchingCatalog || isImportingBatch}
+                  onClick={() =>
+                    setImportSourceUrl(
+                      'https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0',
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-medium disabled:opacity-50"
+                >
+                  Myanmar Free Islamic Books
+                </button>
+                <button
+                  type="button"
+                  disabled={isFetchingCatalog || isImportingBatch}
+                  onClick={() =>
+                    setImportSourceUrl(
+                      'http://library.ioumyanmar.com/search/label/%E1%80%A1%E1%80%85%E1%80%B9%E1%80%85%E1%80%9C%E1%80%AC%E1%80%99%E1%80%BA%E1%80%80%E1%80%AD%E1%80%AF%20%E1%80%9C%E1%80%B1%E1%80%B7%E1%80%9C%E1%80%AC%E1%80%9C%E1%80%AD%E1%80%AF%E1%80%9E%E1%80%B0%E1%80%99%E1%80%BB%E1%80%AC%E1%80%B8%E1%80%A1%E1%80%90%E1%80%BD%E1%80%80%E1%80%BA?m=1',
+                    )
+                  }
+                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-medium disabled:opacity-50"
+                >
+                  IOU Myanmar (အစ္စလာမ်လေ့လာသူများ)
+                </button>
+                <button
+                  type="button"
+                  disabled={isFetchingCatalog || isImportingBatch}
+                  onClick={() =>
+                    setImportSourceUrl('http://library.ioumyanmar.com/')
+                  }
+                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-medium disabled:opacity-50"
+                >
+                  IOU Myanmar (စာအုပ်အားလုံး)
+                </button>
+              </div>
+            </div>
 
             {catalogItems.length > 0 && (
               <div className="space-y-4">
@@ -2747,7 +3777,987 @@ export function AdminPanelView({
             )}
           </div>
         )}
+
+        {/* TAB 6: ADMIN & TELEGRAM BOT SETTINGS */}
+        {activeTab === 'settings' && user && (
+          <div className="space-y-6">
+            {/* SECTION 1: APPOINT & MANAGE ADMINS */}
+            <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-5">
+              <div className="flex items-start gap-3 border-b border-[#EDF1EE] pb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E]">
+                    နောက်ထပ် Admin ခန့်အပ်ခြင်းနှင့် စီမံခန့်ခွဲခြင်း (Admin Roles)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#4A5850] mt-0.5 leading-relaxed">
+                    စာအုပ်တင်ခြင်း၊ Drive စီမံခြင်းနှင့် Telegram Bot Sync လုပ်ငန်းများကို
+                    ကူညီစီမံရန် ယုံကြည်စိတ်ချရသော Gmail အကောင့်များကို Admin အဖြစ်
+                    ထပ်မံခန့်အပ်နိုင်ပါသည်။
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <form
+                  onSubmit={(e) => void handleAppointAdmin(e)}
+                  className="lg:col-span-5 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-3.5"
+                >
+                  <h3 className="text-sm font-bold text-[#115E34]">
+                    Admin အသစ် ခန့်အပ်ရန်
+                  </h3>
+
+                  <div>
+                    <label
+                      htmlFor="appoint-admin-email"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      Admin ခန့်အပ်မည့် Gmail / Google Account *
+                    </label>
+                    <input
+                      id="appoint-admin-email"
+                      type="email"
+                      required
+                      value={newAdminEmail}
+                      onChange={(e) => setNewAdminEmail(e.target.value)}
+                      placeholder="example@gmail.com"
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-white border border-[#D4DDD7] rounded-lg"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="appoint-admin-role"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      တာဝန် / ရာထူးအမည် (Role Label)
+                    </label>
+                    <input
+                      id="appoint-admin-role"
+                      type="text"
+                      value={newAdminRoleLabel}
+                      onChange={(e) => setNewAdminRoleLabel(e.target.value)}
+                      placeholder="ဥပမာ - Library Editor / Librarian"
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-white border border-[#D4DDD7] rounded-lg"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isAppointingAdmin}
+                    className="w-full min-h-[42px] px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>
+                      {isAppointingAdmin
+                        ? 'ခန့်အပ်နေပါသည်...'
+                        : 'Admin အဖြစ် ခန့်အပ်မည်'}
+                    </span>
+                  </button>
+
+                  <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                    ခန့်အပ်လိုက်သော Gmail အကောင့်ဖြင့် ဝက်ဘ်ဆိုက် Admin Panel တွင် Sign in with
+                    Google ဝင်ရောက်လိုက်သည်နှင့် Admin စီမံခွင့် အပြည့်အဝ ရရှိပါမည်။
+                  </p>
+                </form>
+
+                <div className="lg:col-span-7 space-y-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#526058]">
+                    လက်ရှိ Admin စာရင်း (မူလ Admin + ခန့်အပ်ထားသူများ)
+                  </h3>
+                  <div className="border border-[#E2E8E4] rounded-xl divide-y divide-[#EDF1EE]">
+                    {[BOOTSTRAPPED_ADMIN_EMAIL, SECOND_BOOTSTRAPPED_ADMIN_EMAIL].map(
+                      (email) => (
+                        <div
+                          key={email}
+                          className="p-3.5 flex items-center justify-between gap-3 bg-[#FAFCFB]"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#1A241E] truncate">
+                              {email}
+                            </p>
+                            <p className="text-[11px] text-[#115E34] font-semibold">
+                              မူလ System Admin (အမြဲတမ်း)
+                            </p>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-lg bg-[#EBF4EE] text-[#115E34] text-[11px] font-semibold shrink-0">
+                            Primary
+                          </span>
+                        </div>
+                      ),
+                    )}
+
+                    {adminInvites.length === 0 ? (
+                      <p className="p-4 text-xs text-[#5A6860] text-center">
+                        ထပ်မံခန့်အပ်ထားသော Admin မရှိသေးပါ။
+                      </p>
+                    ) : (
+                      adminInvites.map((invite) => {
+                        const isSelf =
+                          (user.email || '').trim().toLowerCase() ===
+                          invite.email.trim().toLowerCase();
+                        return (
+                          <div
+                            key={invite.id}
+                            className="p-3.5 flex flex-wrap items-center justify-between gap-3"
+                          >
+                            <div className="min-w-0 space-y-0.5">
+                              <p className="text-sm font-bold text-[#1A241E] truncate">
+                                {invite.email}
+                              </p>
+                              <p className="text-[11px] text-[#5A6860]">
+                                {invite.roleLabel || 'Library Admin'}
+                                {invite.addedByEmail
+                                  ? ` · ခန့်အပ်သူ: ${invite.addedByEmail}`
+                                  : ''}
+                                {invite.createdAtLabel
+                                  ? ` · ${invite.createdAtLabel}`
+                                  : ''}
+                              </p>
+                            </div>
+                            {!isSelf ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setPendingDelete({
+                                    kind: 'adminInvite',
+                                    id: invite.email,
+                                    label: invite.email,
+                                  })
+                                }
+                                className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                              >
+                                Admin မှ ဖယ်ရှားရန်
+                              </button>
+                            ) : (
+                              <span className="text-[11px] font-semibold text-[#9B7417]">
+                                လက်ရှိဝင်ထားသူ
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 2: PERMANENT TELEGRAM BOT CONNECTION -> GOOGLE DRIVE -> WEBSITE AUTO-SYNC */}
+            <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] pb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-[#1A241E]">
+                      Telegram Bot ချိတ်ဆက်မှုနှင့် Google Drive / Website အလိုအလျောက် Sync
+                    </h2>
+                    <p className="text-xs sm:text-sm text-[#4A5850] mt-0.5 leading-relaxed">
+                      Telegram Bot ကို ဤဝက်ဘ်ဆိုက်နှင့် အပြီးတိုင် တွဲဆက်ထားပြီး Bot ထံ (သို့) Group/Channel
+                      ထဲသို့ ပို့သမျှ PDF စာအုပ်များကို Google Drive ပေါ်သို့ တိုက်ရိုက်တင်ကာ
+                      ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ ချက်ချင်း Sync လုပ်ပေးမည် ဖြစ်ပါသည်။
+                    </p>
+                  </div>
+                </div>
+
+                {telegramConfigStatus?.tokenConfigured ? (
+                  <span className="px-3.5 py-1.5 rounded-lg bg-[#EBF4EE] border border-[#146B3A]/30 text-[#115E34] text-xs font-bold inline-flex items-center gap-1.5 shrink-0">
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>
+                      ချိတ်ဆက်ပြီး (@
+                      {telegramConfigStatus.botUsername ||
+                        telegramSettings.botUsername ||
+                        'TelegramBot'}
+                      )
+                    </span>
+                  </span>
+                ) : (
+                  <span className="px-3.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold shrink-0">
+                    Telegram Bot မချိတ်ဆက်ရသေးပါ
+                  </span>
+                )}
+              </div>
+
+              {/* Setup Instructions */}
+              <div className="rounded-xl bg-[#FDF9EE] border border-[#C59B27]/35 p-4 space-y-2 text-xs text-[#54400B] leading-relaxed">
+                <p className="font-bold text-[#6E500A]">
+                  Telegram Bot ချိတ်ဆက်ရန် လိုအပ်သည့် အချက်အလက်များနှင့် အဆင့်များ:
+                </p>
+                <ol className="list-decimal list-inside space-y-1">
+                  <li>
+                    Telegram တွင် <span className="font-mono font-bold">@BotFather</span> ထံသို့{' '}
+                    <span className="font-mono font-semibold">/newbot</span> ပို့၍ Bot အသစ်ဖွင့်ပြီး
+                    ရရှိလာသော <strong>Bot API Token</strong> ကို အောက်တွင် ထည့်သွင်းပါ။
+                  </li>
+                  <li>
+                    Group / Channel မှ စာအုပ် PDF များ ဆွဲတင်လိုပါက ယင်း Bot ကို Group/Channel ထဲတွင်{' '}
+                    <strong>Admin</strong> အဖြစ် ထည့်ထားပါ (သို့မဟုတ် Group မှ PDF အားလုံး ဖတ်နိုင်ရန်
+                    @BotFather တွင် <span className="font-mono font-semibold">/setprivacy → Disable</span>{' '}
+                    လုပ်ထားပါ)။
+                  </li>
+                  <li>
+                    <strong>Allowed Chat IDs</strong> ကို အလွတ်ထားပါက Bot ရရှိသမျှ Chat အားလုံးမှ PDF
+                    များကို ယူပေးမည်ဖြစ်ပြီး၊ သီးသန့် Group/Channel တစ်ခုတည်းမှ ယူလိုပါက
+                    &ldquo;Telegram Chat များ စစ်ဆေးရန်&rdquo; ကိုနှိပ်၍ Chat ID ထည့်သွင်းနိုင်ပါသည်။
+                  </li>
+                  <li>
+                    Telegram Bot API စည်းမျဉ်းအရ PDF ဖိုင် ၁ ဖိုင်လျှင် အများဆုံး{' '}
+                    <strong>20 MB – 50 MB</strong> အတွင်းရှိ ဖိုင်များကို စစ်ဆေးပြီး Google Drive
+                    ({siteSettings.driveFolderName}) ထဲသို့ တိုက်ရိုက်သိမ်းဆည်းပေးပါမည်။
+                  </li>
+                </ol>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                {/* Left: Bot Config Form */}
+                <form
+                  onSubmit={(e) => void handleSaveTelegramConfig(e)}
+                  className="lg:col-span-6 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-4"
+                >
+                  <h3 className="text-sm font-bold text-[#115E34]">
+                    ၁. Telegram Bot အချက်အလက် ချိတ်ဆက်သိမ်းဆည်းရန်
+                  </h3>
+
+                  <div>
+                    <label
+                      htmlFor="tg-bot-token"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      Telegram Bot API Token{' '}
+                      {telegramConfigStatus?.tokenConfigured
+                        ? `(သိမ်းဆည်းပြီး: ${telegramConfigStatus.maskedToken})`
+                        : '*'}
+                    </label>
+                    <input
+                      id="tg-bot-token"
+                      type="password"
+                      autoComplete="off"
+                      value={telegramTokenInput}
+                      onChange={(e) => setTelegramTokenInput(e.target.value)}
+                      placeholder={
+                        telegramConfigStatus?.tokenConfigured
+                          ? 'Token ပြောင်းလိုမှသာ အသစ်ထည့်ပါ (သိမ်းဆည်းပြီးဖြစ်သည်)'
+                          : '1234567890:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+                      }
+                      className="w-full min-h-[42px] px-3 py-2 text-xs sm:text-sm bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                    />
+                    <p className="text-[11px] text-[#5A6860] mt-1">
+                      Bot Token ကို Server ဘက်တွင်သာ လုံခြုံစွာ သိမ်းဆည်းထားပြီး အခြားသူများ
+                      မြင်တွေ့နိုင်မည် မဟုတ်ပါ။
+                    </p>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <label
+                        htmlFor="tg-allowed-chats"
+                        className="block text-xs font-semibold text-[#35433A]"
+                      >
+                        Allowed Chat IDs (ကော်မာခံ၍ ထည့်နိုင်သည် — မထည့်လည်းရသည်)
+                      </label>
+                      {telegramConfigStatus?.tokenConfigured && (
+                        <button
+                          type="button"
+                          disabled={isCheckingTelegramChats}
+                          onClick={() => void handleCheckTelegramChats()}
+                          className="text-[11px] font-bold text-[#146B3A] hover:underline disabled:opacity-50"
+                        >
+                          {isCheckingTelegramChats
+                            ? 'စစ်ဆေးနေသည်...'
+                            : 'Chat များ စစ်ဆေးရန်'}
+                        </button>
+                      )}
+                    </div>
+                    <input
+                      id="tg-allowed-chats"
+                      type="text"
+                      value={telegramAllowedChatsInput}
+                      onChange={(e) =>
+                        setTelegramAllowedChatsInput(e.target.value)
+                      }
+                      placeholder="ဥပမာ - -1001234567890, 987654321 (အားလုံးလက်ခံရန် အလွတ်ထားပါ)"
+                      className="w-full min-h-[42px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                    />
+                  </div>
+
+                  {discoveredTelegramChats.length > 0 && (
+                    <div className="p-3 rounded-lg bg-white border border-[#D4DDD7] space-y-2">
+                      <p className="text-[11px] font-bold text-[#115E34]">
+                        တွေ့ရှိထားသော Telegram Chat များ (နှိပ်၍ Chat ID ထည့်နိုင်သည်):
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {discoveredTelegramChats.map((chat) => (
+                          <button
+                            key={chat.chatId}
+                            type="button"
+                            onClick={() => {
+                              const current = telegramAllowedChatsInput
+                                .split(',')
+                                .map((s) => s.trim())
+                                .filter(Boolean);
+                              if (!current.includes(chat.chatId)) {
+                                setTelegramAllowedChatsInput(
+                                  [...current, chat.chatId].join(', '),
+                                );
+                              }
+                            }}
+                            className="px-2.5 py-1 rounded-md border border-[#146B3A]/30 bg-[#EBF4EE] hover:bg-[#DCECE1] text-[#115E34] text-[11px] font-medium"
+                          >
+                            {chat.title} ({chat.chatId})
+                            {chat.pendingPdfCount > 0
+                              ? ` · PDF ${chat.pendingPdfCount}`
+                              : ''}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <label
+                      htmlFor="tg-default-cat"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      Website တင်ရာတွင် ထည့်သွင်းမည့် ကဏ္ဍ (Default Category)
+                    </label>
+                    <select
+                      id="tg-default-cat"
+                      value={telegramDefaultCatInput}
+                      onChange={(e) =>
+                        setTelegramDefaultCatInput(
+                          e.target.value as 'auto' | BookCategoryId,
+                        )
+                      }
+                      className="w-full min-h-[42px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg"
+                    >
+                      <option value="auto">
+                        စာအုပ်အမည်အလိုက် အလိုအလျောက် ခွဲခြားမည် (Auto)
+                      </option>
+                      {BOOK_CATEGORIES.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nameMy}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <label className="flex items-center gap-2.5 text-xs text-[#1A241E] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={telegramAutoSyncInput}
+                      onChange={(e) => setTelegramAutoSyncInput(e.target.checked)}
+                      className="w-4 h-4 accent-[#146B3A]"
+                    />
+                    <span>
+                      Drive ပေါ်ရောက်သည်နှင့် ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ အလိုအလျောက်
+                      တန်းတင်မည်
+                    </span>
+                  </label>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <button
+                      type="submit"
+                      disabled={isSavingTelegram}
+                      className="flex-1 min-h-[42px] px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      <Bot className="w-4 h-4" />
+                      <span>
+                        {isSavingTelegram
+                          ? 'ချိတ်ဆက်သိမ်းဆည်းနေသည်...'
+                          : 'Telegram Bot ချိတ်ဆက်သိမ်းဆည်းမည်'}
+                      </span>
+                    </button>
+
+                    {telegramConfigStatus?.tokenConfigured && (
+                      <button
+                        type="button"
+                        disabled={isSavingTelegram}
+                        onClick={() => void handleDisconnectTelegram()}
+                        className="min-h-[42px] px-3.5 py-2 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold"
+                      >
+                        ဖြုတ်သိမ်းရန်
+                      </button>
+                    )}
+                  </div>
+                </form>
+
+                {/* Right: Upload to Google Drive + Fast Auto-Sync Control Box */}
+                <div className="lg:col-span-6 p-4 sm:p-5 rounded-xl bg-[#F6FAF7] border border-[#146B3A]/30 space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-[#115E34]">
+                      ၂. Telegram Bot မှ Google Drive ပေါ်တင်ပြီး Website Sync လုပ်ရန်
+                    </h3>
+                    <p className="text-xs text-[#4A5850] leading-relaxed">
+                      Telegram Bot ထံ ပို့ထားသော PDF စာအုပ်များကို ခလုတ်တစ်ချက်တည်းဖြင့် သင့်
+                      Google Drive ထဲသို့ တိုက်ရိုက်တင်သွင်းပြီး Website တွင် အလိုအလျောက်
+                      Sync လုပ်ဖော်ပြပေးပါမည်။
+                    </p>
+                  </div>
+
+                  {!driveToken && (
+                    <div className="p-3.5 rounded-lg bg-[#FDF9EE] border border-[#C59B27]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <p className="text-xs text-[#6E500A]">
+                        Drive ပေါ်တင်နိုင်ရန် ဦးစွာ Google Drive ချိတ်ဆက်ပေးပါ။
+                      </p>
+                      <button
+                        type="button"
+                        onClick={handleGoogleLogin}
+                        disabled={isConnectingAuth}
+                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg bg-[#C59B27] hover:bg-[#B2891B] text-white text-xs font-semibold inline-flex items-center gap-1.5 shrink-0"
+                      >
+                        <HardDrive className="w-3.5 h-3.5" />
+                        <span>Google Drive ချိတ်ဆက်ရန်</span>
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5 pt-1">
+                    <button
+                      type="button"
+                      disabled={
+                        isSyncingTelegramToDrive ||
+                        !telegramConfigStatus?.tokenConfigured ||
+                        !driveToken
+                      }
+                      onClick={() => void handleSyncTelegramToDrive()}
+                      className="w-full min-h-[46px] px-5 py-2.5 rounded-xl bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-2 shadow-xs transition-colors disabled:opacity-50"
+                    >
+                      {isSyncingTelegramToDrive ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Telegram မှ Drive & Website သို့ တင်သွင်းနေသည်...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          <span>
+                            Telegram Bot မှ PDF များ Google Drive ပေါ်တင်ပြီး Website Sync
+                            လုပ်မည်
+                          </span>
+                        </>
+                      )}
+                    </button>
+
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        disabled={
+                          isCheckingTelegramChats ||
+                          !telegramConfigStatus?.tokenConfigured
+                        }
+                        onClick={() => void handleCheckTelegramChats()}
+                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-[#115E34] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <RefreshCw
+                          className={`w-3.5 h-3.5 ${isCheckingTelegramChats ? 'animate-spin' : ''}`}
+                        />
+                        <span>
+                          Telegram PDF အသစ် စစ်ဆေးရန်
+                          {telegramPendingCount !== null
+                            ? ` (${telegramPendingCount})`
+                            : ''}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={!driveToken}
+                        onClick={() =>
+                          void refreshDriveFiles({scope: 'folder', autoSync: true})
+                        }
+                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-[#35433A] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <HardDrive className="w-3.5 h-3.5" />
+                        <span>Drive → Website အမြန် Sync လုပ်ရန်</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Continuous Live Auto-Poll Mode */}
+                  <div className="p-3.5 rounded-lg bg-white border border-[#DCE6DF] space-y-2">
+                    <label className="flex items-start gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={telegramLiveAutoPoll}
+                        disabled={
+                          !telegramConfigStatus?.tokenConfigured || !driveToken
+                        }
+                        onChange={(e) =>
+                          setTelegramLiveAutoPoll(e.target.checked)
+                        }
+                        className="w-4 h-4 mt-0.5 accent-[#146B3A] shrink-0"
+                      />
+                      <div className="text-xs space-y-0.5">
+                        <p className="font-bold text-[#1A241E]">
+                          အလိုအလျောက် Continuous Sync ဖွင့်ထားမည် (စက္ကန့် ၈ တိုင်း)
+                        </p>
+                        <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                          ဤခလုတ် ဖွင့်ထားစဉ် Telegram Bot ထံသို့ PDF ပို့လိုက်သည်နှင့် Google Drive
+                          ပေါ်သို့ အော်တိုတင်ပေးပြီး Drive Tool မှလည်း ၅ စက္ကန့်အတွင်း Website
+                          ပေါ်သို့ အမြန် Sync လုပ်တင်ပေးနေပါမည်။
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+
+                  {lastTelegramSyncResult && (
+                    <div className="p-3.5 rounded-lg bg-white border border-[#E2E8E4] text-xs space-y-1">
+                      <p className="font-bold text-[#115E34]">
+                        နောက်ဆုံး Sync ရလဒ် ({lastTelegramSyncResult.timestamp})
+                      </p>
+                      <p className="text-[#35433A]">
+                        Google Drive တင်ပြီး: {lastTelegramSyncResult.uploadedCount} အုပ် ·
+                        Website တင်ပြီး: {lastTelegramSyncResult.publishedCount} အုပ် · ကျော်သွားသည်:{' '}
+                        {lastTelegramSyncResult.skippedCount} ခု
+                      </p>
+                      {lastTelegramSyncResult.errors.length > 0 && (
+                        <p className="text-red-700 text-[11px]">
+                          သတိပြုရန်: {lastTelegramSyncResult.errors[0]}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* SECTION 3: GOOGLE SEARCH CONSOLE & SEO STATUS */}
+            <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-5">
+              <div className="flex items-start gap-3 border-b border-[#EDF1EE] pb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                  <Search className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E]">
+                    Google Search Console &amp; SEO (Google တွင် ရှာတွေ့စေရန်)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#4A5850] mt-0.5 leading-relaxed">
+                    သင့်ဝဘ်ဆိုက်ကို Google Search နှင့် AI များ ရှာတွေ့နိုင်ရန် SEO Title၊
+                    မြန်မာ+အင်္ဂလိပ် Meta Description၊ OpenGraph ပုံ၊ Schema.org
+                    Structured Data၊ <code className="font-mono">/sitemap.xml</code> နှင့်{' '}
+                    <code className="font-mono">/robots.txt</code> များကို
+                    အလိုအလျောက် တပ်ဆင်ပေးထားပြီးဖြစ်ပါသည်။
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-5 space-y-3 p-4 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4]">
+                  <h3 className="text-sm font-bold text-[#115E34]">
+                    Google Search Console တွင် တင်သွင်းရန် လင့်ခ်များ
+                  </h3>
+
+                  <div className="space-y-2.5 text-xs">
+                    <div className="p-2.5 rounded-lg bg-white border border-[#DCE6DF] space-y-1">
+                      <span className="font-semibold text-[#526058]">
+                        1. URL Prefix (ဝဘ်ဆိုက်ပင်မလင့်ခ်)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 truncate font-mono text-[#1A241E]">
+                          {seoCanonicalOriginInput}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleCopySeoValue('origin', seoCanonicalOriginInput)
+                          }
+                          className="px-2.5 py-1 rounded border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-semibold inline-flex items-center gap-1 shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedSeoKey === 'origin' ? 'ကူးပြီး' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-white border border-[#DCE6DF] space-y-1">
+                      <span className="font-semibold text-[#526058]">
+                        2. Sitemap URL (စာမျက်နှာနှင့် စာအုပ်အားလုံးစာရင်း)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 truncate font-mono text-[#1A241E]">
+                          {`${seoCanonicalOriginInput.replace(/\/$/, '')}/sitemap.xml`}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleCopySeoValue(
+                              'sitemap',
+                              `${seoCanonicalOriginInput.replace(/\/$/, '')}/sitemap.xml`,
+                            )
+                          }
+                          className="px-2.5 py-1 rounded border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-semibold inline-flex items-center gap-1 shrink-0"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{copiedSeoKey === 'sitemap' ? 'ကူးပြီး' : 'Copy'}</span>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3 pt-1">
+                        <a
+                          href="/sitemap.xml"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-semibold text-[#146B3A] hover:underline inline-flex items-center gap-1"
+                        >
+                          <span>sitemap.xml စစ်ကြည့်ရန်</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <a
+                          href="/robots.txt"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[11px] font-semibold text-[#146B3A] hover:underline inline-flex items-center gap-1"
+                        >
+                          <span>robots.txt စစ်ကြည့်ရန်</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-[#EBF4EE]/60 border border-[#C7DED0] text-[#115E34] space-y-1 leading-relaxed">
+                      <p className="font-bold">တပ်ဆင်ပြီးသား SEO စနစ်များ:</p>
+                      <p>✓ Bilingual Title &amp; Meta Description (MY/EN)</p>
+                      <p>✓ OpenGraph &amp; Twitter Share Card (/og-cover.jpg)</p>
+                      <p>✓ Schema.org WebSite + Library + SearchAction JSON-LD</p>
+                      <p>✓ Clean URL Routing + Dynamic Live Book Sitemap</p>
+                    </div>
+                  </div>
+                </div>
+
+                <form
+                  onSubmit={(e) => void handleSaveSeoConfig(e)}
+                  className="lg:col-span-7 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-3.5"
+                >
+                  <h3 className="text-sm font-bold text-[#115E34]">
+                    Google Search Console ပိုင်ရှင်အတည်ပြုချက် (Verify Ownership)
+                  </h3>
+
+                  <div>
+                    <label
+                      htmlFor="seo-canonical-origin"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      ဝဘ်ဆိုက် Domain URL (Vercel / Custom Domain)
+                    </label>
+                    <input
+                      id="seo-canonical-origin"
+                      type="url"
+                      value={seoCanonicalOriginInput}
+                      onChange={(e) => setSeoCanonicalOriginInput(e.target.value)}
+                      placeholder="https://islamiclibrary-three.vercel.app"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs sm:text-sm bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="seo-google-meta-token"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      Google Verification HTML Tag (သို့) content ကုဒ် (Optional)
+                    </label>
+                    <input
+                      id="seo-google-meta-token"
+                      type="text"
+                      value={seoMetaTokenInput}
+                      onChange={(e) => setSeoMetaTokenInput(e.target.value)}
+                      placeholder='<meta name="google-site-verification" content="abc..." />'
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="seo-google-html-file"
+                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                    >
+                      Google HTML Verification ဖိုင်နာမည် (Optional)
+                    </label>
+                    <input
+                      id="seo-google-html-file"
+                      type="text"
+                      value={seoHtmlFilenameInput}
+                      onChange={(e) => setSeoHtmlFilenameInput(e.target.value)}
+                      placeholder="google1234abcd5678ef.html"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSavingSeoConfig}
+                    className="min-h-[42px] px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {isSavingSeoConfig ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>သိမ်းဆည်းနေပါသည်...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Google Verification ကုဒ် သိမ်းဆည်းမည်</span>
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                    မှတ်ချက် - Vercel Static Build ပေါ်တွင် တင်ထားပါက Google Search Console
+                    မှရရှိသော HTML Tag ကုဒ် (သို့) <code className="font-mono">google...html</code>{' '}
+                    ဖိုင်နာမည်ကို Chat ထဲတွင် ပေးပို့လိုက်ပါက ဝဘ်ဆိုက် Code ထဲသို့
+                    တိုက်ရိုက်ထည့်သွင်းပေးပါမည်။
+                  </p>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </section>
+
+      {/* Dedicated Book Edit Modal */}
+      {editModalBookId && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+          onClick={() => !isSavingEditModal && setEditModalBookId(null)}
+        >
+          <form
+            onSubmit={(e) => void handleSaveEditModal(e)}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white border border-[#E2E8E4] rounded-2xl max-w-xl w-full p-5 sm:p-6 space-y-4 shadow-2xl my-auto max-h-[92vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between border-b border-[#EDF1EE] pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <h3 className="text-base font-bold text-[#1A241E]">
+                  စာအုပ်အချက်အလက် ပြင်ဆင်ရန်
+                </h3>
+              </div>
+              <button
+                type="button"
+                disabled={isSavingEditModal}
+                onClick={() => setEditModalBookId(null)}
+                className="text-xs font-semibold text-[#5A6860] hover:text-[#1A241E] px-2 py-1"
+              >
+                ပိတ်ရန်
+              </button>
+            </div>
+
+            {editModalError && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed">
+                {editModalError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                စာအုပ်အမည် *
+              </label>
+              <input
+                type="text"
+                required
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                စာရေးဆရာ / ပြုစုသူ
+              </label>
+              <input
+                type="text"
+                value={editAuthor}
+                onChange={(e) => setEditAuthor(e.target.value)}
+                placeholder="စာရေးဆရာအမည် (မပါလျှင် အလွတ်ထားနိုင်သည်)"
+                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  ကဏ္ဍ (Category)
+                </label>
+                <select
+                  value={editCategoryId}
+                  onChange={(e) =>
+                    setEditCategoryId(e.target.value as BookCategoryId)
+                  }
+                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                >
+                  {BOOK_CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nameMy}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  အမျိုးအစား (Type)
+                </label>
+                <select
+                  value={editType}
+                  onChange={(e) =>
+                    setEditType(
+                      e.target.value as Exclude<MaterialType, 'All Types'>,
+                    )
+                  }
+                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                >
+                  <option value="Book">Book</option>
+                  <option value="Periodical">Periodical</option>
+                  <option value="Research">Research</option>
+                  <option value="Dua">Dua</option>
+                  <option value="Timetable">Timetable</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  ခုနှစ်
+                </label>
+                <input
+                  type="text"
+                  value={editHijriYear}
+                  onChange={(e) => setEditHijriYear(e.target.value)}
+                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  စာမျက်နှာ
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={10000}
+                  value={editPages}
+                  onChange={(e) => setEditPages(Number(e.target.value) || 0)}
+                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  ဖိုင်အရွယ်အစား
+                </label>
+                <input
+                  type="text"
+                  value={editFileSize}
+                  onChange={(e) => setEditFileSize(e.target.value)}
+                  placeholder="PDF"
+                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  အရောင်ဒီဇိုင်း
+                </label>
+                <select
+                  value={editCoverTheme}
+                  onChange={(e) =>
+                    setEditCoverTheme(
+                      e.target.value as BookItem['coverTheme'],
+                    )
+                  }
+                  className="w-full min-h-[40px] px-2 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                >
+                  <option value="emerald">Emerald</option>
+                  <option value="gold">Gold</option>
+                  <option value="teal">Teal</option>
+                  <option value="burgundy">Burgundy</option>
+                  <option value="slate">Slate</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="block text-xs font-semibold text-[#35433A]">
+                  Google Drive File ID သို့မဟုတ် Share Link *
+                </label>
+                {driveToken && (
+                  <label className="text-[11px] font-bold text-[#146B3A] hover:underline cursor-pointer inline-flex items-center gap-1">
+                    <Upload className="w-3 h-3" />
+                    <span>
+                      {isUploadingReplacementPdf
+                        ? 'PDF တင်နေသည်...'
+                        : 'PDF အသစ် အစားထိုးတင်ရန်'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      disabled={isUploadingReplacementPdf}
+                      onChange={(e) => void handleReplacePdfInEditModal(e)}
+                      className="sr-only"
+                    />
+                  </label>
+                )}
+              </div>
+              <input
+                type="text"
+                required
+                value={editDriveFileId}
+                onChange={(e) =>
+                  setEditDriveFileId(extractDriveFileId(e.target.value))
+                }
+                className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                အကျဉ်းချုပ်မိတ်ဆက်
+              </label>
+              <textarea
+                rows={3}
+                value={editSummary}
+                onChange={(e) => setEditSummary(e.target.value)}
+                placeholder="စာအုပ်အကြောင်း အကျဉ်းချုပ်..."
+                className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+              />
+            </div>
+
+            <label className="flex items-center gap-2.5 text-sm text-[#1A241E] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editPublished}
+                onChange={(e) => setEditPublished(e.target.checked)}
+                className="w-4 h-4 accent-[#146B3A]"
+              />
+              <span>ဝက်ဘ်ဆိုက်တွင် တိုက်ရိုက်ဖော်ပြမည် (Published)</span>
+            </label>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EDF1EE]">
+              <button
+                type="button"
+                disabled={isSavingEditModal || isUploadingReplacementPdf}
+                onClick={() => setEditModalBookId(null)}
+                className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DDD7] text-xs sm:text-sm font-semibold text-[#35433A] hover:bg-[#F5F8F6]"
+              >
+                မပြင်တော့ပါ
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingEditModal || isUploadingReplacementPdf}
+                className="min-h-[42px] px-5 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold disabled:opacity-60"
+              >
+                {isSavingEditModal ? 'သိမ်းဆည်းနေပါသည်...' : 'ပြင်ဆင်မှု သိမ်းဆည်းရန်'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {/* Explicit Confirmation Modal for Destructive Operations */}
       {pendingDelete && (

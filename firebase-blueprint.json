@@ -191,7 +191,7 @@
     },
     "AdminUser": {
       "title": "AdminUser",
-      "description": "Authorized admin record",
+      "description": "Authorized admin record by UID",
       "type": "object",
       "properties": {
         "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
@@ -200,6 +200,46 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "addedByUid", "createdAt"]
+    },
+    "AdminInvite": {
+      "title": "AdminInvite",
+      "description": "Email-based admin appointment managed by existing admins",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "roleLabel": { "type": "string", "maxLength": 80 },
+        "addedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "addedByEmail": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "roleLabel", "addedByUid", "addedByEmail", "createdAt"]
+    },
+    "TelegramSettings": {
+      "title": "TelegramSettings",
+      "description": "Non-secret Telegram Bot connection and auto-sync configuration (Admin-only)",
+      "type": "object",
+      "properties": {
+        "connected": { "type": "boolean" },
+        "botUsername": { "type": "string", "maxLength": 120 },
+        "botFirstName": { "type": "string", "maxLength": 120 },
+        "allowedChatIds": { "type": "string", "maxLength": 500 },
+        "autoSyncToWebsite": { "type": "boolean" },
+        "defaultCategoryId": { "type": "string", "maxLength": 60 },
+        "lastUpdateId": { "type": "integer" },
+        "updatedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "connected",
+        "botUsername",
+        "botFirstName",
+        "allowedChatIds",
+        "autoSyncToWebsite",
+        "defaultCategoryId",
+        "lastUpdateId",
+        "updatedByUid",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -229,7 +269,15 @@
     },
     "/admins/{adminUid}": {
       "schema": { "$ref": "#/entities/AdminUser" },
-      "description": "Authorized admin users"
+      "description": "Authorized admin users by UID"
+    },
+    "/adminInvites/{adminEmail}": {
+      "schema": { "$ref": "#/entities/AdminInvite" },
+      "description": "Appointed admin Gmail allowlist managed by Admins"
+    },
+    "/telegramSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/TelegramSettings" },
+      "description": "Admin-only Telegram Bot metadata and sync settings"
     }
   }
 }

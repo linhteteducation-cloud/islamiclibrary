@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://islamiclibrary-three.vercel.app/sitemap.xml

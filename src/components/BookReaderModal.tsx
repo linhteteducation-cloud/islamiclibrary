@@ -47,22 +47,22 @@ export function BookReaderModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="book-modal-title"
-      className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 lg:p-6"
+      className="fixed inset-0 z-50 bg-[#0D1830]/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 lg:p-6"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-5xl h-[94vh] sm:h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-[#E2E8E4] flex flex-col overflow-hidden"
+        className="bg-white w-full max-w-5xl h-[94vh] sm:h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-[#E2E6EE] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Modal Bar */}
-        <div className="px-4 sm:px-6 py-3.5 border-b border-[#E2E8E4] bg-[#F8FAF9] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 border-b border-[#E2E6EE] bg-[#F6F7FA] flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
-            <p className="text-[11.5px] font-semibold text-[#9B7417] truncate">
+            <p className="text-[11.5px] font-semibold text-[#B85338] truncate">
               {book.categoryLabel} · {book.type}
             </p>
             <h2
               id="book-modal-title"
-              className="text-sm sm:text-base font-bold text-[#1A241E] truncate"
+              className="text-sm sm:text-base font-bold text-[#131B2E] truncate"
             >
               {book.title}
             </h2>
@@ -75,8 +75,8 @@ export function BookReaderModal({
               aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark'}
               className={`min-h-[40px] px-3 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
                 isBookmarked
-                  ? 'bg-[#C59B27] border-[#C59B27] text-white'
-                  : 'bg-white border-[#D4DDD7] text-[#334239] hover:bg-[#F2F6F3]'
+                  ? 'bg-[#B85338] border-[#B85338] text-white'
+                  : 'bg-white border-[#D4DBE8] text-[#334155] hover:bg-[#EFF3FA]'
               }`}
             >
               <Bookmark
@@ -92,7 +92,7 @@ export function BookReaderModal({
               type="button"
               onClick={onClose}
               aria-label="Close reader"
-              className="w-10 h-10 rounded-lg bg-white border border-[#D4DDD7] text-[#334239] hover:bg-[#EDF2EE] flex items-center justify-center transition-colors"
+              className="w-10 h-10 rounded-lg bg-white border border-[#D4DBE8] text-[#334155] hover:bg-[#EFF3FA] flex items-center justify-center transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -102,23 +102,23 @@ export function BookReaderModal({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* Book Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 pb-5 border-b border-[#E8ECE9]">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 pb-5 border-b border-[#E6EAF2]">
             <div className="sm:col-span-3 lg:col-span-2">
-              <div className="aspect-[3/4] max-w-[140px] mx-auto sm:max-w-none rounded-lg overflow-hidden border border-[#E2E8E4] shadow-sm">
+              <div className="aspect-[3/4] max-w-[140px] mx-auto sm:max-w-none rounded-lg overflow-hidden border border-[#E2E6EE] shadow-sm">
                 <BookCoverFrame book={book} />
               </div>
             </div>
 
             <div className="sm:col-span-9 lg:col-span-10 flex flex-col justify-between gap-3">
               <div className="space-y-2">
-                <h3 className="text-lg sm:text-xl font-bold text-[#1A241E] leading-snug">
+                <h3 className="text-lg sm:text-xl font-bold text-[#131B2E] leading-snug">
                   {book.title}
                 </h3>
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#526058]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#525E75]">
                   {book.author.trim() && (
                     <span className="inline-flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-[#146B3A]" />
+                      <User className="w-4 h-4 text-[#1E3A8A]" />
                       {book.author}
                     </span>
                   )}
@@ -147,7 +147,7 @@ export function BookReaderModal({
                 </div>
 
                 {book.summary && (
-                  <p className="text-sm text-[#39483F] leading-relaxed pt-1">
+                  <p className="text-sm text-[#334155] leading-[1.8] pt-1">
                     {book.summary}
                   </p>
                 )}
@@ -159,7 +159,7 @@ export function BookReaderModal({
                     href={safeDownloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-[42px] px-5 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                    className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
                   >
                     <Download className="w-4 h-4" />
                     <span>PDF ဒေါင်းလုဒ်ရယူရန်</span>
@@ -170,9 +170,9 @@ export function BookReaderModal({
                     href={safeViewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#F5F8F6] text-[#1A241E] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                    className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DBE8] bg-white hover:bg-[#EFF3FA] text-[#131B2E] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4 text-[#146B3A]" />
+                    <ExternalLink className="w-4 h-4 text-[#1E3A8A]" />
                     <span>Google Drive ဖြင့်ဖွင့်ရန်</span>
                   </a>
                 )}
@@ -183,11 +183,11 @@ export function BookReaderModal({
           {/* Embedded Google Drive PDF Reader */}
           {safeViewUrl ? (
             <div className="space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#5A6860]">
-                <FileText className="w-4 h-4 text-[#146B3A]" />
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#525E75]">
+                <FileText className="w-4 h-4 text-[#1E3A8A]" />
                 <span>PDF အွန်လိုင်းစာဖတ်စနစ် (Google Drive Viewer)</span>
               </div>
-              <div className="w-full h-[55vh] sm:h-[60vh] rounded-xl overflow-hidden border border-[#E2E8E4] bg-[#F2F5F3]">
+              <div className="w-full h-[55vh] sm:h-[60vh] rounded-xl overflow-hidden border border-[#E2E6EE] bg-[#EFF2F7]">
                 <iframe
                   title={book.title}
                   src={safeViewUrl}
@@ -197,7 +197,7 @@ export function BookReaderModal({
               </div>
             </div>
           ) : (
-            <div className="p-8 rounded-xl border border-[#E2E8E4] bg-[#F8FAF9] text-center text-sm text-[#5A6860]">
+            <div className="p-8 rounded-xl border border-[#E2E6EE] bg-[#F6F7FA] text-center text-sm text-[#525E75]">
               PDF ကြည့်ရှုရန် လင့်ခ်မရှိသေးပါ။
             </div>
           )}

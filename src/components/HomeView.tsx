@@ -35,7 +35,7 @@ export function HomeView({
 
   return (
     <div>
-      {/* Hero Banner */}
+      {/* Deep Midnight Lapis Blue Hero Banner */}
       <section className="relative islamic-lattice-bg overflow-hidden">
         <div
           aria-hidden="true"
@@ -44,16 +44,16 @@ export function HomeView({
         <div className="relative max-w-[1120px] mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24 text-center text-white">
           <p
             dir="rtl"
-            className="font-[Amiri] text-2xl sm:text-3xl lg:text-[34px] text-[#E8C868] tracking-wide mb-3"
+            className="font-[Amiri] text-2xl sm:text-3xl lg:text-[36px] text-[#E2C792] tracking-wide mb-3"
           >
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </p>
 
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-[46px] font-bold tracking-tight text-white [text-wrap:balance] mb-5">
+          <h1 className="font-serif text-3xl sm:text-5xl lg:text-[52px] font-bold tracking-tight text-white [text-wrap:balance] mb-5">
             Myanmar Muslim Library
           </h1>
 
-          <p className="max-w-3xl mx-auto text-[14.5px] sm:text-base leading-[1.85] text-[#E6EFE9] font-normal mb-8">
+          <p className="max-w-3xl mx-auto text-[15px] sm:text-base leading-[1.9] text-[#DCE4F2] font-normal mb-9">
             {siteSettings.heroDescription}
           </p>
 
@@ -61,7 +61,7 @@ export function HomeView({
             <button
               type="button"
               onClick={() => onNavigate('library')}
-              className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-lg bg-[#C59B27] hover:bg-[#B2891B] text-white font-semibold text-sm shadow-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F3D786]"
+              className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white font-semibold text-sm shadow-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
             >
               <BookOpen className="w-4 h-4 shrink-0" />
               <span>စာကြည့်တိုက်ဖွင့်ရန်</span>
@@ -71,9 +71,9 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => onNavigate('duas')}
-                className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-lg bg-[#0D4A28]/70 hover:bg-[#0B3F22] border border-white/25 text-white font-semibold text-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-lg bg-white/10 hover:bg-white/18 border border-white/25 text-white font-semibold text-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               >
-                <HeartHandshake className="w-4 h-4 shrink-0 text-[#E8C868]" />
+                <HeartHandshake className="w-4 h-4 shrink-0 text-[#E2C792]" />
                 <span>ဒိုအာနှင့်အအ်မာလ်များ</span>
               </button>
             )}
@@ -85,10 +85,10 @@ export function HomeView({
       {visibleCategories.length > 0 && (
         <section className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
           <div className="text-center mb-9 sm:mb-11">
-            <h2 className="text-2xl sm:text-3xl font-bold text-[#1A241E] [text-wrap:balance] mb-2">
+            <h2 className="font-serif text-2xl sm:text-3xl font-bold text-[#131B2E] [text-wrap:balance] mb-2">
               ကဏ္ဍအလိုက်ဖတ်ရှုရန်
             </h2>
-            <p className="text-sm text-[#5A6860]">
+            <p className="text-sm text-[#525E75]">
               အကြောင်းအရာကဏ္ဍအလိုက် PDF စာအုပ်များနှင့် စာစောင်များ
             </p>
           </div>
@@ -99,12 +99,12 @@ export function HomeView({
                 key={category.id}
                 type="button"
                 onClick={() => handleCategoryCardClick(category.id)}
-                className="group bg-white border border-[#E2E8E4] hover:border-[#146B3A]/45 rounded-xl p-5 sm:p-6 flex flex-col items-center text-center transition-all duration-150 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#146B3A]"
+                className="group bg-white border border-[#E2E6EE] hover:border-[#1E3A8A]/50 rounded-xl p-5 sm:p-6 flex flex-col items-center text-center transition-all duration-150 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
               >
-                <div className="w-11 h-11 rounded-lg bg-[#EBF4EE] text-[#146B3A] group-hover:bg-[#146B3A] group-hover:text-white flex items-center justify-center mb-3.5 transition-colors duration-150">
+                <div className="w-11 h-11 rounded-lg bg-[#EFF3FA] text-[#1E3A8A] group-hover:bg-[#1E3A8A] group-hover:text-white flex items-center justify-center mb-3.5 transition-colors duration-150">
                   <CategoryIcon name={category.iconName} className="w-5 h-5" />
                 </div>
-                <span className="text-[13.5px] sm:text-sm font-semibold text-[#1E2A23] group-hover:text-[#115E34] leading-snug">
+                <span className="text-[13.5px] sm:text-sm font-semibold text-[#131B2E] group-hover:text-[#1E3A8A] leading-relaxed">
                   {category.nameMy}
                 </span>
               </button>
@@ -113,22 +113,22 @@ export function HomeView({
         </section>
       )}
 
-      {/* Published PDF Books Section (Zero Demo Data) */}
-      <section className="bg-white border-y border-[#E2E8E4] py-12 sm:py-16">
+      {/* Published PDF Books Section */}
+      <section className="bg-white border-y border-[#E2E6EE] py-12 sm:py-16">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
-              <p className="text-xs font-semibold tracking-wider text-[#9B7417] mb-1">
+              <p className="text-xs font-semibold tracking-wider text-[#B85338] mb-1">
                 Google Drive PDF စာကြည့်တိုက်
               </p>
-              <h2 className="text-xl sm:text-2xl font-bold text-[#1A241E]">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#131B2E]">
                 နောက်ဆုံးတင်သွင်းထားသော စာအုပ်များ
               </h2>
             </div>
             <button
               type="button"
               onClick={() => onNavigate('library')}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#146B3A] hover:text-[#0F522D] whitespace-nowrap shrink-0 self-start sm:self-auto"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#1E3A8A] hover:text-[#1D4ED8] whitespace-nowrap shrink-0 self-start sm:self-auto"
             >
               <span>စာအုပ်အားလုံးကြည့်ရန်</span>
               <ArrowRight className="w-4 h-4" />
@@ -136,19 +136,19 @@ export function HomeView({
           </div>
 
           {featuredBooks.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[#D4DDD7] bg-[#F8FAF9] p-8 sm:p-10 text-center space-y-3">
-              <FileText className="w-9 h-9 text-[#7A887F] mx-auto" />
-              <p className="text-base font-semibold text-[#1A241E]">
+            <div className="rounded-xl border border-dashed border-[#CBD5E1] bg-[#F6F7FA] p-8 sm:p-10 text-center space-y-3">
+              <FileText className="w-9 h-9 text-[#64748B] mx-auto" />
+              <p className="text-base font-semibold text-[#131B2E]">
                 စာကြည့်တိုက်တွင် PDF စာအုပ်များ မတင်ရသေးပါ
               </p>
-              <p className="text-sm text-[#5A6860] max-w-md mx-auto">
+              <p className="text-sm text-[#525E75] max-w-md mx-auto">
                 Admin Panel မှတစ်ဆင့် Google Drive ထဲသို့ PDF စာအုပ်များ တင်သွင်းပြီးပါက
                 ဤနေရာတွင် အလိုအလျောက် ပေါ်လာမည် ဖြစ်ပါသည်။
               </p>
               <button
                 type="button"
                 onClick={() => onNavigate('admin')}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold transition-colors"
               >
                 <Shield className="w-3.5 h-3.5" />
                 <span>Admin Panel ဖွင့်ရန်</span>
@@ -159,41 +159,41 @@ export function HomeView({
               {featuredBooks.map((book) => (
                 <article
                   key={book.id}
-                  className="group bg-[#F9FBFA] border border-[#E2E8E4] rounded-xl overflow-hidden flex flex-col transition-shadow duration-150 hover:shadow-md"
+                  className="group bg-[#F9FAFC] border border-[#E2E6EE] hover:border-[#1E3A8A]/40 rounded-xl overflow-hidden flex flex-col transition-all duration-150 hover:shadow-md"
                 >
                   <button
                     type="button"
                     onClick={() => onOpenBook(book)}
                     aria-label={`${book.title} ကြည့်ရှုရန်`}
-                    className="relative aspect-[4/3] w-full overflow-hidden border-b border-[#E2E8E4] bg-[#F3F5F4] block text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#146B3A]"
+                    className="relative aspect-[4/3] w-full overflow-hidden border-b border-[#E2E6EE] bg-[#EFF2F7] block text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#1E3A8A]"
                   >
                     <BookCoverFrame book={book} />
-                    <span className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none" />
+                    <span className="absolute inset-0 bg-black/0 group-hover:bg-black/8 transition-colors pointer-events-none" />
                   </button>
                   <div className="p-4 flex flex-col flex-1">
-                    <p className="text-[11.5px] font-medium text-[#9B7417] mb-1">
+                    <p className="text-[11.5px] font-semibold text-[#B85338] mb-1 truncate">
                       {book.categoryLabel}
                     </p>
-                    <h3 className="text-sm font-semibold text-[#1A241E] leading-snug line-clamp-2 mb-1.5">
+                    <h3 className="text-[14px] font-semibold text-[#131B2E] leading-[1.55] line-clamp-2 mb-1.5">
                       {book.title}
                     </h3>
                     {book.author.trim() ? (
-                      <p className="text-xs text-[#5A6860] truncate mb-4">
+                      <p className="text-xs text-[#525E75] truncate mb-4">
                         {book.author}
                       </p>
                     ) : (
                       <div className="mb-3" />
                     )}
-                    <div className="mt-auto pt-3 border-t border-[#E8ECE9] flex items-center justify-between gap-2">
-                      <span className="text-xs text-[#5A6860] tabular-nums">
+                    <div className="mt-auto pt-3 border-t border-[#E6EAF2] flex items-center justify-between gap-2">
+                      <span className="text-xs text-[#525E75] tabular-nums">
                         {book.fileSize || 'PDF'}
                       </span>
                       <button
                         type="button"
                         onClick={() => onOpenBook(book)}
-                        className="px-3.5 py-1.5 rounded-md bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold transition-colors"
+                        className="min-h-[36px] px-4 py-1.5 rounded-md bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold transition-colors"
                       >
-                        View
+                        ဖတ်ရှုရန်
                       </button>
                     </div>
                   </div>

@@ -26,11 +26,16 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
+    function isValidEmailId(id) {
+      return id is string && id.size() >= 3 && id.size() <= 160 && id.matches('^[a-z0-9._%+\\-]+@[a-z0-9.\\-]+\\.[a-z]{2,}$');
+    }
+
     function isAdmin() {
       return isVerifiedUser() && (
-        request.auth.token.email == 'linhteteducation@gmail.com' ||
-        request.auth.token.email == 'linhtetitservice@gmail.com' ||
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        request.auth.token.email.lower() == 'linhteteducation@gmail.com' ||
+        request.auth.token.email.lower() == 'linhtetitservice@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        exists(/databases/$(database)/documents/adminInvites/$(request.auth.token.email.lower()))
       );
     }
 
@@ -180,6 +185,38 @@ service cloud.firestore {
       data.createdAt is timestamp;
     }
 
+    function isValidAdminInvite(data) {
+      return data.keys().hasAll(['email', 'roleLabel', 'addedByUid', 'addedByEmail', 'createdAt']) &&
+      data.keys().hasOnly(['email', 'roleLabel', 'addedByUid', 'addedByEmail', 'createdAt']) &&
+      isValidEmailId(data.email) &&
+      data.roleLabel is string && data.roleLabel.size() <= 80 &&
+      data.addedByUid is string && data.addedByUid.size() >= 1 && data.addedByUid.size() <= 128 &&
+      data.addedByEmail is string && data.addedByEmail.size() >= 3 && data.addedByEmail.size() <= 160 &&
+      data.createdAt is timestamp;
+    }
+
+    function isValidTelegramSettings(data) {
+      return data.keys().hasAll([
+        'connected', 'botUsername', 'botFirstName', 'allowedChatIds',
+        'autoSyncToWebsite', 'defaultCategoryId', 'lastUpdateId',
+        'updatedByUid', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'connected', 'botUsername', 'botFirstName', 'allowedChatIds',
+        'autoSyncToWebsite', 'defaultCategoryId', 'lastUpdateId',
+        'updatedByUid', 'updatedAt'
+      ]) &&
+      data.connected is bool &&
+      data.botUsername is string && data.botUsername.size() <= 120 &&
+      data.botFirstName is string && data.botFirstName.size() <= 120 &&
+      data.allowedChatIds is string && data.allowedChatIds.size() <= 500 &&
+      data.autoSyncToWebsite is bool &&
+      data.defaultCategoryId is string && data.defaultCategoryId.size() <= 60 &&
+      data.lastUpdateId is int && data.lastUpdateId >= 0 &&
+      data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 &&
+      data.updatedAt is timestamp;
+    }
+
     // Startup connection check path
     match /test/connection {
       allow get: if true;
@@ -290,7 +327,7 @@ service cloud.firestore {
       allow delete: if isValidId(messageId) && isAdmin();
     }
 
-    // Admin registry
+    // Admin registry by UID
     match /admins/{adminUid} {
       allow get: if isValidId(adminUid) && (isAdmin() || (isVerifiedUser() && request.auth.uid == adminUid));
       allow list: if isAdmin();
@@ -300,6 +337,39 @@ service cloud.firestore {
         incoming().createdAt == request.time;
       allow update: if false;
       allow delete: if isValidId(adminUid) && isAdmin() && adminUid != request.auth.uid;
+    }
+
+    // Appointed Admins by Gmail (Existing Admins can appoint/remove other Admins)
+    match /adminInvites/{adminEmail} {
+      allow get: if isValidEmailId(adminEmail) && (isAdmin() || (isVerifiedUser() && request.auth.token.email.lower() == adminEmail));
+      allow list: if isAdmin();
+      allow create: if isValidEmailId(adminEmail) && isAdmin() && isValidAdminInvite(incoming()) &&
+        incoming().email == adminEmail &&
+        incoming().addedByUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidEmailId(adminEmail) && isAdmin() &&
+        adminEmail != request.auth.token.email.lower() &&
+        adminEmail != 'linhteteducation@gmail.com' &&
+        adminEmail != 'linhtetitservice@gmail.com';
+    }
+
+    // Telegram Bot non-secret integration settings (strictly Admin-only)
+    match /telegramSettings/{settingId} {
+      allow get: if isValidId(settingId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(settingId) && isAdmin() && isValidTelegramSettings(incoming()) &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId) && isAdmin() && isValidTelegramSettings(incoming()) &&
+        incoming().updatedByUid == request.auth.uid &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'connected', 'botUsername', 'botFirstName', 'allowedChatIds',
+          'autoSyncToWebsite', 'defaultCategoryId', 'lastUpdateId',
+          'updatedByUid', 'updatedAt'
+        ]);
+      allow delete: if isValidId(settingId) && isAdmin();
     }
   }
 }

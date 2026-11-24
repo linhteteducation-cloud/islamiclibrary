@@ -13,9 +13,8 @@ import {
 } from './components/InstitutionalViews';
 import {LibraryView} from './components/LibraryView';
 import {Navbar} from './components/Navbar';
-import {PrayerTimesTicker} from './components/PrayerTimesTicker';
 import {VideosView} from './components/VideosView';
-import {DEFAULT_SITE_SETTINGS} from './data/libraryData';
+import {CATEGORIES, DEFAULT_SITE_SETTINGS} from './data/libraryData';
 import {
   checkIsAdminUser,
   initFirebaseAuth,
@@ -41,10 +40,101 @@ import {
 } from './types/library';
 
 const BOOKMARKS_STORAGE_KEY = 'mil_bookmarks_v2';
+const DEFAULT_SEO_ORIGIN = 'https://islamiclibrary-three.vercel.app';
+const VALID_ROUTES: PageRoute[] = [
+  'home',
+  'library',
+  'duas',
+  'videos',
+  'articles',
+  'about',
+  'publishing',
+  'contact',
+  'admin',
+];
+
+function parseInitialRouteFromUrl(): {
+  page: PageRoute;
+  category: CategoryId;
+  bookId: string | null;
+} {
+  try {
+    const pathname = window.location.pathname
+      .replace(/^\/+|\/+$/g, '')
+      .toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    const paramPage = (params.get('page') || '').toLowerCase();
+    const paramCategory = params.get('category') || '';
+    const paramBookId = params.get('book');
+
+    let page: PageRoute = 'home';
+    if (VALID_ROUTES.includes(pathname as PageRoute)) {
+      page = pathname as PageRoute;
+    } else if (VALID_ROUTES.includes(paramPage as PageRoute)) {
+      page = paramPage as PageRoute;
+    } else if (paramCategory || paramBookId) {
+      page = 'library';
+    }
+
+    const validCategoryIds = new Set<string>([
+      'all',
+      ...CATEGORIES.map((c) => c.id),
+    ]);
+    const category: CategoryId = validCategoryIds.has(paramCategory)
+      ? (paramCategory as CategoryId)
+      : 'all';
+
+    return {
+      page,
+      category,
+      bookId: paramBookId ? paramBookId.trim() : null,
+    };
+  } catch {
+    return {page: 'home', category: 'all', bookId: null};
+  }
+}
+
+function buildUrlForState(
+  page: PageRoute,
+  category: CategoryId,
+  bookId?: string | null,
+): string {
+  const path = page === 'home' ? '/' : `/${page}`;
+  const params = new URLSearchParams();
+  if (page === 'library' && category !== 'all') {
+    params.set('category', category);
+  }
+  if (bookId) {
+    params.set('book', bookId);
+  }
+  const qs = params.toString();
+  return qs ? `${path}?${qs}` : path;
+}
+
+function upsertHeadMeta(
+  selector: string,
+  attrName: 'name' | 'property',
+  attrValue: string,
+  content: string,
+): void {
+  let el = document.head.querySelector<HTMLMetaElement>(selector);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attrName, attrValue);
+    document.head.appendChild(el);
+  }
+  el.setAttribute('content', content);
+}
 
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<PageRoute>('home');
-  const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
+  const initialUrlState = parseInitialRouteFromUrl();
+  const [currentPage, setCurrentPage] = useState<PageRoute>(initialUrlState.page);
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId>(
+    initialUrlState.category,
+  );
+  const [requestedBookId, setRequestedBookId] = useState<string | null>(
+    initialUrlState.bookId,
+  );
   const [activeBook, setActiveBook] = useState<BookItem | null>(null);
 
   // Firebase Auth + Google Drive in-memory OAuth state
@@ -121,6 +211,146 @@ export default function App() {
     ? publishedBooks.find((b) => b.id === activeBook.id) ?? null
     : null;
 
+  // Open deep-linked book (?book=<id>) once publishedBooks load
+  useEffect(() => {
+    if (!requestedBookId || publishedBooks.length === 0) return;
+    const match = publishedBooks.find((b) => b.id === requestedBookId);
+    if (match) {
+      setActiveBook(match);
+      setRequestedBookId(null);
+    }
+  }, [requestedBookId, publishedBooks]);
+
+  // Sync browser Back/Forward navigation
+  useEffect(() => {
+    const onPopState = () => {
+      const next = parseInitialRouteFromUrl();
+      setCurrentPage(next.page);
+      setSelectedCategory(next.category);
+      if (next.bookId) {
+        const match = publishedBooks.find((b) => b.id === next.bookId);
+        if (match) {
+          setActiveBook(match);
+          setRequestedBookId(null);
+        } else {
+          setRequestedBookId(next.bookId);
+        }
+      } else {
+        setActiveBook(null);
+        setRequestedBookId(null);
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [publishedBooks]);
+
+  // Dynamic per-view / per-category / per-book SEO title, description, canonical & OpenGraph tags
+  useEffect(() => {
+    const host = window.location.hostname;
+    const seoOrigin =
+      host === 'localhost' || host === '127.0.0.1'
+        ? DEFAULT_SEO_ORIGIN
+        : window.location.origin;
+
+    const relativeUrl = buildUrlForState(
+      currentPage,
+      selectedCategory,
+      syncedActiveBook?.id || null,
+    );
+    const canonicalUrl = `${seoOrigin}${relativeUrl}`;
+
+    let title = 'Myanmar Muslim Library – မြန်မာ အစ္စလာမ် စာအုပ်စာပေများ';
+    let description =
+      'မြန်မာ အစ္စလာမ် စာအုပ် PDF များ (ကုရ်အာန်၊ ဟဒီးစ်၊ ဖိကဟ်၊ ဒိုအာ) အခမဲ့ ဖတ်ရှုဒေါင်းလုဒ်ရယူနိုင်သော Myanmar Muslim Library – Free Burmese Islamic Books & Research PDFs.';
+
+    if (syncedActiveBook) {
+      title = `${syncedActiveBook.title} | Myanmar Muslim Library`;
+      description = syncedActiveBook.summary
+        ? `${syncedActiveBook.summary.slice(0, 145)} — Free Burmese Islamic PDF Book at Myanmar Muslim Library.`
+        : `${syncedActiveBook.title} (${syncedActiveBook.categoryLabel}) - Free Burmese Islamic PDF Book to read & download at Myanmar Muslim Library.`;
+    } else if (currentPage === 'library') {
+      const cat = CATEGORIES.find((c) => c.id === selectedCategory);
+      if (cat) {
+        title = `${cat.nameMy} (${cat.nameEn}) | Myanmar Muslim Library`;
+        description = `${cat.descriptionMy} — ${cat.nameEn} Burmese Islamic PDF books at Myanmar Muslim Library.`;
+      } else {
+        title = 'စာကြည့်တိုက် (Digital Library) | Myanmar Muslim Library';
+        description =
+          'Browse and download free Burmese Islamic PDF books across Quran, Hadith, Fiqh, Aqeedah, History, and Children sections.';
+      }
+    } else if (currentPage === 'duas') {
+      title = 'ဒိုအာနှင့် အအ်မာလ်များ (Duas) | Myanmar Muslim Library';
+      description =
+        'နေ့စဉ်ဖတ်ရှုရန် ဒိုအာများ၊ ကုရ်အာန်လာ ဒိုအာများနှင့် အဓိပ္ပာယ်များ — Daily Islamic Duas in Arabic and Burmese.';
+    } else if (currentPage === 'videos') {
+      title = 'ဗီဒီယိုတရားတော်များ (Videos) | Myanmar Muslim Library';
+      description =
+        'အစ္စလာမ့်တရားတော်များ၊ ဆွေးနွေးပွဲများနှင့် ပညာပေး ဗီဒီယိုများ — Burmese Islamic Video Lectures.';
+    } else if (currentPage === 'articles') {
+      title = 'သတင်းဆောင်းပါးများ (Articles) | Myanmar Muslim Library';
+      description =
+        'အစ္စလာမ့်စာပေ ဆောင်းပါးများနှင့် သုတေသနစာတမ်းများ — Burmese Islamic Articles & Essays.';
+    } else if (currentPage === 'about') {
+      title = 'ကျွန်ုပ်တို့အကြောင်း (About) | Myanmar Muslim Library';
+    } else if (currentPage === 'publishing') {
+      title = 'စာပေဖြန့်ချိရေး (Publishing) | Myanmar Muslim Library';
+    } else if (currentPage === 'contact') {
+      title = 'ဆက်သွယ်ရန် (Contact) | Myanmar Muslim Library';
+    } else if (currentPage === 'admin') {
+      title = 'Admin Panel | Myanmar Muslim Library';
+    }
+
+    document.title = title;
+    upsertHeadMeta(
+      'meta[name="description"]',
+      'name',
+      'description',
+      description,
+    );
+    upsertHeadMeta(
+      'meta[name="robots"]',
+      'name',
+      'robots',
+      currentPage === 'admin'
+        ? 'noindex, nofollow'
+        : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
+    );
+    upsertHeadMeta('meta[property="og:title"]', 'property', 'og:title', title);
+    upsertHeadMeta(
+      'meta[property="og:description"]',
+      'property',
+      'og:description',
+      description,
+    );
+    upsertHeadMeta(
+      'meta[property="og:url"]',
+      'property',
+      'og:url',
+      canonicalUrl,
+    );
+    upsertHeadMeta(
+      'meta[name="twitter:title"]',
+      'name',
+      'twitter:title',
+      title,
+    );
+    upsertHeadMeta(
+      'meta[name="twitter:description"]',
+      'name',
+      'twitter:description',
+      description,
+    );
+
+    let canonicalEl =
+      document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (!canonicalEl) {
+      canonicalEl = document.createElement('link');
+      canonicalEl.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalEl);
+    }
+    canonicalEl.setAttribute('href', canonicalUrl);
+  }, [currentPage, selectedCategory, syncedActiveBook]);
+
   useEffect(() => {
     if (
       currentPage !== 'home' &&
@@ -155,18 +385,56 @@ export default function App() {
     setIsAdmin(false);
   };
 
-  const handleNavigate = (page: PageRoute) => {
-    setCurrentPage(page);
-    if (page === 'library' && selectedCategory === 'videos') {
-      setSelectedCategory('all');
+  const syncHistoryUrl = (
+    page: PageRoute,
+    category: CategoryId,
+    bookId?: string | null,
+  ) => {
+    try {
+      const targetUrl = buildUrlForState(page, category, bookId);
+      const currentUrl = `${window.location.pathname}${window.location.search}`;
+      if (targetUrl !== currentUrl) {
+        window.history.pushState(null, '', targetUrl);
+      }
+    } catch {
+      // Ignore history API restrictions
     }
+  };
+
+  const handleNavigate = (page: PageRoute) => {
+    const nextCategory =
+      page === 'library' && selectedCategory === 'videos'
+        ? 'all'
+        : selectedCategory;
+    setCurrentPage(page);
+    if (nextCategory !== selectedCategory) {
+      setSelectedCategory(nextCategory);
+    }
+    setActiveBook(null);
+    setRequestedBookId(null);
+    syncHistoryUrl(page, nextCategory, null);
     window.scrollTo({top: 0, behavior: 'smooth'});
   };
 
   const handleSelectCategory = (categoryId: CategoryId) => {
     setSelectedCategory(categoryId);
     setCurrentPage('library');
+    setActiveBook(null);
+    setRequestedBookId(null);
+    syncHistoryUrl('library', categoryId, null);
     window.scrollTo({top: 0, behavior: 'smooth'});
+  };
+
+  const handleOpenBook = (book: BookItem) => {
+    setActiveBook(book);
+    setRequestedBookId(null);
+    syncHistoryUrl(currentPage, selectedCategory, book.id);
+  };
+
+  const handleCloseBook = () => {
+    setActiveBook(null);
+    setRequestedBookId(null);
+    syncHistoryUrl(currentPage, selectedCategory, null);
   };
 
   const handleToggleBookmark = (bookId: string) => {
@@ -178,8 +446,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F7F8F7] text-[#1A241E]">
-      <PrayerTimesTicker />
+    <div className="min-h-screen flex flex-col bg-[#F6F7FA] text-[#131B2E]">
       <Navbar
         currentPage={currentPage}
         onNavigate={handleNavigate}
@@ -193,7 +460,7 @@ export default function App() {
             siteSettings={siteSettings}
             onNavigate={handleNavigate}
             onSelectCategory={handleSelectCategory}
-            onOpenBook={setActiveBook}
+            onOpenBook={handleOpenBook}
           />
         )}
 
@@ -202,8 +469,8 @@ export default function App() {
             books={publishedBooks}
             siteSettings={siteSettings}
             selectedCategory={selectedCategory}
-            onSelectCategory={setSelectedCategory}
-            onOpenBook={setActiveBook}
+            onSelectCategory={handleSelectCategory}
+            onOpenBook={handleOpenBook}
             onNavigate={handleNavigate}
             bookmarks={bookmarks}
             onToggleBookmark={handleToggleBookmark}
@@ -240,7 +507,7 @@ export default function App() {
 
       <BookReaderModal
         book={syncedActiveBook}
-        onClose={() => setActiveBook(null)}
+        onClose={handleCloseBook}
         isBookmarked={
           syncedActiveBook ? bookmarks.includes(syncedActiveBook.id) : false
         }
