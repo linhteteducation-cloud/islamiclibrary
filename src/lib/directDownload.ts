@@ -182,6 +182,11 @@ export async function verifyBookPdfSource(
     | (PdfSourceVerification & {error?: string})
     | null;
 
+  // If the endpoint returned non-JSON (e.g., Vercel FUNCTION_INVOCATION_FAILED or proxy text/plain), fall back cleanly
+  if (!payload && !verifyRes.ok) {
+    return null;
+  }
+
   if (!verifyRes.ok || !payload?.verified) {
     throw new Error(
       payload?.error ||
@@ -224,8 +229,10 @@ async function fetchVerifiedPdfChunks(
       if (errPayload?.error) {
         throw new Error(errPayload.error);
       }
+      throw new Error(`HTTP ${res.status}`);
     }
-    throw new Error(`HTTP ${res.status}`);
+    await res.body?.cancel().catch(() => {});
+    throw new BackendApiUnavailableError();
   }
 
   const contentType = (res.headers.get('content-type') || '').toLowerCase();
