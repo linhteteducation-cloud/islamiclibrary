@@ -2072,18 +2072,156 @@ async function startServer() {
     },
   );
 
-  // Direct PDF streaming download proxy (downloads straight to user's device without redirecting into Google Drive)
-  async function fetchDriveHopStream(
+  // ---------- Verified PDF Source & Direct Download Service ----------
+
+  function isAllowedDirectPdfSourceHost(hostname: string): boolean {
+    return (
+      isAllowedDriveDownloadHost(hostname) || isAllowedPdfFetchHost(hostname)
+    );
+  }
+
+  function extractDriveIdFromDownloadUrl(rawUrl: string): string {
+    const match = rawUrl.match(
+      /(?:drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?(?:[^#\s]*&)?id=)|drive\.usercontent\.google\.com\/download\?(?:[^#\s]*&)?id=|docs\.google\.com\/file\/d\/)([a-zA-Z0-9_-]{10,200})/i,
+    );
+    return match?.[1] || '';
+  }
+
+  function isValidPdfMimeTypeHeader(contentTypeHeader: string): {
+    valid: boolean;
+    baseMime: string;
+  } {
+    const baseMime = contentTypeHeader.split(';')[0]?.trim().toLowerCase() || '';
+    if (
+      baseMime === 'text/html' ||
+      baseMime === 'application/xhtml+xml' ||
+      baseMime === 'text/plain' ||
+      baseMime === 'application/json' ||
+      baseMime === 'application/xml' ||
+      baseMime === 'text/xml'
+    ) {
+      return {valid: false, baseMime};
+    }
+
+    const allowedPdfOrBinaryMimes = new Set([
+      '',
+      'application/pdf',
+      'application/x-pdf',
+      'application/acrobat',
+      'applications/vnd.pdf',
+      'text/pdf',
+      'text/x-pdf',
+      'application/octet-stream',
+      'application/binary',
+      'binary/octet-stream',
+    ]);
+
+    return {
+      valid: allowedPdfOrBinaryMimes.has(baseMime),
+      baseMime,
+    };
+  }
+
+  async function validatePdfUpstreamResponse(
+    upstream: globalThis.Response,
+    sourceLabel: string,
+  ): Promise<{
+    upstream: globalThis.Response;
+    firstChunk: Uint8Array;
+    reader: ReadableStreamDefaultReader<Uint8Array>;
+    upstreamMimeType: string;
+    contentLength: number | null;
+  }> {
+    if (!upstream.ok) {
+      await upstream.body?.cancel().catch(() => {});
+      throw Object.assign(
+        new Error(
+          `${sourceLabel} returned HTTP ${upstream.status} while verifying PDF.`,
+        ),
+        {statusCode: 502},
+      );
+    }
+
+    const rawContentType = upstream.headers.get('content-type') || '';
+    const mimeCheck = isValidPdfMimeTypeHeader(rawContentType);
+    if (!mimeCheck.valid) {
+      await upstream.body?.cancel().catch(() => {});
+      throw Object.assign(
+        new Error(
+          `Expected a PDF file but ${sourceLabel} returned "${mimeCheck.baseMime || 'unknown'}" (HTML error page or unsupported format).`,
+        ),
+        {statusCode: 422},
+      );
+    }
+
+    const reader = upstream.body?.getReader();
+    if (!reader) {
+      throw Object.assign(
+        new Error(`${sourceLabel} returned an empty response body.`),
+        {statusCode: 502},
+      );
+    }
+
+    const {done, value} = await reader.read();
+    if (done || !value || value.byteLength === 0) {
+      await reader.cancel().catch(() => {});
+      throw Object.assign(
+        new Error(`${sourceLabel} returned an empty PDF stream.`),
+        {statusCode: 502},
+      );
+    }
+
+    const headSlice = Buffer.from(
+      value.subarray(0, Math.min(1024, value.byteLength)),
+    );
+    const headLatin = headSlice.toString('latin1');
+    if (
+      /^\s*(?:<!doctype\s+html|<html|<head|<body|<script|<\?xml)/i.test(
+        headLatin,
+      ) ||
+      !headSlice.includes('%PDF-')
+    ) {
+      await reader.cancel().catch(() => {});
+      throw Object.assign(
+        new Error(
+          `${sourceLabel} did not return valid PDF content (missing %PDF- signature).`,
+        ),
+        {statusCode: 422},
+      );
+    }
+
+    const rawLength = upstream.headers.get('content-length');
+    const contentLength =
+      rawLength && /^\d+$/.test(rawLength) ? Number(rawLength) : null;
+
+    return {
+      upstream,
+      firstChunk: value,
+      reader,
+      upstreamMimeType: mimeCheck.baseMime || 'application/pdf',
+      contentLength,
+    };
+  }
+
+  async function fetchUrlHopStream(
     initialUrl: string,
-  ): Promise<{res: globalThis.Response; cookies: string}> {
+    hostCheck: (hostname: string) => boolean,
+  ): Promise<{res: globalThis.Response; finalUrl: string; cookies: string}> {
     let currentUrl = initialUrl;
     const cookieJar = new Map<string, string>();
+    const visited = new Set<string>();
 
     for (let hop = 0; hop < 7; hop += 1) {
-      const validated = await assertSafeExternalUrl(
-        currentUrl,
-        isAllowedDriveDownloadHost,
-      );
+      const validated = await assertSafeExternalUrl(currentUrl, hostCheck);
+      const normalizedCurrent = validated.toString();
+      if (visited.has(normalizedCurrent)) {
+        throw Object.assign(
+          new Error('Broken redirect loop detected while fetching PDF source.'),
+          {statusCode: 502},
+        );
+      }
+      visited.add(normalizedCurrent);
+
       const cookieHeader = Array.from(cookieJar.entries())
         .map(([k, v]) => `${k}=${v}`)
         .join('; ');
@@ -2092,7 +2230,7 @@ async function startServer() {
       const headerTimeout = setTimeout(() => controller.abort(), 30_000);
       let upstream: globalThis.Response;
       try {
-        upstream = await fetch(validated.toString(), {
+        upstream = await fetch(normalizedCurrent, {
           method: 'GET',
           redirect: 'manual',
           headers: {
@@ -2107,7 +2245,6 @@ async function startServer() {
         clearTimeout(headerTimeout);
       }
 
-      // Capture Set-Cookie values if available
       const setCookies =
         typeof upstream.headers.getSetCookie === 'function'
           ? upstream.headers.getSetCookie()
@@ -2123,27 +2260,36 @@ async function startServer() {
       if (upstream.status >= 300 && upstream.status < 400) {
         const loc = upstream.headers.get('location');
         await upstream.body?.cancel().catch(() => {});
-        if (!loc) {
+        if (!loc || !loc.trim()) {
           throw Object.assign(
-            new Error('Google Drive redirect missing location.'),
+            new Error('Broken redirect: upstream returned redirect without Location header.'),
             {statusCode: 502},
           );
         }
-        currentUrl = new URL(loc, validated).toString();
+        try {
+          currentUrl = new URL(loc, validated).toString();
+        } catch {
+          throw Object.assign(
+            new Error('Broken redirect: invalid redirect target URL.'),
+            {statusCode: 502},
+          );
+        }
         continue;
       }
 
       return {
         res: upstream,
+        finalUrl: normalizedCurrent,
         cookies: Array.from(cookieJar.entries())
           .map(([k, v]) => `${k}=${v}`)
           .join('; '),
       };
     }
 
-    throw Object.assign(new Error('Too many Google Drive redirects.'), {
-      statusCode: 502,
-    });
+    throw Object.assign(
+      new Error('Broken redirect: exceeded maximum redirect hops.'),
+      {statusCode: 502},
+    );
   }
 
   function extractDriveConfirmDownloadUrl(
@@ -2192,6 +2338,9 @@ async function startServer() {
     upstream: globalThis.Response;
     firstChunk: Uint8Array;
     reader: ReadableStreamDefaultReader<Uint8Array>;
+    upstreamMimeType: string;
+    contentLength: number | null;
+    sourceType: string;
   }> {
     const candidates = [
       `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
@@ -2199,7 +2348,10 @@ async function startServer() {
     ];
 
     for (const candidateUrl of candidates) {
-      let current = await fetchDriveHopStream(candidateUrl).catch(() => null);
+      let current = await fetchUrlHopStream(
+        candidateUrl,
+        isAllowedDriveDownloadHost,
+      ).catch(() => null);
       if (!current) continue;
 
       if (!current.res.ok) {
@@ -2215,46 +2367,23 @@ async function startServer() {
         const htmlText = await current.res.text().catch(() => '');
         const confirmedUrl = extractDriveConfirmDownloadUrl(
           htmlText,
-          current.res.url || candidateUrl,
+          current.res.url || current.finalUrl || candidateUrl,
         );
         if (!confirmedUrl) continue;
-        current = await fetchDriveHopStream(confirmedUrl).catch(() => null);
-        if (!current || !current.res.ok) {
-          await current?.res.body?.cancel().catch(() => {});
-          continue;
-        }
+        current = await fetchUrlHopStream(
+          confirmedUrl,
+          isAllowedDriveDownloadHost,
+        ).catch(() => null);
+        if (!current) continue;
       }
 
-      const finalType = (
-        current.res.headers.get('content-type') || ''
-      ).toLowerCase();
-      if (finalType.includes('text/html')) {
-        await current.res.body?.cancel().catch(() => {});
-        continue;
+      const validated = await validatePdfUpstreamResponse(
+        current.res,
+        'Google Drive',
+      ).catch(() => null);
+      if (validated) {
+        return {...validated, sourceType: 'google-drive'};
       }
-
-      const reader = current.res.body?.getReader();
-      if (!reader) continue;
-
-      const {done, value} = await reader.read();
-      if (done || !value || value.byteLength === 0) {
-        await reader.cancel().catch(() => {});
-        continue;
-      }
-
-      const headSlice = Buffer.from(
-        value.subarray(0, Math.min(1024, value.byteLength)),
-      );
-      if (!headSlice.includes('%PDF-')) {
-        await reader.cancel().catch(() => {});
-        continue;
-      }
-
-      return {
-        upstream: current.res,
-        firstChunk: value,
-        reader,
-      };
     }
 
     throw Object.assign(
@@ -2265,17 +2394,133 @@ async function startServer() {
     );
   }
 
+  async function resolveDirectUrlPdfUpstream(sourceUrl: string): Promise<{
+    upstream: globalThis.Response;
+    firstChunk: Uint8Array;
+    reader: ReadableStreamDefaultReader<Uint8Array>;
+    upstreamMimeType: string;
+    contentLength: number | null;
+    sourceType: string;
+  }> {
+    const validatedUrl = await assertSafeExternalUrl(
+      sourceUrl,
+      isAllowedDirectPdfSourceHost,
+    );
+
+    if (isAllowedMediaFireHost(validatedUrl.hostname)) {
+      const pageHop = await fetchUrlHopStream(
+        validatedUrl.toString(),
+        isAllowedMediaFireHost,
+      );
+      if (!pageHop.res.ok) {
+        await pageHop.res.body?.cancel().catch(() => {});
+        throw Object.assign(
+          new Error(`MediaFire source returned HTTP ${pageHop.res.status}.`),
+          {statusCode: 502},
+        );
+      }
+      const ctype = (pageHop.res.headers.get('content-type') || '').toLowerCase();
+      if (ctype.includes('text/html')) {
+        const html = await pageHop.res.text();
+        const directMatch = html.match(
+          /https:\/\/download\d+\.mediafire\.com\/[^\s"'<>]+/i,
+        );
+        if (!directMatch?.[0]) {
+          throw Object.assign(
+            new Error('MediaFire page did not contain a valid direct PDF link.'),
+            {statusCode: 422},
+          );
+        }
+        const directHop = await fetchUrlHopStream(
+          decodeHtmlEntities(directMatch[0]),
+          isAllowedMediaFireHost,
+        );
+        const validated = await validatePdfUpstreamResponse(
+          directHop.res,
+          'MediaFire PDF',
+        );
+        return {...validated, sourceType: 'mediafire-pdf'};
+      }
+      const validated = await validatePdfUpstreamResponse(
+        pageHop.res,
+        'MediaFire PDF',
+      );
+      return {...validated, sourceType: 'mediafire-pdf'};
+    }
+
+    const hop = await fetchUrlHopStream(
+      validatedUrl.toString(),
+      isAllowedDirectPdfSourceHost,
+    );
+    const validated = await validatePdfUpstreamResponse(
+      hop.res,
+      validatedUrl.hostname,
+    );
+    return {...validated, sourceType: 'direct-url'};
+  }
+
+  async function resolveVerifiedPdfSource(params: {
+    fileId: string;
+    sourceUrl: string;
+  }) {
+    const rawFileId = params.fileId.trim();
+    const rawUrl = params.sourceUrl.trim();
+    const derivedFileId =
+      rawFileId || (rawUrl ? extractDriveIdFromDownloadUrl(rawUrl) : '');
+
+    if (derivedFileId) {
+      if (!/^[a-zA-Z0-9_-]{5,200}$/.test(derivedFileId)) {
+        throw Object.assign(new Error('Invalid Google Drive fileId.'), {
+          statusCode: 400,
+        });
+      }
+      return resolvePublicDrivePdfUpstream(derivedFileId);
+    }
+
+    if (rawUrl) {
+      return resolveDirectUrlPdfUpstream(rawUrl);
+    }
+
+    throw Object.assign(
+      new Error('Missing PDF fileId or source url parameter.'),
+      {statusCode: 400},
+    );
+  }
+
+  // Verify PDF URL source and MIME type before initiating download
+  app.get(
+    '/api/books/verify',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const fileId =
+          typeof req.query.fileId === 'string' ? req.query.fileId.trim() : '';
+        const sourceUrl =
+          typeof req.query.url === 'string' ? req.query.url.trim() : '';
+
+        const verified = await resolveVerifiedPdfSource({fileId, sourceUrl});
+        await verified.reader.cancel().catch(() => {});
+
+        res.json({
+          verified: true,
+          mimeType: 'application/pdf',
+          upstreamMimeType: verified.upstreamMimeType,
+          contentLength: verified.contentLength,
+          sourceType: verified.sourceType,
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
   app.get(
     '/api/books/download',
     async (req: Request, res: Response, next: NextFunction) => {
       try {
         const fileId =
           typeof req.query.fileId === 'string' ? req.query.fileId.trim() : '';
-        if (!/^[a-zA-Z0-9_-]{5,200}$/.test(fileId)) {
-          throw Object.assign(new Error('Invalid Google Drive fileId.'), {
-            statusCode: 400,
-          });
-        }
+        const sourceUrl =
+          typeof req.query.url === 'string' ? req.query.url.trim() : '';
 
         const rawTitle =
           typeof req.query.title === 'string'
@@ -2294,27 +2539,37 @@ async function startServer() {
           .replace(/[^\x20-\x7E]/g, '')
           .replace(/["\\]/g, '')
           .trim();
+        const asciiFallbackSlug =
+          fileId.slice(0, 8) || 'Book';
         const asciiFilename = asciiBase
           ? asciiBase.toLowerCase().endsWith('.pdf')
             ? asciiBase
             : `${asciiBase}.pdf`
-          : `MML_Book_${fileId.slice(0, 8)}.pdf`;
+          : `MML_${asciiFallbackSlug}.pdf`;
 
         const checkOnly = req.query.check === '1';
-        const {upstream, firstChunk, reader} =
-          await resolvePublicDrivePdfUpstream(fileId);
+        const {
+          upstream,
+          firstChunk,
+          reader,
+          upstreamMimeType,
+          contentLength,
+        } = await resolveVerifiedPdfSource({fileId, sourceUrl});
 
-        const upstreamLength = upstream.headers.get('content-length');
         if (checkOnly) {
           await reader.cancel().catch(() => {});
           res.json({
             ok: true,
+            verified: true,
+            mimeType: 'application/pdf',
+            upstreamMimeType,
             filename: utf8Filename,
-            contentLength: upstreamLength ? Number(upstreamLength) : null,
+            contentLength,
           });
           return;
         }
 
+        const upstreamLength = upstream.headers.get('content-length');
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader(
           'Content-Disposition',

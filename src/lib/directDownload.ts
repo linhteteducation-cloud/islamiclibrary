@@ -1,5 +1,9 @@
 import {BookItem} from '../types/library';
-import {extractDriveFileId, isValidDriveFileId} from './googleDrive';
+import {
+  extractDriveFileId,
+  isValidDriveFileId,
+  isValidSafeHttpsUrl,
+} from './googleDrive';
 import {recordRecentDownload} from './recentDownloads';
 
 export interface DownloadToastState {
@@ -10,6 +14,14 @@ export interface DownloadToastState {
   loadedBytes?: number;
   totalBytes?: number | null;
   percent?: number | null;
+}
+
+export interface PdfSourceVerification {
+  verified: boolean;
+  mimeType: string;
+  upstreamMimeType?: string;
+  contentLength: number | null;
+  sourceType?: string;
 }
 
 type DownloadToastListener = (state: DownloadToastState | null) => void;
@@ -83,6 +95,16 @@ export function resolveBookDriveFileId(book: BookItem): string {
   return isValidDriveFileId(raw) ? raw : '';
 }
 
+export function resolveBookPdfSource(book: BookItem): {
+  fileId: string;
+  sourceUrl: string;
+} {
+  const fileId = resolveBookDriveFileId(book);
+  const candidateUrl = book.driveDownloadUrl?.trim() || '';
+  const sourceUrl = isValidSafeHttpsUrl(candidateUrl) ? candidateUrl : '';
+  return {fileId, sourceUrl};
+}
+
 export function sanitizeDownloadFilename(title: string): string {
   const cleaned = (title || 'Myanmar_Muslim_Library_Book')
     .replace(/[\\/:*?"<>|\r\n]+/g, ' ')
@@ -117,6 +139,55 @@ function containsPdfMagicHeader(chunk: Uint8Array): boolean {
   return false;
 }
 
+export async function verifyBookPdfSource(
+  book: BookItem,
+): Promise<PdfSourceVerification | null> {
+  const {fileId, sourceUrl} = resolveBookPdfSource(book);
+  if (!fileId && !sourceUrl) {
+    throw new Error('ဒေါင်းလုဒ်ရယူရန် မှန်ကန်သော PDF လင့်ခ် မတွေ့ရှိပါ။');
+  }
+
+  const query = new URLSearchParams();
+  if (fileId) query.set('fileId', fileId);
+  if (sourceUrl) query.set('url', sourceUrl);
+
+  const verifyRes = await fetch(`/api/books/verify?${query.toString()}`, {
+    method: 'GET',
+    credentials: 'same-origin',
+  });
+
+  // Static deployment fallback if backend endpoint is unavailable
+  if (verifyRes.status === 404) {
+    return null;
+  }
+
+  const contentType = (
+    verifyRes.headers.get('content-type') || ''
+  ).toLowerCase();
+  if (contentType.includes('text/html')) {
+    return null;
+  }
+
+  const payload = (await verifyRes.json().catch(() => null)) as
+    | (PdfSourceVerification & {error?: string})
+    | null;
+
+  if (!verifyRes.ok || !payload?.verified) {
+    throw new Error(
+      payload?.error ||
+        'PDF URL ရင်းမြစ်ကို စစ်ဆေး၍ မရနိုင်ပါ (HTML error page သို့မဟုတ် broken redirect ဖြစ်နေပါသည်)။',
+    );
+  }
+
+  if (payload.mimeType !== 'application/pdf') {
+    throw new Error(
+      `PDF ဖိုင်အမျိုးအစား မဟုတ်ပါ (${payload.mimeType || 'unknown'})။`,
+    );
+  }
+
+  return payload;
+}
+
 async function fetchVerifiedPdfBlob(
   url: string,
   credentials: RequestCredentials,
@@ -141,7 +212,12 @@ async function fetchVerifiedPdfBlob(
   }
 
   const contentType = (res.headers.get('content-type') || '').toLowerCase();
-  if (contentType.includes('text/html')) {
+  if (
+    contentType.includes('text/html') ||
+    contentType.includes('application/xhtml+xml') ||
+    contentType.includes('application/xml') ||
+    contentType.includes('text/xml')
+  ) {
     await res.body?.cancel().catch(() => {});
     throw new Error('NOT_PDF_HTML');
   }
@@ -219,16 +295,20 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
   const toastId = notifyDownloadStarting(book.title);
 
   try {
-    const fileId = resolveBookDriveFileId(book);
-    if (!fileId) {
+    const {fileId, sourceUrl} = resolveBookPdfSource(book);
+    if (!fileId && !sourceUrl) {
       throw new Error('ဒေါင်းလုဒ်ရယူရန် PDF ဖိုင်လင့်ခ် မတွေ့ရှိပါ။');
     }
 
+    // 1. Pre-verify the PDF URL source and MIME type on the server before initiating download
+    await verifyBookPdfSource(book);
+
     const filename = sanitizeDownloadFilename(book.title);
     const query = new URLSearchParams({
-      fileId,
       title: book.title || filename,
     });
+    if (fileId) query.set('fileId', fileId);
+    if (sourceUrl) query.set('url', sourceUrl);
 
     const handleProgress = (loadedBytes: number, totalBytes: number | null) => {
       const percent =
@@ -252,7 +332,7 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
     let pdfBlob: Blob | null = null;
     let lastError: unknown = null;
 
-    // 1. Primary: stream genuine %PDF- bytes via same-origin server endpoint (sends session cookies inside fetch)
+    // 2. Primary: stream verified %PDF- bytes via same-origin endpoint
     try {
       pdfBlob = await fetchVerifiedPdfBlob(
         `/api/books/download?${query.toString()}`,
@@ -263,8 +343,8 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
       lastError = primaryErr;
     }
 
-    // 2. Fallback: direct Google UserContent CORS download (works even on static hosts when file has direct export)
-    if (!pdfBlob) {
+    // 3. Fallback: direct Google UserContent CORS fetch (only if Drive ID exists)
+    if (!pdfBlob && fileId) {
       try {
         pdfBlob = await fetchVerifiedPdfBlob(
           `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
@@ -277,11 +357,10 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
     }
 
     if (!pdfBlob) {
-      const rawMsg =
-        lastError instanceof Error ? lastError.message : '';
+      const rawMsg = lastError instanceof Error ? lastError.message : '';
       if (rawMsg === 'NOT_PDF_HTML' || rawMsg === 'NOT_PDF_MAGIC') {
         throw new Error(
-          'PDF ဖိုင်အစစ်ကို Google Drive မှ ရယူ၍ မရနိုင်ပါ (ဖိုင်အများမြင် Permission ဖွင့်ထားကြောင်း စစ်ဆေးပါ)။',
+          'PDF ဖိုင်အစစ်ကို ရယူ၍ မရနိုင်ပါ (HTML error page သို့မဟုတ် ဖိုင် Permission ကန့်သတ်ထားပါသည်)။',
         );
       }
       throw new Error(
@@ -291,7 +370,7 @@ export async function downloadBookDirectly(book: BookItem): Promise<void> {
       );
     }
 
-    // Save verified genuine PDF blob directly to device without navigating or hitting proxy HTML gates
+    // Save verified genuine PDF blob directly to device
     triggerBlobSave(pdfBlob, filename);
 
     // Persist to local recent downloads history

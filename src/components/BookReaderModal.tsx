@@ -11,10 +11,8 @@ import {
 } from 'lucide-react';
 import {
   downloadBookDirectly,
-  notifyDownloadStarting,
-  resolveBookDriveFileId,
+  resolveBookPdfSource,
 } from '../lib/directDownload';
-import {recordRecentDownload} from '../lib/recentDownloads';
 import {isValidSafeHttpsUrl} from '../lib/googleDrive';
 import {BookCategoryId, BookItem, CategoryItem} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
@@ -70,7 +68,9 @@ export function BookReaderModal({
   const safeDownloadUrl = isValidSafeHttpsUrl(book.driveDownloadUrl)
     ? book.driveDownloadUrl
     : '';
-  const driveFileId = resolveBookDriveFileId(book);
+  const {fileId: driveFileId, sourceUrl: verifiedSourceUrl} =
+    resolveBookPdfSource(book);
+  const canDownload = Boolean(driveFileId || verifiedSourceUrl || safeDownloadUrl);
 
   const handleDirectDownload = async () => {
     if (isDownloading) return;
@@ -236,7 +236,7 @@ export function BookReaderModal({
               </div>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                {driveFileId ? (
+                {canDownload && (
                   <button
                     type="button"
                     onClick={handleDirectDownload}
@@ -254,21 +254,6 @@ export function BookReaderModal({
                         : 'PDF ဒေါင်းလုဒ်ရယူရန်'}
                     </span>
                   </button>
-                ) : (
-                  safeDownloadUrl && (
-                    <a
-                      href={safeDownloadUrl}
-                      download
-                      onClick={() => {
-                        notifyDownloadStarting(book.title, 3200);
-                        recordRecentDownload(book);
-                      }}
-                      className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
-                    >
-                      <Download className="w-4 h-4" />
-                      <span>PDF ဒေါင်းလုဒ်ရယူရန်</span>
-                    </a>
-                  )
                 )}
                 {safeViewUrl && (
                   <a
