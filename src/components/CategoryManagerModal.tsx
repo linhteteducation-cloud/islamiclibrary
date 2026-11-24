@@ -36,6 +36,7 @@ interface CategoryManagerModalProps {
     descriptionMy: string;
     iconName: CategoryIconName;
     sortOrder: number;
+    isExistingDoc?: boolean;
   }) => Promise<void>;
   onDeleteCategory: (categoryId: string) => Promise<void>;
   onToggleCategoryVisibility: (categoryId: string) => Promise<void>;
@@ -120,6 +121,7 @@ export function CategoryManagerModal({
         descriptionMy: newDescription.trim(),
         iconName: newIcon,
         sortOrder: maxOrder + 1,
+        isExistingDoc: false,
       });
       setNewNameMy('');
       setNewNameEn('');
@@ -163,6 +165,7 @@ export function CategoryManagerModal({
     try {
       setIsSavingEdit(true);
       setFeedback(null);
+      const targetCat = categories.find((c) => c.id === catId);
       await onSaveCategory({
         id: catId,
         nameMy: cleanedMy,
@@ -170,6 +173,7 @@ export function CategoryManagerModal({
         descriptionMy: editDescription.trim(),
         iconName: editIcon,
         sortOrder: editSortOrder,
+        isExistingDoc: Boolean(targetCat?.isCustom || targetCat?.isOverridden),
       });
       setEditingId(null);
       setFeedback({

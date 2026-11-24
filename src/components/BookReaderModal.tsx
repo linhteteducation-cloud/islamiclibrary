@@ -5,9 +5,14 @@ import {
   ExternalLink,
   FileText,
   FolderOpen,
+  Loader2,
   User,
   X,
 } from 'lucide-react';
+import {
+  downloadBookDirectly,
+  resolveBookDriveFileId,
+} from '../lib/directDownload';
 import {isValidSafeHttpsUrl} from '../lib/googleDrive';
 import {BookCategoryId, BookItem, CategoryItem} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
@@ -38,6 +43,14 @@ export function BookReaderModal({
   onChangeBookCategory,
 }: BookReaderModalProps) {
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState('');
+
+  useEffect(() => {
+    setIsDownloading(false);
+    setDownloadError('');
+  }, [book?.id]);
+
   useEffect(() => {
     if (!book) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -55,6 +68,24 @@ export function BookReaderModal({
   const safeDownloadUrl = isValidSafeHttpsUrl(book.driveDownloadUrl)
     ? book.driveDownloadUrl
     : '';
+  const driveFileId = resolveBookDriveFileId(book);
+
+  const handleDirectDownload = async () => {
+    if (isDownloading) return;
+    setDownloadError('');
+    setIsDownloading(true);
+    try {
+      await downloadBookDirectly(book);
+    } catch (err) {
+      setDownloadError(
+        err instanceof Error
+          ? err.message
+          : 'PDF ဖိုင်ကို တိုက်ရိုက်ဒေါင်းလုဒ်ရယူ၍ မရနိုင်ပါ။',
+      );
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   return (
     <div
@@ -203,16 +234,35 @@ export function BookReaderModal({
               </div>
 
               <div className="flex flex-wrap items-center gap-3 pt-2">
-                {safeDownloadUrl && (
-                  <a
-                    href={safeDownloadUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                {driveFileId ? (
+                  <button
+                    type="button"
+                    onClick={handleDirectDownload}
+                    disabled={isDownloading}
+                    className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] disabled:opacity-70 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
                   >
-                    <Download className="w-4 h-4" />
-                    <span>PDF ဒေါင်းလုဒ်ရယူရန်</span>
-                  </a>
+                    {isDownloading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isDownloading
+                        ? 'ဒေါင်းလုဒ်စတင်နေသည်...'
+                        : 'PDF ဒေါင်းလုဒ်ရယူရန်'}
+                    </span>
+                  </button>
+                ) : (
+                  safeDownloadUrl && (
+                    <a
+                      href={safeDownloadUrl}
+                      download
+                      className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>PDF ဒေါင်းလုဒ်ရယူရန်</span>
+                    </a>
+                  )
                 )}
                 {safeViewUrl && (
                   <a
@@ -226,6 +276,15 @@ export function BookReaderModal({
                   </a>
                 )}
               </div>
+
+              {downloadError && (
+                <p
+                  role="alert"
+                  className="text-xs font-medium text-[#B85338] bg-[#FEF2F2] border border-[#FECACA] rounded-lg px-3 py-2"
+                >
+                  {downloadError}
+                </p>
+              )}
             </div>
           </div>
 

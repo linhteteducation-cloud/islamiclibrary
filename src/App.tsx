@@ -505,6 +505,7 @@ export default function App() {
     descriptionMy: string;
     iconName: CategoryIconName;
     sortOrder: number;
+    isExistingDoc?: boolean;
   }) => {
     if (!isAdmin || !user) {
       throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ပြင်ဆင်နိုင်ပါမည်။');

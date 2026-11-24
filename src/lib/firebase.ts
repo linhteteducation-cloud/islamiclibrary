@@ -9,6 +9,7 @@ import {
 } from 'firebase/auth';
 import {
   doc,
+  enableNetwork,
   getDoc,
   getDocFromServer,
   getFirestore,
@@ -35,6 +36,17 @@ function createFirestoreClient(): Firestore {
 
 export const db = createFirestoreClient();
 export const auth = getAuth(app);
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    void enableNetwork(db).catch(() => {});
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      void enableNetwork(db).catch(() => {});
+    }
+  });
+}
 
 export const BOOTSTRAPPED_ADMIN_EMAIL = 'linhteteducation@gmail.com';
 export const SECOND_BOOTSTRAPPED_ADMIN_EMAIL = 'linhtetitservice@gmail.com';

@@ -3,7 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
+  enableNetwork,
   onSnapshot,
   orderBy,
   query,
@@ -652,6 +652,7 @@ export async function saveCategoryRecord(
     descriptionMy: string;
     iconName: CategoryIconName;
     sortOrder: number;
+    isExistingDoc?: boolean;
   },
 ) {
   const cleanId = payload.id
@@ -677,12 +678,31 @@ export async function saveCategoryRecord(
   }
 
   try {
-    const existingSnap = await getDoc(docRef);
-    if (existingSnap.exists()) {
-      await updateDoc(docRef, {
-        ...cleanFields,
-        updatedAt: serverTimestamp(),
-      });
+    await enableNetwork(db).catch(() => {});
+    if (payload.isExistingDoc) {
+      try {
+        await updateDoc(docRef, {
+          ...cleanFields,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (updateErr) {
+        const msg =
+          updateErr instanceof Error ? updateErr.message : String(updateErr);
+        const code =
+          typeof updateErr === 'object' && updateErr && 'code' in updateErr
+            ? String((updateErr as {code?: unknown}).code || '')
+            : '';
+        if (code === 'not-found' || msg.includes('No document to update')) {
+          await setDoc(docRef, {
+            ...cleanFields,
+            createdByUid: uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          throw updateErr;
+        }
+      }
     } else {
       await setDoc(docRef, {
         ...cleanFields,

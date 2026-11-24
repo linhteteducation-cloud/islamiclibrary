@@ -2,6 +2,8 @@ import dns from 'node:dns/promises';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
+import {Readable} from 'node:stream';
+import type {ReadableStream as NodeWebReadableStream} from 'node:stream/web';
 import express from 'express';
 import type {NextFunction, Request, Response} from 'express';
 
@@ -227,6 +229,16 @@ function isAllowedPdfFetchHost(hostname: string): boolean {
     host === 'archive.org' ||
     /^[a-z0-9-]+\.archive\.org$/i.test(host) ||
     /^[a-z0-9-]+\.us\.archive\.org$/i.test(host)
+  );
+}
+
+function isAllowedDriveDownloadHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return (
+    host === 'drive.google.com' ||
+    host === 'drive.usercontent.google.com' ||
+    host === 'docs.google.com' ||
+    /^[a-z0-9-]+\.googleusercontent\.com$/i.test(host)
   );
 }
 
@@ -2054,6 +2066,293 @@ async function startServer() {
           error:
             'ဤစာမျက်နှာတွင် ဒေါင်းလုဒ်ရယူနိုင်သော PDF ဖိုင် မတွေ့ရှိပါ (သို့) ဖိုင်လင့်ခ် ပျက်နေပါသည်။',
         });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // Direct PDF streaming download proxy (downloads straight to user's device without redirecting into Google Drive)
+  async function fetchDriveHopStream(
+    initialUrl: string,
+  ): Promise<{res: globalThis.Response; cookies: string}> {
+    let currentUrl = initialUrl;
+    const cookieJar = new Map<string, string>();
+
+    for (let hop = 0; hop < 7; hop += 1) {
+      const validated = await assertSafeExternalUrl(
+        currentUrl,
+        isAllowedDriveDownloadHost,
+      );
+      const cookieHeader = Array.from(cookieJar.entries())
+        .map(([k, v]) => `${k}=${v}`)
+        .join('; ');
+
+      const upstream = await fetch(validated.toString(), {
+        method: 'GET',
+        redirect: 'manual',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+          Accept: 'application/pdf,application/octet-stream,*/*;q=0.8',
+          ...(cookieHeader ? {Cookie: cookieHeader} : {}),
+        },
+        signal: AbortSignal.timeout(45_000),
+      });
+
+      // Capture Set-Cookie values if available
+      const setCookies =
+        typeof upstream.headers.getSetCookie === 'function'
+          ? upstream.headers.getSetCookie()
+          : [];
+      for (const sc of setCookies) {
+        const pair = sc.split(';')[0]?.trim();
+        const eqIdx = pair?.indexOf('=') ?? -1;
+        if (pair && eqIdx > 0) {
+          cookieJar.set(pair.slice(0, eqIdx), pair.slice(eqIdx + 1));
+        }
+      }
+
+      if (upstream.status >= 300 && upstream.status < 400) {
+        const loc = upstream.headers.get('location');
+        await upstream.body?.cancel().catch(() => {});
+        if (!loc) {
+          throw Object.assign(
+            new Error('Google Drive redirect missing location.'),
+            {statusCode: 502},
+          );
+        }
+        currentUrl = new URL(loc, validated).toString();
+        continue;
+      }
+
+      return {
+        res: upstream,
+        cookies: Array.from(cookieJar.entries())
+          .map(([k, v]) => `${k}=${v}`)
+          .join('; '),
+      };
+    }
+
+    throw Object.assign(new Error('Too many Google Drive redirects.'), {
+      statusCode: 502,
+    });
+  }
+
+  function extractDriveConfirmDownloadUrl(
+    html: string,
+    baseUrl: string,
+  ): string | null {
+    // Pattern 1: Modern Google Drive virus-scan warning form on drive.usercontent.google.com
+    const formMatch = html.match(
+      /<form[^>]*id=["']download-form["'][^>]*action=["']([^"']+)["'][^>]*>([\s\S]*?)<\/form>/i,
+    );
+    if (formMatch?.[1]) {
+      try {
+        const actionUrl = new URL(decodeHtmlEntities(formMatch[1]), baseUrl);
+        const inputRegex =
+          /<input[^>]*name=["']([^"']+)["'][^>]*value=["']([^"']*)["'][^>]*>/gi;
+        for (const inp of formMatch[2].matchAll(inputRegex)) {
+          actionUrl.searchParams.set(
+            decodeHtmlEntities(inp[1]),
+            decodeHtmlEntities(inp[2]),
+          );
+        }
+        if (!actionUrl.searchParams.has('confirm')) {
+          actionUrl.searchParams.set('confirm', 't');
+        }
+        return actionUrl.toString();
+      } catch {
+        // continue to fallback regex
+      }
+    }
+
+    // Pattern 2: Classic uc-download-link anchor
+    const linkMatch = html.match(
+      /href=["']([^"']*\/(?:uc|download)\?[^"']*confirm=[^"']+)["']/i,
+    );
+    if (linkMatch?.[1]) {
+      try {
+        return new URL(decodeHtmlEntities(linkMatch[1]), baseUrl).toString();
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  async function resolvePublicDrivePdfUpstream(fileId: string): Promise<{
+    upstream: globalThis.Response;
+    firstChunk: Uint8Array;
+    reader: ReadableStreamDefaultReader<Uint8Array>;
+  }> {
+    const candidates = [
+      `https://drive.usercontent.google.com/download?id=${encodeURIComponent(fileId)}&export=download&confirm=t`,
+      `https://drive.google.com/uc?export=download&confirm=t&id=${encodeURIComponent(fileId)}`,
+    ];
+
+    for (const candidateUrl of candidates) {
+      let current = await fetchDriveHopStream(candidateUrl).catch(() => null);
+      if (!current) continue;
+
+      if (!current.res.ok) {
+        await current.res.body?.cancel().catch(() => {});
+        continue;
+      }
+
+      const contentType = (
+        current.res.headers.get('content-type') || ''
+      ).toLowerCase();
+
+      if (contentType.includes('text/html')) {
+        const htmlText = await current.res.text().catch(() => '');
+        const confirmedUrl = extractDriveConfirmDownloadUrl(
+          htmlText,
+          current.res.url || candidateUrl,
+        );
+        if (!confirmedUrl) continue;
+        current = await fetchDriveHopStream(confirmedUrl).catch(() => null);
+        if (!current || !current.res.ok) {
+          await current?.res.body?.cancel().catch(() => {});
+          continue;
+        }
+      }
+
+      const finalType = (
+        current.res.headers.get('content-type') || ''
+      ).toLowerCase();
+      if (finalType.includes('text/html')) {
+        await current.res.body?.cancel().catch(() => {});
+        continue;
+      }
+
+      const reader = current.res.body?.getReader();
+      if (!reader) continue;
+
+      const {done, value} = await reader.read();
+      if (done || !value || value.byteLength === 0) {
+        await reader.cancel().catch(() => {});
+        continue;
+      }
+
+      const headText = Buffer.from(
+        value.subarray(0, Math.min(64, value.byteLength)),
+      ).toString('latin1');
+      if (
+        /^\s*<!doctype\s+html/i.test(headText) ||
+        /^\s*<html/i.test(headText)
+      ) {
+        await reader.cancel().catch(() => {});
+        continue;
+      }
+
+      return {
+        upstream: current.res,
+        firstChunk: value,
+        reader,
+      };
+    }
+
+    throw Object.assign(
+      new Error(
+        'PDF ဖိုင်ကို Google Drive မှ တိုက်ရိုက်ဒေါင်းလုဒ်ရယူ၍ မရနိုင်ပါ (ဖိုင်အများမြင် Permission ဖွင့်ထားကြောင်း စစ်ဆေးပါ)။',
+      ),
+      {statusCode: 502},
+    );
+  }
+
+  app.get(
+    '/api/books/download',
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        const fileId =
+          typeof req.query.fileId === 'string' ? req.query.fileId.trim() : '';
+        if (!/^[a-zA-Z0-9_-]{5,200}$/.test(fileId)) {
+          throw Object.assign(new Error('Invalid Google Drive fileId.'), {
+            statusCode: 400,
+          });
+        }
+
+        const rawTitle =
+          typeof req.query.title === 'string'
+            ? req.query.title.trim()
+            : 'Islamic_Library_Book';
+        const safeBaseTitle =
+          rawTitle
+            .replace(/[\\/:*?"<>|\r\n]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 120) || 'Islamic_Library_Book';
+        const utf8Filename = safeBaseTitle.toLowerCase().endsWith('.pdf')
+          ? safeBaseTitle
+          : `${safeBaseTitle}.pdf`;
+        const asciiBase = safeBaseTitle
+          .replace(/[^\x20-\x7E]/g, '')
+          .replace(/["\\]/g, '')
+          .trim();
+        const asciiFilename = asciiBase
+          ? asciiBase.toLowerCase().endsWith('.pdf')
+            ? asciiBase
+            : `${asciiBase}.pdf`
+          : `MML_Book_${fileId.slice(0, 8)}.pdf`;
+
+        const checkOnly = req.query.check === '1';
+        const {upstream, firstChunk, reader} =
+          await resolvePublicDrivePdfUpstream(fileId);
+
+        const upstreamLength = upstream.headers.get('content-length');
+        if (checkOnly) {
+          await reader.cancel().catch(() => {});
+          res.json({
+            ok: true,
+            filename: utf8Filename,
+            contentLength: upstreamLength ? Number(upstreamLength) : null,
+          });
+          return;
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `attachment; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(utf8Filename)}`,
+        );
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'private, max-age=300');
+        if (upstreamLength && /^\d+$/.test(upstreamLength)) {
+          res.setHeader('Content-Length', upstreamLength);
+        }
+
+        const webStream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(firstChunk);
+          },
+          async pull(controller) {
+            try {
+              const {done, value} = await reader.read();
+              if (done) {
+                controller.close();
+                return;
+              }
+              if (value) {
+                controller.enqueue(value);
+              }
+            } catch (err) {
+              controller.error(err);
+            }
+          },
+          cancel() {
+            void reader.cancel().catch(() => {});
+          },
+        });
+
+        const nodeStream = Readable.fromWeb(
+          webStream as unknown as NodeWebReadableStream<Uint8Array>,
+        );
+        req.on('close', () => {
+          nodeStream.destroy();
+          void reader.cancel().catch(() => {});
+        });
+        nodeStream.pipe(res);
       } catch (err) {
         next(err);
       }

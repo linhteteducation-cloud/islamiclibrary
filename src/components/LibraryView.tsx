@@ -1,8 +1,10 @@
 import {useMemo, useState} from 'react';
 import {
   Bookmark,
+  Download,
   FileText,
   LayoutGrid,
+  Loader2,
   Plus,
   Search,
   Shield,
@@ -10,6 +12,10 @@ import {
   User,
   X,
 } from 'lucide-react';
+import {
+  downloadBookDirectly,
+  resolveBookDriveFileId,
+} from '../lib/directDownload';
 import {
   BookItem,
   CategoryId,
@@ -65,6 +71,27 @@ export function LibraryView({
   const [selectedType, setSelectedType] = useState<MaterialType>('All Types');
   const [onlyBookmarked, setOnlyBookmarked] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [downloadingBookId, setDownloadingBookId] = useState<string | null>(
+    null,
+  );
+  const [downloadError, setDownloadError] = useState('');
+
+  const handleDirectDownload = async (book: BookItem) => {
+    if (downloadingBookId) return;
+    setDownloadError('');
+    setDownloadingBookId(book.id);
+    try {
+      await downloadBookDirectly(book);
+    } catch (err) {
+      setDownloadError(
+        err instanceof Error
+          ? err.message
+          : 'PDF ဖိုင်ကို တိုက်ရိုက်ဒေါင်းလုဒ်ရယူ၍ မရနိုင်ပါ။',
+      );
+    } finally {
+      setDownloadingBookId(null);
+    }
+  };
 
   const visibleCategories = useMemo(
     () =>
@@ -448,6 +475,23 @@ export function LibraryView({
               </div>
             </div>
 
+            {downloadError && (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-3 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-xs font-medium text-[#B85338]"
+              >
+                <span>{downloadError}</span>
+                <button
+                  type="button"
+                  onClick={() => setDownloadError('')}
+                  aria-label="Dismiss download error"
+                  className="shrink-0 p-1 rounded-md hover:bg-[#FEE2E2]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
             {filteredBooks.length === 0 ? (
               <div className="bg-white border border-[#E2E6EE] rounded-xl p-10 text-center space-y-3">
                 <FileText className="w-10 h-10 text-[#64748B] mx-auto" />
@@ -542,17 +586,37 @@ export function LibraryView({
                         )}
 
                         <div className="mt-auto pt-3 border-t border-[#EFF2F7] flex items-center justify-between gap-2">
-                          <span className="text-xs text-[#525E75] tabular-nums">
+                          <span className="text-xs text-[#525E75] tabular-nums truncate">
                             {book.fileSize || 'PDF'}
                           </span>
 
-                          <button
-                            type="button"
-                            onClick={() => onOpenBook(book)}
-                            className="min-h-[36px] px-4 py-1.5 rounded-md bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
-                          >
-                            ဖတ်ရှုရန်
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {resolveBookDriveFileId(book) && (
+                              <button
+                                type="button"
+                                onClick={() => handleDirectDownload(book)}
+                                disabled={downloadingBookId === book.id}
+                                title="PDF တိုက်ရိုက်ဒေါင်းလုဒ်ရယူရန်"
+                                aria-label={`${book.title} PDF ဒေါင်းလုဒ်ရယူရန်`}
+                                className="min-h-[36px] px-2.5 py-1.5 rounded-md border border-[#D4DBE8] bg-white hover:bg-[#EFF3FA] disabled:opacity-60 text-[#1E3A8A] text-xs font-semibold inline-flex items-center gap-1 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
+                              >
+                                {downloadingBookId === book.id ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Download className="w-3.5 h-3.5" />
+                                )}
+                                <span>ဒေါင်းရန်</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => onOpenBook(book)}
+                              className="min-h-[36px] px-3.5 py-1.5 rounded-md bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
+                            >
+                              ဖတ်ရှုရန်
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </article>
