@@ -9,19 +9,9 @@
         "author": { "type": "string", "maxLength": 160 },
         "categoryId": {
           "type": "string",
-          "enum": [
-            "quran-tafsir",
-            "hadith",
-            "shariah",
-            "dua-amal",
-            "aqeedah",
-            "history",
-            "ethics",
-            "children",
-            "periodicals",
-            "research",
-            "azan"
-          ]
+          "minLength": 1,
+          "maxLength": 60,
+          "pattern": "^[a-z0-9\\-]+$"
         },
         "categoryLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
         "type": {
@@ -240,6 +230,50 @@
         "updatedByUid",
         "updatedAt"
       ]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Custom or overridden library category managed by Admin",
+      "type": "object",
+      "properties": {
+        "nameMy": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "nameEn": { "type": "string", "maxLength": 120 },
+        "descriptionMy": { "type": "string", "maxLength": 400 },
+        "iconName": {
+          "type": "string",
+          "enum": [
+            "book-open",
+            "scroll-text",
+            "scale",
+            "heart-handshake",
+            "star",
+            "history",
+            "heart",
+            "baby",
+            "newspaper",
+            "file-search",
+            "clock",
+            "video",
+            "folder",
+            "sparkles",
+            "layers"
+          ]
+        },
+        "sortOrder": { "type": "integer" },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "nameMy",
+        "nameEn",
+        "descriptionMy",
+        "iconName",
+        "sortOrder",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -278,6 +312,10 @@
     "/telegramSettings/{settingId}": {
       "schema": { "$ref": "#/entities/TelegramSettings" },
       "description": "Admin-only Telegram Bot metadata and sync settings"
+    },
+    "/categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/Category" },
+      "description": "Custom or customized library categories managed by Admin"
     }
   }
 }

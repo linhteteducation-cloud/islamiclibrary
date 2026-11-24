@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -16,6 +17,8 @@ import {
   AdminInviteItem,
   ArticleItem,
   BookItem,
+  CategoryIconName,
+  CategoryItem,
   ContactMessageItem,
   DuaItem,
   SiteSettings,
@@ -608,5 +611,97 @@ export async function saveTelegramSettings(
     });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+// ---------- Categories (Custom & Customized Built-ins) ----------
+
+export function subscribeCategories(
+  onData: (categories: CategoryItem[]) => void,
+) {
+  const path = 'categories';
+  const q = query(collection(db, path), orderBy('sortOrder', 'asc'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id as CategoryItem['id'],
+            nameMy: String(data.nameMy || ''),
+            nameEn: String(data.nameEn || ''),
+            descriptionMy: String(data.descriptionMy || ''),
+            iconName: (data.iconName as CategoryIconName) || 'folder',
+            sortOrder: Number(data.sortOrder ?? 100),
+            createdByUid: String(data.createdByUid || ''),
+          };
+        }),
+      );
+    },
+    (error) => handleFirestoreError(error, OperationType.LIST, path),
+  );
+}
+
+export async function saveCategoryRecord(
+  uid: string,
+  payload: {
+    id: string;
+    nameMy: string;
+    nameEn: string;
+    descriptionMy: string;
+    iconName: CategoryIconName;
+    sortOrder: number;
+  },
+) {
+  const cleanId = payload.id
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  if (!cleanId || cleanId === 'all') {
+    throw new Error('Category ID မမှန်ကန်ပါ။');
+  }
+  const path = `categories/${cleanId}`;
+  const docRef = doc(db, 'categories', cleanId);
+  const cleanFields = {
+    nameMy: payload.nameMy.trim().slice(0, 120),
+    nameEn: payload.nameEn.trim().slice(0, 120),
+    descriptionMy: payload.descriptionMy.trim().slice(0, 400),
+    iconName: payload.iconName,
+    sortOrder: Math.max(0, Math.min(10000, Math.round(Number(payload.sortOrder) || 0))),
+  };
+  if (!cleanFields.nameMy) {
+    throw new Error('မြန်မာကဏ္ဍအမည် ထည့်သွင်းပါ။');
+  }
+
+  try {
+    const existingSnap = await getDoc(docRef);
+    if (existingSnap.exists()) {
+      await updateDoc(docRef, {
+        ...cleanFields,
+        updatedAt: serverTimestamp(),
+      });
+    } else {
+      await setDoc(docRef, {
+        ...cleanFields,
+        createdByUid: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    return cleanId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function deleteCategoryRecord(categoryId: string) {
+  const path = `categories/${categoryId}`;
+  try {
+    await deleteDoc(doc(db, 'categories', categoryId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
   }
 }

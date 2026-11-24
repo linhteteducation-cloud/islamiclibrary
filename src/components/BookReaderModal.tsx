@@ -1,21 +1,30 @@
-import {useEffect} from 'react';
+import {useEffect, useState} from 'react';
 import {
   Bookmark,
   Download,
   ExternalLink,
   FileText,
+  FolderOpen,
   User,
   X,
 } from 'lucide-react';
 import {isValidSafeHttpsUrl} from '../lib/googleDrive';
-import {BookItem} from '../types/library';
+import {BookCategoryId, BookItem, CategoryItem} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
+import {BookTitleEditor} from './BookTitleEditor';
 
 interface BookReaderModalProps {
   book: BookItem | null;
   onClose: () => void;
   isBookmarked: boolean;
   onToggleBookmark: (bookId: string) => void;
+  isAdmin?: boolean;
+  categories?: CategoryItem[];
+  onRenameBook?: (bookId: string, newTitle: string) => Promise<void>;
+  onChangeBookCategory?: (
+    bookId: string,
+    categoryId: BookCategoryId,
+  ) => Promise<void>;
 }
 
 export function BookReaderModal({
@@ -23,7 +32,12 @@ export function BookReaderModal({
   onClose,
   isBookmarked,
   onToggleBookmark,
+  isAdmin = false,
+  categories = [],
+  onRenameBook,
+  onChangeBookCategory,
 }: BookReaderModalProps) {
+  const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   useEffect(() => {
     if (!book) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -58,7 +72,9 @@ export function BookReaderModal({
         <div className="px-4 sm:px-6 py-3.5 border-b border-[#E2E6EE] bg-[#F6F7FA] flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
             <p className="text-[11.5px] font-semibold text-[#B85338] truncate">
-              {book.categoryLabel} · {book.type}
+              {categories.find((c) => c.id === book.categoryId)?.nameMy ||
+                book.categoryLabel}{' '}
+              · {book.type}
             </p>
             <h2
               id="book-modal-title"
@@ -111,11 +127,44 @@ export function BookReaderModal({
 
             <div className="sm:col-span-9 lg:col-span-10 flex flex-col justify-between gap-3">
               <div className="space-y-2">
-                <h3 className="text-lg sm:text-xl font-bold text-[#131B2E] leading-snug">
-                  {book.title}
-                </h3>
+                <BookTitleEditor
+                  title={book.title}
+                  canEdit={Boolean(isAdmin && onRenameBook)}
+                  onSaveTitle={(nextTitle) => onRenameBook!(book.id, nextTitle)}
+                  variant="modal"
+                />
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-[#525E75]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-[#525E75]">
+                  {isAdmin && onChangeBookCategory && categories.length > 0 && (
+                    <label className="inline-flex items-center gap-1.5 bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg px-2.5 py-1 text-xs font-medium text-[#131B2E]">
+                      <FolderOpen className="w-3.5 h-3.5 text-[#1E3A8A]" />
+                      <span className="text-[#525E75]">ကဏ္ဍ:</span>
+                      <select
+                        value={book.categoryId}
+                        disabled={isUpdatingCategory}
+                        onChange={async (e) => {
+                          const nextId = e.target.value as BookCategoryId;
+                          if (nextId === book.categoryId) return;
+                          try {
+                            setIsUpdatingCategory(true);
+                            await onChangeBookCategory(book.id, nextId);
+                          } finally {
+                            setIsUpdatingCategory(false);
+                          }
+                        }}
+                        aria-label="စာအုပ်ကဏ္ဍပြောင်းရန်"
+                        className="bg-transparent text-xs font-semibold text-[#1E3A8A] focus:outline-none cursor-pointer"
+                      >
+                        {categories
+                          .filter((c) => c.id !== 'videos')
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nameMy}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  )}
                   {book.author.trim() && (
                     <span className="inline-flex items-center gap-1.5">
                       <User className="w-4 h-4 text-[#1E3A8A]" />

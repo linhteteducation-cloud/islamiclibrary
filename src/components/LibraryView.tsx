@@ -3,25 +3,28 @@ import {
   Bookmark,
   FileText,
   LayoutGrid,
+  Plus,
   Search,
   Shield,
   SlidersHorizontal,
   User,
   X,
 } from 'lucide-react';
-import {CATEGORIES} from '../data/libraryData';
 import {
   BookItem,
   CategoryId,
+  CategoryItem,
   MaterialType,
   PageRoute,
   SiteSettings,
 } from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
+import {BookTitleEditor} from './BookTitleEditor';
 import {CategoryIcon} from './CategoryIcon';
 
 interface LibraryViewProps {
   books: BookItem[];
+  categories: CategoryItem[];
   siteSettings: SiteSettings;
   selectedCategory: CategoryId;
   onSelectCategory: (cat: CategoryId) => void;
@@ -29,6 +32,9 @@ interface LibraryViewProps {
   onNavigate: (page: PageRoute) => void;
   bookmarks: string[];
   onToggleBookmark: (bookId: string) => void;
+  isAdmin?: boolean;
+  onRenameBook?: (bookId: string, newTitle: string) => Promise<void>;
+  onOpenCategoryManager?: () => void;
 }
 
 const MATERIAL_TYPES: MaterialType[] = [
@@ -42,6 +48,7 @@ const MATERIAL_TYPES: MaterialType[] = [
 
 export function LibraryView({
   books,
+  categories,
   siteSettings,
   selectedCategory,
   onSelectCategory,
@@ -49,6 +56,9 @@ export function LibraryView({
   onNavigate,
   bookmarks,
   onToggleBookmark,
+  isAdmin = false,
+  onRenameBook,
+  onOpenCategoryManager,
 }: LibraryViewProps) {
   const [searchDraft, setSearchDraft] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,10 +68,10 @@ export function LibraryView({
 
   const visibleCategories = useMemo(
     () =>
-      CATEGORIES.filter(
+      categories.filter(
         (cat) => !siteSettings.hiddenCategories.includes(cat.id),
       ),
-    [siteSettings.hiddenCategories],
+    [categories, siteSettings.hiddenCategories],
   );
 
   const filteredBooks = useMemo(() => {
@@ -224,6 +234,17 @@ export function LibraryView({
               <span>ကဏ္ဍများ</span>
             </button>
 
+            {isAdmin && onOpenCategoryManager && (
+              <button
+                type="button"
+                onClick={onOpenCategoryManager}
+                className="min-h-[40px] px-3 py-1.5 rounded-lg border border-[#1E3A8A]/40 bg-[#EFF3FA] text-xs font-semibold text-[#1E3A8A] inline-flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Category Customize</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => handleCategoryClick('all')}
@@ -302,9 +323,22 @@ export function LibraryView({
           {/* Desktop Left Sidebar */}
           <aside className="hidden lg:block lg:col-span-3 space-y-6 sticky top-20">
             <div className="bg-white border border-[#E2E6EE] rounded-xl p-4">
-              <h2 className="text-xs font-bold tracking-wider uppercase text-[#525E75] px-2.5 pb-3 border-b border-[#EFF2F7] mb-2">
-                Categories
-              </h2>
+              <div className="flex items-center justify-between gap-2 px-2.5 pb-3 border-b border-[#EFF2F7] mb-2">
+                <h2 className="text-xs font-bold tracking-wider uppercase text-[#525E75]">
+                  Categories
+                </h2>
+                {isAdmin && onOpenCategoryManager && (
+                  <button
+                    type="button"
+                    onClick={onOpenCategoryManager}
+                    title="Category များ ထပ်ခွဲ / Customize လုပ်ရန်"
+                    className="px-2.5 py-1 rounded-md bg-[#EFF3FA] hover:bg-[#1E3A8A] text-[#1E3A8A] hover:text-white text-[11.5px] font-semibold inline-flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Customize</span>
+                  </button>
+                )}
+              </div>
               <ul className="space-y-1">
                 <li>
                   <button
@@ -486,12 +520,17 @@ export function LibraryView({
 
                       <div className="p-4 flex flex-col flex-1">
                         <p className="text-[11.5px] font-semibold text-[#B85338] mb-1 truncate">
-                          {book.categoryLabel}
+                          {categories.find((c) => c.id === book.categoryId)
+                            ?.nameMy || book.categoryLabel}
                         </p>
 
-                        <h3 className="text-[14px] font-semibold text-[#131B2E] leading-[1.55] line-clamp-2 mb-2">
-                          {book.title}
-                        </h3>
+                        <BookTitleEditor
+                          title={book.title}
+                          canEdit={Boolean(isAdmin && onRenameBook)}
+                          onSaveTitle={(nextTitle) =>
+                            onRenameBook!(book.id, nextTitle)
+                          }
+                        />
 
                         {book.author.trim() ? (
                           <p className="text-xs text-[#525E75] flex items-center gap-1.5 truncate mb-4">

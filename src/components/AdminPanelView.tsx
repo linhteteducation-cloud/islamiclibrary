@@ -35,7 +35,6 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
-  CATEGORIES,
   DEFAULT_HERO_DESCRIPTION,
   MANAGEABLE_SECTIONS,
 } from '../data/libraryData';
@@ -99,6 +98,7 @@ import {
   ArticleItem,
   BookCategoryId,
   BookItem,
+  CategoryItem,
   ContactMessageItem,
   DriveFileSummary,
   DuaItem,
@@ -117,6 +117,8 @@ interface AdminPanelViewProps {
   onSignInGoogle: () => Promise<void>;
   onSignOut: () => Promise<void>;
   books: BookItem[];
+  categories: CategoryItem[];
+  onOpenCategoryManager: () => void;
   duas: DuaItem[];
   videos: VideoItem[];
   articles: ArticleItem[];
@@ -146,10 +148,6 @@ interface PendingDelete {
   driveFileId?: string;
 }
 
-const BOOK_CATEGORIES = CATEGORIES.filter(
-  (c) => c.id !== 'videos',
-) as Array<{id: BookCategoryId; nameMy: string}>;
-
 export function AdminPanelView({
   user,
   isAdmin,
@@ -158,11 +156,17 @@ export function AdminPanelView({
   onSignInGoogle,
   onSignOut,
   books,
+  categories,
+  onOpenCategoryManager,
   duas,
   videos,
   articles,
   siteSettings,
 }: AdminPanelViewProps) {
+  const bookCategories = useMemo(
+    () => categories.filter((c) => c.id !== 'videos'),
+    [categories],
+  );
   const [activeTab, setActiveTab] = useState<AdminTab>('books');
   const [statusBanner, setStatusBanner] = useState<{
     type: 'success' | 'error';
@@ -586,7 +590,7 @@ export function AdminPanelView({
         if (normalizedKey) existingTitles.add(normalizedKey);
         await makeDriveFilePublicReadable(driveToken, file.id).catch(() => {});
 
-        const catObj = BOOK_CATEGORIES.find((c) => c.id === inferred.categoryId);
+        const catObj = bookCategories.find((c) => c.id === inferred.categoryId);
         const urls = buildDriveUrls(file.id);
 
         await createBookRecord(user.uid, {
@@ -755,7 +759,7 @@ export function AdminPanelView({
         const resolvedCategoryId = isSingle
           ? bookCategoryId
           : inferred.categoryId;
-        const catObj = BOOK_CATEGORIES.find(
+        const catObj = bookCategories.find(
           (c) => c.id === resolvedCategoryId,
         );
 
@@ -870,8 +874,8 @@ export function AdminPanelView({
       }
 
       const safeCategory =
-        BOOK_CATEGORIES.find((c) => c.id === resolvedCategoryId) ??
-        BOOK_CATEGORIES[0];
+        bookCategories.find((c) => c.id === resolvedCategoryId) ??
+        bookCategories[0];
       const safeType: Exclude<MaterialType, 'All Types'> = [
         'Book',
         'Periodical',
@@ -963,7 +967,7 @@ export function AdminPanelView({
   }
 
   const handleEditBook = (book: BookItem) => {
-    const validCat = BOOK_CATEGORIES.some((c) => c.id === book.categoryId)
+    const validCat = bookCategories.some((c) => c.id === book.categoryId)
       ? book.categoryId
       : 'quran-tafsir';
     const validType: Exclude<MaterialType, 'All Types'> = [
@@ -1056,8 +1060,8 @@ export function AdminPanelView({
     setEditModalError(null);
     try {
       const safeCat =
-        BOOK_CATEGORIES.find((c) => c.id === editCategoryId) ??
-        BOOK_CATEGORIES[0];
+        bookCategories.find((c) => c.id === editCategoryId) ??
+        bookCategories[0];
       const safeType: Exclude<MaterialType, 'All Types'> = [
         'Book',
         'Periodical',
@@ -1492,7 +1496,7 @@ export function AdminPanelView({
             telegramDefaultCatInput === 'auto'
               ? inferred.categoryId
               : telegramDefaultCatInput;
-          const catObj = BOOK_CATEGORIES.find(
+          const catObj = bookCategories.find(
             (c) => c.id === resolvedCategoryId,
           );
           const urls = buildDriveUrls(uploaded.driveFileId);
@@ -1734,7 +1738,7 @@ export function AdminPanelView({
             importCategoryOverride === 'auto'
               ? inferred.categoryId
               : importCategoryOverride;
-          const catObj = BOOK_CATEGORIES.find(
+          const catObj = bookCategories.find(
             (c) => c.id === resolvedCategoryId,
           );
           const urls = buildDriveUrls(result.driveFileId);
@@ -2227,9 +2231,19 @@ export function AdminPanelView({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#35433A] mb-1">
-                    ကဏ္ဍ (Category)
-                  </label>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <label className="block text-xs font-semibold text-[#35433A]">
+                      ကဏ္ဍ (Category)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={onOpenCategoryManager}
+                      className="text-[11px] font-semibold text-[#1E3A8A] hover:underline inline-flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Customize / ထပ်ခွဲရန်</span>
+                    </button>
+                  </div>
                   <select
                     value={bookCategoryId}
                     onChange={(e) =>
@@ -2237,7 +2251,7 @@ export function AdminPanelView({
                     }
                     className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
                   >
-                    {BOOK_CATEGORIES.map((c) => (
+                    {bookCategories.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.nameMy}
                       </option>
@@ -2752,7 +2766,7 @@ export function AdminPanelView({
                         <option value="auto">
                           စာအုပ်အမည်အလိုက် အလိုအလျောက် ခွဲခြားမည် (Auto)
                         </option>
-                        {BOOK_CATEGORIES.map((c) => (
+                        {bookCategories.map((c) => (
                           <option key={c.id} value={c.id}>
                             {c.nameMy}
                           </option>
@@ -3009,11 +3023,21 @@ export function AdminPanelView({
               </div>
 
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-[#115E34] border-b border-[#EDF1EE] pb-2">
-                  စာကြည့်တိုက် ကဏ္ဍ ၁၂ ခု (Library Categories)
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EDF1EE] pb-2">
+                  <h3 className="text-sm font-bold text-[#1E3A8A]">
+                    စာကြည့်တိုက် ကဏ္ဍများ ({categories.length} ခု)
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={onOpenCategoryManager}
+                    className="min-h-[34px] px-3 py-1 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                  >
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>Category ထပ်ခွဲ / Customize</span>
+                  </button>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {CATEGORIES.map((cat) => {
+                  {categories.map((cat) => {
                     const isVisible = !hiddenCategoriesDraft.includes(cat.id);
                     return (
                       <label
@@ -4136,7 +4160,7 @@ export function AdminPanelView({
                       <option value="auto">
                         စာအုပ်အမည်အလိုက် အလိုအလျောက် ခွဲခြားမည် (Auto)
                       </option>
-                      {BOOK_CATEGORIES.map((c) => (
+                      {bookCategories.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.nameMy}
                         </option>
@@ -4582,9 +4606,19 @@ export function AdminPanelView({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
-                  ကဏ္ဍ (Category)
-                </label>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="block text-xs font-semibold text-[#35433A]">
+                    ကဏ္ဍ (Category)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={onOpenCategoryManager}
+                    className="text-[11px] font-semibold text-[#1E3A8A] hover:underline inline-flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Customize</span>
+                  </button>
+                </div>
                 <select
                   value={editCategoryId}
                   onChange={(e) =>
@@ -4592,7 +4626,7 @@ export function AdminPanelView({
                   }
                   className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
                 >
-                  {BOOK_CATEGORIES.map((c) => (
+                  {bookCategories.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.nameMy}
                     </option>

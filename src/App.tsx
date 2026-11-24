@@ -1,8 +1,9 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {User} from 'firebase/auth';
 import {AdminPanelView} from './components/AdminPanelView';
 import {ArticlesView} from './components/ArticlesView';
 import {BookReaderModal} from './components/BookReaderModal';
+import {CategoryManagerModal} from './components/CategoryManagerModal';
 import {DuasView} from './components/DuasView';
 import {Footer} from './components/Footer';
 import {HomeView} from './components/HomeView';
@@ -14,7 +15,11 @@ import {
 import {LibraryView} from './components/LibraryView';
 import {Navbar} from './components/Navbar';
 import {VideosView} from './components/VideosView';
-import {CATEGORIES, DEFAULT_SITE_SETTINGS} from './data/libraryData';
+import {
+  CATEGORIES,
+  DEFAULT_SITE_SETTINGS,
+  mergeCategories,
+} from './data/libraryData';
 import {
   checkIsAdminUser,
   initFirebaseAuth,
@@ -23,16 +28,24 @@ import {
   testFirestoreConnection,
 } from './lib/firebase';
 import {
+  deleteCategoryRecord,
+  saveCategoryRecord,
+  saveSiteSettings,
   subscribeArticles,
   subscribeBooks,
+  subscribeCategories,
   subscribeDuas,
   subscribeSiteSettings,
   subscribeVideos,
+  updateBookRecord,
 } from './lib/firestoreService';
 import {
   ArticleItem,
+  BookCategoryId,
   BookItem,
+  CategoryIconName,
   CategoryId,
+  CategoryItem,
   DuaItem,
   PageRoute,
   SiteSettings,
@@ -76,13 +89,11 @@ function parseInitialRouteFromUrl(): {
       page = 'library';
     }
 
-    const validCategoryIds = new Set<string>([
-      'all',
-      ...CATEGORIES.map((c) => c.id),
-    ]);
-    const category: CategoryId = validCategoryIds.has(paramCategory)
-      ? (paramCategory as CategoryId)
-      : 'all';
+    const normalizedParamCat = paramCategory.trim().toLowerCase();
+    const category: CategoryId =
+      normalizedParamCat && /^[a-z0-9-]+$/.test(normalizedParamCat)
+        ? (normalizedParamCat as CategoryId)
+        : 'all';
 
     return {
       page,
@@ -148,8 +159,17 @@ export default function App() {
   const [duas, setDuas] = useState<DuaItem[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
+  const [customCategoryDocs, setCustomCategoryDocs] = useState<CategoryItem[]>(
+    [],
+  );
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(
     DEFAULT_SITE_SETTINGS,
+  );
+
+  const mergedCategories = useMemo(
+    () => mergeCategories(customCategoryDocs),
+    [customCategoryDocs],
   );
 
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
@@ -192,12 +212,14 @@ export default function App() {
     const unsubDuas = subscribeDuas(setDuas);
     const unsubVideos = subscribeVideos(setVideos);
     const unsubArticles = subscribeArticles(setArticles);
+    const unsubCategories = subscribeCategories(setCustomCategoryDocs);
 
     return () => {
       unsubSettings();
       unsubDuas();
       unsubVideos();
       unsubArticles();
+      unsubCategories();
     };
   }, []);
 
@@ -208,7 +230,8 @@ export default function App() {
 
   const publishedBooks = books.filter((b) => b.published);
   const syncedActiveBook = activeBook
-    ? publishedBooks.find((b) => b.id === activeBook.id) ?? null
+    ? (isAdmin ? books : publishedBooks).find((b) => b.id === activeBook.id) ??
+      null
     : null;
 
   // Open deep-linked book (?book=<id>) once publishedBooks load
@@ -269,7 +292,9 @@ export default function App() {
         ? `${syncedActiveBook.summary.slice(0, 145)} — Free Burmese Islamic PDF Book at Myanmar Muslim Library.`
         : `${syncedActiveBook.title} (${syncedActiveBook.categoryLabel}) - Free Burmese Islamic PDF Book to read & download at Myanmar Muslim Library.`;
     } else if (currentPage === 'library') {
-      const cat = CATEGORIES.find((c) => c.id === selectedCategory);
+      const cat =
+        mergedCategories.find((c) => c.id === selectedCategory) ||
+        CATEGORIES.find((c) => c.id === selectedCategory);
       if (cat) {
         title = `${cat.nameMy} (${cat.nameEn}) | Myanmar Muslim Library`;
         description = `${cat.descriptionMy} — ${cat.nameEn} Burmese Islamic PDF books at Myanmar Muslim Library.`;
@@ -349,7 +374,7 @@ export default function App() {
       document.head.appendChild(canonicalEl);
     }
     canonicalEl.setAttribute('href', canonicalUrl);
-  }, [currentPage, selectedCategory, syncedActiveBook]);
+  }, [currentPage, selectedCategory, syncedActiveBook, mergedCategories]);
 
   useEffect(() => {
     if (
@@ -445,6 +470,72 @@ export default function App() {
     );
   };
 
+  const handleRenameBook = async (bookId: string, newTitle: string) => {
+    if (!isAdmin) {
+      throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ပြင်ဆင်နိုင်ပါမည်။');
+    }
+    const cleanedTitle = newTitle.trim().slice(0, 240);
+    if (!cleanedTitle) {
+      throw new Error('စာအုပ်အမည် ထည့်သွင်းပါ။');
+    }
+    await updateBookRecord(bookId, {title: cleanedTitle});
+  };
+
+  const handleChangeBookCategory = async (
+    bookId: string,
+    categoryId: BookCategoryId,
+  ) => {
+    if (!isAdmin) {
+      throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ပြင်ဆင်နိုင်ပါမည်။');
+    }
+    const cat = mergedCategories.find((c) => c.id === categoryId);
+    if (!cat || cat.id === 'videos') {
+      throw new Error('မှန်ကန်သော Category ကို ရွေးချယ်ပါ။');
+    }
+    await updateBookRecord(bookId, {
+      categoryId: cat.id as BookCategoryId,
+      categoryLabel: cat.nameMy,
+    });
+  };
+
+  const handleSaveCategory = async (payload: {
+    id: string;
+    nameMy: string;
+    nameEn: string;
+    descriptionMy: string;
+    iconName: CategoryIconName;
+    sortOrder: number;
+  }) => {
+    if (!isAdmin || !user) {
+      throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ပြင်ဆင်နိုင်ပါမည်။');
+    }
+    await saveCategoryRecord(user.uid, payload);
+  };
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!isAdmin) {
+      throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ဖျက်နိုင်ပါမည်။');
+    }
+    await deleteCategoryRecord(categoryId);
+    if (selectedCategory === categoryId) {
+      setSelectedCategory('all');
+    }
+  };
+
+  const handleToggleCategoryVisibility = async (categoryId: string) => {
+    if (!isAdmin || !user) {
+      throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ပြင်ဆင်နိုင်ပါမည်။');
+    }
+    const exists = siteSettings.hiddenCategories.includes(categoryId);
+    const nextHidden = exists
+      ? siteSettings.hiddenCategories.filter((id) => id !== categoryId)
+      : [...siteSettings.hiddenCategories, categoryId];
+    await saveSiteSettings(user.uid, {
+      ...siteSettings,
+      hiddenCategories: nextHidden,
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F6F7FA] text-[#131B2E]">
       <Navbar
@@ -457,16 +548,21 @@ export default function App() {
         {currentPage === 'home' && (
           <HomeView
             books={publishedBooks}
+            categories={mergedCategories}
             siteSettings={siteSettings}
             onNavigate={handleNavigate}
             onSelectCategory={handleSelectCategory}
             onOpenBook={handleOpenBook}
+            isAdmin={isAdmin}
+            onRenameBook={handleRenameBook}
+            onOpenCategoryManager={() => setCategoryManagerOpen(true)}
           />
         )}
 
         {currentPage === 'library' && (
           <LibraryView
             books={publishedBooks}
+            categories={mergedCategories}
             siteSettings={siteSettings}
             selectedCategory={selectedCategory}
             onSelectCategory={handleSelectCategory}
@@ -474,6 +570,9 @@ export default function App() {
             onNavigate={handleNavigate}
             bookmarks={bookmarks}
             onToggleBookmark={handleToggleBookmark}
+            isAdmin={isAdmin}
+            onRenameBook={handleRenameBook}
+            onOpenCategoryManager={() => setCategoryManagerOpen(true)}
           />
         )}
 
@@ -495,6 +594,8 @@ export default function App() {
             onSignInGoogle={handleSignInGoogle}
             onSignOut={handleSignOut}
             books={books}
+            categories={mergedCategories}
+            onOpenCategoryManager={() => setCategoryManagerOpen(true)}
             duas={duas}
             videos={videos}
             articles={articles}
@@ -512,6 +613,21 @@ export default function App() {
           syncedActiveBook ? bookmarks.includes(syncedActiveBook.id) : false
         }
         onToggleBookmark={handleToggleBookmark}
+        isAdmin={isAdmin}
+        categories={mergedCategories}
+        onRenameBook={handleRenameBook}
+        onChangeBookCategory={handleChangeBookCategory}
+      />
+
+      <CategoryManagerModal
+        open={categoryManagerOpen && isAdmin}
+        onClose={() => setCategoryManagerOpen(false)}
+        categories={mergedCategories}
+        books={books}
+        siteSettings={siteSettings}
+        onSaveCategory={handleSaveCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onToggleCategoryVisibility={handleToggleCategoryVisibility}
       />
     </div>
   );

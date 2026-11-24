@@ -43,6 +43,21 @@ service cloud.firestore {
       return val is string && val.size() >= 10 && val.size() <= 500 && val.matches('^https://.*$');
     }
 
+    function isValidCategoryId(catId) {
+      return catId is string && catId.size() >= 1 && catId.size() <= 60 &&
+        catId.matches('^[a-z0-9\\-]+$') && catId != 'all';
+    }
+
+    function isValidBookCategory(catId) {
+      return isValidCategoryId(catId) && catId != 'videos' && (
+        catId in [
+          'quran-tafsir', 'hadith', 'shariah', 'dua-amal', 'aqeedah',
+          'history', 'ethics', 'children', 'periodicals', 'research', 'azan'
+        ] ||
+        exists(/databases/$(database)/documents/categories/$(catId))
+      );
+    }
+
     function isValidBook(data) {
       return data.keys().hasAll([
         'title', 'author', 'categoryId', 'categoryLabel', 'type', 'hijriYear',
@@ -58,10 +73,7 @@ service cloud.firestore {
       ]) &&
       data.title is string && data.title.size() >= 1 && data.title.size() <= 240 &&
       data.author is string && data.author.size() <= 160 &&
-      data.categoryId in [
-        'quran-tafsir', 'hadith', 'shariah', 'dua-amal', 'aqeedah',
-        'history', 'ethics', 'children', 'periodicals', 'research', 'azan'
-      ] &&
+      isValidBookCategory(data.categoryId) &&
       data.categoryLabel is string && data.categoryLabel.size() >= 1 && data.categoryLabel.size() <= 120 &&
       data.type in ['Book', 'Periodical', 'Research', 'Dua', 'Timetable'] &&
       data.hijriYear is string && data.hijriYear.size() <= 60 &&
@@ -214,6 +226,29 @@ service cloud.firestore {
       data.defaultCategoryId is string && data.defaultCategoryId.size() <= 60 &&
       data.lastUpdateId is int && data.lastUpdateId >= 0 &&
       data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll([
+        'nameMy', 'nameEn', 'descriptionMy', 'iconName', 'sortOrder',
+        'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'nameMy', 'nameEn', 'descriptionMy', 'iconName', 'sortOrder',
+        'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.nameMy is string && data.nameMy.size() >= 1 && data.nameMy.size() <= 120 &&
+      data.nameEn is string && data.nameEn.size() <= 120 &&
+      data.descriptionMy is string && data.descriptionMy.size() <= 400 &&
+      data.iconName in [
+        'book-open', 'scroll-text', 'scale', 'heart-handshake', 'star',
+        'history', 'heart', 'baby', 'newspaper', 'file-search', 'clock',
+        'video', 'folder', 'sparkles', 'layers'
+      ] &&
+      data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
       data.updatedAt is timestamp;
     }
 
@@ -370,6 +405,24 @@ service cloud.firestore {
           'updatedByUid', 'updatedAt'
         ]);
       allow delete: if isValidId(settingId) && isAdmin();
+    }
+
+    // Custom & customized library categories (Public read, strictly Admin write)
+    match /categories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create: if isValidId(categoryId) && isValidCategoryId(categoryId) && isAdmin() && isValidCategory(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(categoryId) && isValidCategoryId(categoryId) && isAdmin() && isValidCategory(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'nameMy', 'nameEn', 'descriptionMy', 'iconName', 'sortOrder', 'updatedAt'
+        ]);
+      allow delete: if isValidId(categoryId) && isAdmin();
     }
   }
 }

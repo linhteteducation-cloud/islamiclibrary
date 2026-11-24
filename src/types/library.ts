@@ -9,8 +9,7 @@ export type PageRoute =
   | 'contact'
   | 'admin';
 
-export type CategoryId =
-  | 'all'
+export type BuiltInBookCategoryId =
   | 'quran-tafsir'
   | 'hadith'
   | 'shariah'
@@ -21,31 +20,41 @@ export type CategoryId =
   | 'children'
   | 'periodicals'
   | 'research'
-  | 'azan'
-  | 'videos';
+  | 'azan';
 
-export type BookCategoryId = Exclude<CategoryId, 'all' | 'videos'>;
+export type BookCategoryId = BuiltInBookCategoryId | (string & {});
+
+export type CategoryId = 'all' | 'videos' | BookCategoryId;
 
 export type MaterialType = 'All Types' | 'Book' | 'Periodical' | 'Research' | 'Dua' | 'Timetable';
+
+export type CategoryIconName =
+  | 'book-open'
+  | 'scroll-text'
+  | 'scale'
+  | 'heart-handshake'
+  | 'star'
+  | 'history'
+  | 'heart'
+  | 'baby'
+  | 'newspaper'
+  | 'file-search'
+  | 'clock'
+  | 'video'
+  | 'folder'
+  | 'sparkles'
+  | 'layers';
 
 export interface CategoryItem {
   id: Exclude<CategoryId, 'all'>;
   nameMy: string;
   nameEn: string;
   descriptionMy: string;
-  iconName:
-    | 'book-open'
-    | 'scroll-text'
-    | 'scale'
-    | 'heart-handshake'
-    | 'star'
-    | 'history'
-    | 'heart'
-    | 'baby'
-    | 'newspaper'
-    | 'file-search'
-    | 'clock'
-    | 'video';
+  iconName: CategoryIconName;
+  sortOrder?: number;
+  isCustom?: boolean;
+  isOverridden?: boolean;
+  createdByUid?: string;
 }
 
 export interface BookItem {

@@ -3,12 +3,15 @@ import {
   BookOpen,
   Clock,
   FileSearch,
+  Folder,
   Heart,
   HeartHandshake,
   History,
+  Layers,
   Newspaper,
   Scale,
   ScrollText,
+  Sparkles,
   Star,
   Video,
 } from 'lucide-react';
@@ -45,5 +48,11 @@ export function CategoryIcon({name, className = 'w-5 h-5'}: CategoryIconProps) {
       return <Clock className={className} />;
     case 'video':
       return <Video className={className} />;
+    case 'folder':
+      return <Folder className={className} />;
+    case 'layers':
+      return <Layers className={className} />;
+    case 'sparkles':
+      return <Sparkles className={className} />;
   }
 }

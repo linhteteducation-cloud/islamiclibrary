@@ -1,25 +1,46 @@
-import {ArrowRight, BookOpen, FileText, HeartHandshake, Shield} from 'lucide-react';
-import {CATEGORIES} from '../data/libraryData';
-import {BookItem, CategoryId, PageRoute, SiteSettings} from '../types/library';
+import {
+  ArrowRight,
+  BookOpen,
+  FileText,
+  HeartHandshake,
+  Shield,
+  SlidersHorizontal,
+} from 'lucide-react';
+import {
+  BookItem,
+  CategoryId,
+  CategoryItem,
+  PageRoute,
+  SiteSettings,
+} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
+import {BookTitleEditor} from './BookTitleEditor';
 import {CategoryIcon} from './CategoryIcon';
 
 interface HomeViewProps {
   books: BookItem[];
+  categories: CategoryItem[];
   siteSettings: SiteSettings;
   onNavigate: (page: PageRoute) => void;
   onSelectCategory: (categoryId: CategoryId) => void;
   onOpenBook: (book: BookItem) => void;
+  isAdmin?: boolean;
+  onRenameBook?: (bookId: string, newTitle: string) => Promise<void>;
+  onOpenCategoryManager?: () => void;
 }
 
 export function HomeView({
   books,
+  categories,
   siteSettings,
   onNavigate,
   onSelectCategory,
   onOpenBook,
+  isAdmin = false,
+  onRenameBook,
+  onOpenCategoryManager,
 }: HomeViewProps) {
-  const visibleCategories = CATEGORIES.filter(
+  const visibleCategories = categories.filter(
     (cat) => !siteSettings.hiddenCategories.includes(cat.id),
   );
   const featuredBooks = books.slice(0, 4);
@@ -91,6 +112,18 @@ export function HomeView({
             <p className="text-sm text-[#525E75]">
               အကြောင်းအရာကဏ္ဍအလိုက် PDF စာအုပ်များနှင့် စာစောင်များ
             </p>
+            {isAdmin && onOpenCategoryManager && (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={onOpenCategoryManager}
+                  className="min-h-[40px] px-4 py-2 rounded-lg border border-[#1E3A8A]/30 bg-white hover:bg-[#EFF3FA] text-[#1E3A8A] text-xs font-semibold inline-flex items-center gap-2 transition-colors shadow-xs"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Category များ ထပ်ခွဲ / Customize လုပ်ရန်</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
@@ -172,11 +205,16 @@ export function HomeView({
                   </button>
                   <div className="p-4 flex flex-col flex-1">
                     <p className="text-[11.5px] font-semibold text-[#B85338] mb-1 truncate">
-                      {book.categoryLabel}
+                      {categories.find((c) => c.id === book.categoryId)
+                        ?.nameMy || book.categoryLabel}
                     </p>
-                    <h3 className="text-[14px] font-semibold text-[#131B2E] leading-[1.55] line-clamp-2 mb-1.5">
-                      {book.title}
-                    </h3>
+                    <BookTitleEditor
+                      title={book.title}
+                      canEdit={Boolean(isAdmin && onRenameBook)}
+                      onSaveTitle={(nextTitle) =>
+                        onRenameBook!(book.id, nextTitle)
+                      }
+                    />
                     {book.author.trim() ? (
                       <p className="text-xs text-[#525E75] truncate mb-4">
                         {book.author}

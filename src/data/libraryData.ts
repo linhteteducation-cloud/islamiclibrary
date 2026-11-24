@@ -1,4 +1,4 @@
-import {CategoryItem, SiteSettings} from '../types/library';
+import {CategoryIconName, CategoryItem, SiteSettings} from '../types/library';
 
 export const COVER_IMAGES = {
   libraryFeature: '/src/assets/images/feature_islamic_library_1795378756930.jpg',
@@ -110,3 +110,99 @@ export const CATEGORIES: CategoryItem[] = [
     iconName: 'video',
   },
 ];
+
+export const BUILT_IN_CATEGORY_IDS = new Set<string>(
+  CATEGORIES.map((c) => c.id),
+);
+
+export const CATEGORY_ICON_OPTIONS: {id: CategoryIconName; label: string}[] = [
+  {id: 'book-open', label: 'ကျမ်းစာအုပ်'},
+  {id: 'scroll-text', label: 'စာမူ / ဟဒီးစ်'},
+  {id: 'scale', label: 'ဥပဒေ / ဖိကဟ်'},
+  {id: 'heart-handshake', label: 'ဒိုအာ / မေတ္တာ'},
+  {id: 'star', label: 'အကီဒဟ် / ကြယ်'},
+  {id: 'history', label: 'သမိုင်း'},
+  {id: 'heart', label: 'ကိုယ်ကျင့် / နှလုံးသား'},
+  {id: 'baby', label: 'ကလေး / ရင်သွေး'},
+  {id: 'newspaper', label: 'စာစောင် / မဂ္ဂဇင်း'},
+  {id: 'file-search', label: 'သုတေသန'},
+  {id: 'clock', label: 'အချိန်ဇယား'},
+  {id: 'video', label: 'ဗီဒီယို'},
+  {id: 'folder', label: 'ဖိုင်တွဲ (Folder)'},
+  {id: 'layers', label: 'ကဏ္ဍခွဲ (Layers)'},
+  {id: 'sparkles', label: 'အထူးကဏ္ဍ (Special)'},
+];
+
+export function mergeCategories(
+  customDocs: CategoryItem[],
+): CategoryItem[] {
+  const docMap = new Map<string, CategoryItem>();
+  for (const doc of customDocs) {
+    if (doc.id && doc.id !== 'all') {
+      docMap.set(doc.id, doc);
+    }
+  }
+
+  const mergedBuiltIns: CategoryItem[] = CATEGORIES.map((base, idx) => {
+    const override = docMap.get(base.id);
+    if (override) {
+      return {
+        ...base,
+        nameMy: override.nameMy || base.nameMy,
+        nameEn: override.nameEn ?? base.nameEn,
+        descriptionMy: override.descriptionMy ?? base.descriptionMy,
+        iconName: override.iconName || base.iconName,
+        sortOrder:
+          typeof override.sortOrder === 'number' ? override.sortOrder : idx,
+        isCustom: false,
+        isOverridden: true,
+      };
+    }
+    return {
+      ...base,
+      sortOrder: idx,
+      isCustom: false,
+      isOverridden: false,
+    };
+  });
+
+  const extraCustomCategories: CategoryItem[] = customDocs
+    .filter((doc) => !BUILT_IN_CATEGORY_IDS.has(doc.id))
+    .map((doc, idx) => ({
+      ...doc,
+      sortOrder:
+        typeof doc.sortOrder === 'number'
+          ? doc.sortOrder
+          : CATEGORIES.length + idx,
+      isCustom: true,
+      isOverridden: false,
+    }))
+    .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999));
+
+  return [...mergedBuiltIns, ...extraCustomCategories];
+}
+
+export function generateCategorySlug(
+  nameEn: string,
+  existingIds: Set<string>,
+): string {
+  const base = nameEn
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 44);
+
+  const candidateBase =
+    base && base !== 'all' && base !== 'videos'
+      ? base
+      : `cat-${Date.now().toString(36)}`;
+
+  let candidate = candidateBase;
+  let counter = 2;
+  while (existingIds.has(candidate) || candidate === 'all' || candidate === 'videos') {
+    candidate = `${candidateBase}-${counter}`.slice(0, 58);
+    counter += 1;
+  }
+  return candidate;
+}
