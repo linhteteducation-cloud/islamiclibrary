@@ -11,8 +11,10 @@ import {
 } from 'lucide-react';
 import {
   downloadBookDirectly,
+  notifyDownloadStarting,
   resolveBookDriveFileId,
 } from '../lib/directDownload';
+import {recordRecentDownload} from '../lib/recentDownloads';
 import {isValidSafeHttpsUrl} from '../lib/googleDrive';
 import {BookCategoryId, BookItem, CategoryItem} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
@@ -257,6 +259,10 @@ export function BookReaderModal({
                     <a
                       href={safeDownloadUrl}
                       download
+                      onClick={() => {
+                        notifyDownloadStarting(book.title, 3200);
+                        recordRecentDownload(book);
+                      }}
                       className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
                     >
                       <Download className="w-4 h-4" />

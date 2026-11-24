@@ -2088,17 +2088,24 @@ async function startServer() {
         .map(([k, v]) => `${k}=${v}`)
         .join('; ');
 
-      const upstream = await fetch(validated.toString(), {
-        method: 'GET',
-        redirect: 'manual',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-          Accept: 'application/pdf,application/octet-stream,*/*;q=0.8',
-          ...(cookieHeader ? {Cookie: cookieHeader} : {}),
-        },
-        signal: AbortSignal.timeout(45_000),
-      });
+      const controller = new AbortController();
+      const headerTimeout = setTimeout(() => controller.abort(), 30_000);
+      let upstream: globalThis.Response;
+      try {
+        upstream = await fetch(validated.toString(), {
+          method: 'GET',
+          redirect: 'manual',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'application/pdf,application/octet-stream,*/*;q=0.8',
+            ...(cookieHeader ? {Cookie: cookieHeader} : {}),
+          },
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(headerTimeout);
+      }
 
       // Capture Set-Cookie values if available
       const setCookies =
@@ -2235,13 +2242,10 @@ async function startServer() {
         continue;
       }
 
-      const headText = Buffer.from(
-        value.subarray(0, Math.min(64, value.byteLength)),
-      ).toString('latin1');
-      if (
-        /^\s*<!doctype\s+html/i.test(headText) ||
-        /^\s*<html/i.test(headText)
-      ) {
+      const headSlice = Buffer.from(
+        value.subarray(0, Math.min(1024, value.byteLength)),
+      );
+      if (!headSlice.includes('%PDF-')) {
         await reader.cancel().catch(() => {});
         continue;
       }

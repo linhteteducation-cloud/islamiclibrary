@@ -4,6 +4,7 @@ import {AdminPanelView} from './components/AdminPanelView';
 import {ArticlesView} from './components/ArticlesView';
 import {BookReaderModal} from './components/BookReaderModal';
 import {CategoryManagerModal} from './components/CategoryManagerModal';
+import {DownloadToast} from './components/DownloadToast';
 import {DuasView} from './components/DuasView';
 import {Footer} from './components/Footer';
 import {HomeView} from './components/HomeView';
@@ -630,6 +631,8 @@ export default function App() {
         onDeleteCategory={handleDeleteCategory}
         onToggleCategoryVisibility={handleToggleCategoryVisibility}
       />
+
+      <DownloadToast />
     </div>
   );
 }

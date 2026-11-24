@@ -1,6 +1,7 @@
-import {useMemo, useState} from 'react';
+import {useEffect, useMemo, useState} from 'react';
 import {
   Bookmark,
+  Clock,
   Download,
   FileText,
   LayoutGrid,
@@ -9,6 +10,7 @@ import {
   Search,
   Shield,
   SlidersHorizontal,
+  Trash2,
   User,
   X,
 } from 'lucide-react';
@@ -16,6 +18,12 @@ import {
   downloadBookDirectly,
   resolveBookDriveFileId,
 } from '../lib/directDownload';
+import {
+  clearRecentDownloads,
+  RecentDownloadEntry,
+  removeRecentDownload,
+  subscribeRecentDownloads,
+} from '../lib/recentDownloads';
 import {
   BookItem,
   CategoryId,
@@ -75,6 +83,21 @@ export function LibraryView({
     null,
   );
   const [downloadError, setDownloadError] = useState('');
+  const [recentDownloads, setRecentDownloads] = useState<RecentDownloadEntry[]>(
+    [],
+  );
+
+  useEffect(() => {
+    return subscribeRecentDownloads(setRecentDownloads);
+  }, []);
+
+  const booksById = useMemo(() => {
+    const map = new Map<string, BookItem>();
+    for (const book of books) {
+      map.set(book.id, book);
+    }
+    return map;
+  }, [books]);
 
   const handleDirectDownload = async (book: BookItem) => {
     if (downloadingBookId) return;
@@ -423,6 +446,134 @@ export function LibraryView({
 
           {/* Right Main Grid */}
           <div className="lg:col-span-9 space-y-5">
+            {/* Recent Downloads (localStorage persisted) */}
+            <section
+              aria-labelledby="recent-downloads-heading"
+              className="bg-white border border-[#E2E6EE] rounded-xl p-4 sm:p-5"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-[#1E3A8A] shrink-0" />
+                  <h2
+                    id="recent-downloads-heading"
+                    className="text-sm font-bold text-[#131B2E]"
+                  >
+                    Recent Downloads
+                  </h2>
+                  {recentDownloads.length > 0 && (
+                    <span className="text-xs font-medium text-[#525E75] tabular-nums">
+                      ({recentDownloads.length})
+                    </span>
+                  )}
+                </div>
+
+                {recentDownloads.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearRecentDownloads}
+                    className="min-h-[32px] px-2.5 py-1 rounded-md text-xs font-medium text-[#525E75] hover:text-[#B85338] hover:bg-[#FEF2F2] inline-flex items-center gap-1.5 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear</span>
+                  </button>
+                )}
+              </div>
+
+              {recentDownloads.length === 0 ? (
+                <p className="mt-2 text-xs text-[#64748B]">
+                  Books you download will appear here for quick access.
+                </p>
+              ) : (
+                <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {recentDownloads.map((entry) => {
+                    const liveBook = booksById.get(entry.bookId);
+                    const canDirectDownload = Boolean(
+                      liveBook && resolveBookDriveFileId(liveBook),
+                    );
+                    return (
+                      <div
+                        key={entry.bookId}
+                        className="group relative flex items-center gap-3 rounded-lg border border-[#E6EAF2] bg-[#F9FAFC] hover:border-[#1E3A8A]/35 p-2.5 transition-colors"
+                      >
+                        <button
+                          type="button"
+                          disabled={!liveBook}
+                          onClick={() => liveBook && onOpenBook(liveBook)}
+                          aria-label={`${entry.title} ဖွင့်ကြည့်ရန်`}
+                          className="w-11 h-14 shrink-0 rounded-md overflow-hidden border border-[#E2E6EE] bg-[#EFF2F7] disabled:cursor-default focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
+                        >
+                          {liveBook ? (
+                            <BookCoverFrame book={liveBook} />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[#1E3A8A]">
+                              <FileText className="w-4 h-4" />
+                            </div>
+                          )}
+                        </button>
+
+                        <div className="min-w-0 flex-1">
+                          {entry.categoryLabel && (
+                            <p className="text-[10.5px] font-semibold text-[#B85338] truncate">
+                              {entry.categoryLabel}
+                            </p>
+                          )}
+                          <button
+                            type="button"
+                            disabled={!liveBook}
+                            onClick={() => liveBook && onOpenBook(liveBook)}
+                            className="block w-full text-left text-xs font-bold text-[#131B2E] hover:text-[#1E3A8A] disabled:hover:text-[#131B2E] truncate"
+                          >
+                            {entry.title}
+                          </button>
+                          <p className="text-[11px] text-[#64748B] tabular-nums truncate mt-0.5">
+                            {entry.fileSize || 'PDF'} ·{' '}
+                            {new Date(entry.downloadedAt).toLocaleDateString()}
+                          </p>
+
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            {canDirectDownload && liveBook && (
+                              <button
+                                type="button"
+                                onClick={() => handleDirectDownload(liveBook)}
+                                disabled={downloadingBookId === liveBook.id}
+                                aria-label={`${entry.title} ထပ်မံဒေါင်းလုဒ်ရယူရန်`}
+                                className="min-h-[30px] px-2 rounded-md border border-[#D4DBE8] bg-white hover:bg-[#EFF3FA] disabled:opacity-60 text-[#1E3A8A] text-[11px] font-semibold inline-flex items-center gap-1 transition-colors"
+                              >
+                                {downloadingBookId === liveBook.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <Download className="w-3 h-3" />
+                                )}
+                                <span>ဒေါင်းရန်</span>
+                              </button>
+                            )}
+                            {liveBook && (
+                              <button
+                                type="button"
+                                onClick={() => onOpenBook(liveBook)}
+                                className="min-h-[30px] px-2 rounded-md bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-[11px] font-semibold transition-colors"
+                              >
+                                ဖတ်ရှုရန်
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeRecentDownload(entry.bookId)}
+                          aria-label={`Remove ${entry.title} from recent downloads`}
+                          className="self-start p-1 rounded-md text-[#64748B] hover:text-[#B85338] hover:bg-[#FEF2F2] transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2 text-sm text-[#525E75]">
                 <span>
