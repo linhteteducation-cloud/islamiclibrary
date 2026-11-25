@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#14264D" />
+      <stop offset="100%" stop-color="#091326" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="140" y1="90" x2="372" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F3DFB1" />
+      <stop offset="55%" stop-color="#E2C792" />
+      <stop offset="100%" stop-color="#C6A05B" />
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed Midnight Navy background -->
+  <rect width="512" height="512" rx="108" fill="url(#bgGrad)" />
+
+  <!-- Subtle architectural border ring -->
+  <rect x="28" y="28" width="456" height="456" rx="88" stroke="#E2C792" stroke-opacity="0.28" stroke-width="4" />
+
+  <!-- Crescent & Star emblem above open book -->
+  <path
+    d="M274 92c-25.4 5.5-44.4 28.1-44.4 55.2 0 31.2 25.3 56.5 56.5 56.5 14.3 0 27.4-5.3 37.3-14.1-13.9 20.1-37.1 33.3-63.4 33.3-42.6 0-77.1-34.5-77.1-77.1 0-37.3 26.5-68.4 61.7-75.6 10.6-2.2 21.8-1.4 29.4 21.8z"
+    fill="url(#goldGrad)"
+  />
+  <polygon
+    points="292,118 297.5,134.8 315.2,134.8 300.9,145.2 306.4,162 292,151.6 277.6,162 283.1,145.2 268.8,134.8 286.5,134.8"
+    fill="url(#goldGrad)"
+  />
+
+  <!-- Open Book Pages -->
+  <path
+    d="M112 250c0-10.5 8.5-19 19-19 49.5 0 89.2 11.4 117 31.5V392c-27.8-17.2-67.5-26.2-117-26.2-10.5 0-19-8.5-19-19V250z"
+    fill="#F8FAFC"
+  />
+  <path
+    d="M400 250c0-10.5-8.5-19-19-19-49.5 0-89.2 11.4-117 31.5V392c27.8-17.2 67.5-26.2 117-26.2 10.5 0 19-8.5 19-19V250z"
+    fill="#E2E8F0"
+  />
+
+  <!-- Book Spine & Gold Cradle -->
+  <path
+    d="M96 270v88c0 11 9 20 20 20 53 0 96 9.6 140 29 44-19.4 87-29 140-29 11 0 20-9 20-20v-88"
+    stroke="url(#goldGrad)"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <line x1="256" y1="262" x2="256" y2="404" stroke="#1E3A8A" stroke-width="6" stroke-linecap="round" />
+
+  <!-- Subtle page text lines -->
+  <line x1="142" y1="274" x2="216" y2="284" stroke="#94A3B8" stroke-width="7" stroke-linecap="round" />
+  <line x1="142" y1="302" x2="216" y2="312" stroke="#94A3B8" stroke-width="7" stroke-linecap="round" />
+  <line x1="142" y1="330" x2="204" y2="338" stroke="#94A3B8" stroke-width="7" stroke-linecap="round" />
+
+  <line x1="370" y1="274" x2="296" y2="284" stroke="#64748B" stroke-width="7" stroke-linecap="round" />
+  <line x1="370" y1="302" x2="296" y2="312" stroke="#64748B" stroke-width="7" stroke-linecap="round" />
+  <line x1="370" y1="330" x2="308" y2="338" stroke="#64748B" stroke-width="7" stroke-linecap="round" />
+</svg>

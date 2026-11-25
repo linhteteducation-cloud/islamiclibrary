@@ -1,6 +1,7 @@
 import {useState} from 'react';
 import {Menu, Shield, X} from 'lucide-react';
 import {PageRoute, SiteSettings} from '../types/library';
+import {PWAInstallButton} from './PWAInstallButton';
 
 interface NavbarProps {
   currentPage: PageRoute;
@@ -91,8 +92,10 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
           })}
         </nav>
 
-        {/* Zone 3: Admin Panel Primary Action & Mobile Drawer Trigger */}
+        {/* Zone 3: PWA Install, Admin Panel Primary Action & Mobile Drawer Trigger */}
         <div className="flex items-center gap-2 shrink-0">
+          <PWAInstallButton variant="header" />
+
           <button
             type="button"
             onClick={() => handleSelect('admin')}
@@ -145,6 +148,13 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
                 </button>
               );
             })}
+
+            <div className="pt-1">
+              <PWAInstallButton
+                variant="drawer"
+                onAfterAction={() => setMobileOpen(false)}
+              />
+            </div>
 
             <button
               type="button"

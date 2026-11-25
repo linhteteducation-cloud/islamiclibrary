@@ -1,4 +1,5 @@
 import {PageRoute, SiteSettings} from '../types/library';
+import {PWAInstallButton} from './PWAInstallButton';
 
 interface FooterProps {
   onNavigate: (page: PageRoute) => void;
@@ -118,6 +119,9 @@ export function Footer({onNavigate, siteSettings}: FooterProps) {
                   </button>
                 </li>
               )}
+              <li>
+                <PWAInstallButton variant="footer" />
+              </li>
               <li>
                 <button
                   type="button"

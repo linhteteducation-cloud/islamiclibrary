@@ -15,6 +15,7 @@ import {
 } from './components/InstitutionalViews';
 import {LibraryView} from './components/LibraryView';
 import {Navbar} from './components/Navbar';
+import {OfflineIndicator} from './components/OfflineIndicator';
 import {VideosView} from './components/VideosView';
 import {
   CATEGORIES,
@@ -632,6 +633,7 @@ export default function App() {
         onToggleCategoryVisibility={handleToggleCategoryVisibility}
       />
 
+      <OfflineIndicator />
       <DownloadToast />
     </div>
   );
