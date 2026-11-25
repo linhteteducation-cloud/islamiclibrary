@@ -34,14 +34,14 @@ export function DownloadToast() {
       <div
         className={`rounded-xl border px-4 py-3.5 shadow-lg ${
           isError
-            ? 'bg-[#FEF2F2] border-[#FECACA] text-[#B85338]'
-            : 'bg-[#0D1830] border-[#1E3A8A] text-white'
+            ? 'bg-[#FEF2F2] dark:bg-[#2B1218] border-[#FECACA] dark:border-[#7F1D1D] text-[#B85338] dark:text-[#FCA5A5]'
+            : 'bg-[#0D1830] dark:bg-[#0D1526] border-[#1E3A8A] dark:border-[#263759] text-white'
         }`}
       >
         <div className="flex items-start gap-3">
           <div className="shrink-0 mt-0.5">
             {isError ? (
-              <AlertCircle className="w-4 h-4 text-[#B85338]" />
+              <AlertCircle className="w-4 h-4 text-[#B85338] dark:text-[#FCA5A5]" />
             ) : isDone ? (
               <CheckCircle2 className="w-4 h-4 text-[#4ADE80]" />
             ) : (
@@ -62,7 +62,9 @@ export function DownloadToast() {
             </div>
             <p
               className={`text-xs truncate mt-0.5 ${
-                isError ? 'text-[#991B1B]/80' : 'text-[#CBD5E1]'
+                isError
+                  ? 'text-[#991B1B]/80 dark:text-[#FECACA]/85'
+                  : 'text-[#CBD5E1]'
               }`}
             >
               {toast.bookTitle}
@@ -75,7 +77,7 @@ export function DownloadToast() {
             aria-label="Close download notification"
             className={`shrink-0 p-1 rounded-md transition-colors ${
               isError
-                ? 'text-[#B85338] hover:bg-[#FEE2E2]'
+                ? 'text-[#B85338] dark:text-[#FCA5A5] hover:bg-[#FEE2E2] dark:hover:bg-[#451A22]'
                 : 'text-[#CBD5E1] hover:bg-white/10 hover:text-white'
             }`}
           >

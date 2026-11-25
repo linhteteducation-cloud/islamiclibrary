@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {Menu, Shield, X} from 'lucide-react';
 import {PageRoute, SiteSettings} from '../types/library';
 import {PWAInstallButton} from './PWAInstallButton';
+import {ThemeToggle} from './ThemeToggle';
 
 interface NavbarProps {
   currentPage: PageRoute;
@@ -40,7 +41,7 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0D1830]/98 backdrop-blur-md border-b border-[#1D2F57]">
+    <header className="sticky top-0 z-40 bg-[#0D1830]/98 dark:bg-[#070E1E]/98 backdrop-blur-md border-b border-[#1D2F57] dark:border-[#192848]">
       {/* Subtle 5-color editorial hairline inspired by the curatorial spectrum */}
       <div aria-hidden="true" className="h-[3px] w-full grid grid-cols-5">
         <span className="bg-[#1D4ED8]" />
@@ -92,8 +93,9 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
           })}
         </nav>
 
-        {/* Zone 3: PWA Install, Admin Panel Primary Action & Mobile Drawer Trigger */}
+        {/* Zone 3: Theme Toggle, PWA Install, Admin Panel Primary Action & Mobile Drawer Trigger */}
         <div className="flex items-center gap-2 shrink-0">
+          <ThemeToggle variant="navbar" />
           <PWAInstallButton variant="header" />
 
           <button
@@ -149,7 +151,8 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
               );
             })}
 
-            <div className="pt-1">
+            <div className="pt-1 space-y-1.5">
+              <ThemeToggle variant="drawer" />
               <PWAInstallButton
                 variant="drawer"
                 onAfterAction={() => setMobileOpen(false)}

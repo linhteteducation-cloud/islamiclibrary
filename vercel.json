@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/((?!api/|assets/|src/assets/|manifest\\.webmanifest$|sw\\.js$|registerSW\\.js$|workbox-.*\\.js$|pwa-.*\\.png$|apple-touch-icon\\.png$|icon\\.svg$|robots\\.txt|sitemap\\.xml|og-cover\\.jpg|google[a-zA-Z0-9_-]+\\.html).*)",
+      "source": "/((?!api/|assets/|fonts/|src/assets/|manifest\\.webmanifest$|sw\\.js$|registerSW\\.js$|workbox-.*\\.js$|pwa-.*\\.png$|apple-touch-icon\\.png$|icon\\.svg$|robots\\.txt|sitemap\\.xml|og-cover\\.jpg|google[a-zA-Z0-9_-]+\\.html).*)",
       "destination": "/index.html"
     }
   ]

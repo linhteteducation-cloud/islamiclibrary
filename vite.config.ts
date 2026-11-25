@@ -18,6 +18,7 @@ export default defineConfig(() => {
           'pwa-192x192.png',
           'pwa-512x512.png',
           'pwa-maskable-512x512.png',
+          'fonts/PaOhMyanmarPyum.ttf',
         ],
         manifest: {
           id: '/',
@@ -55,7 +56,7 @@ export default defineConfig(() => {
         },
         workbox: {
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [
             /^\/api\//,

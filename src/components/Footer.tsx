@@ -10,7 +10,7 @@ export function Footer({onNavigate, siteSettings}: FooterProps) {
   const isVisible = (id: string) => !siteSettings.hiddenSections.includes(id);
 
   return (
-    <footer className="bg-[#0B152B] text-[#CBD5E1] border-t border-[#1D2F57] mt-16">
+    <footer className="bg-[#0B152B] dark:bg-[#050A15] text-[#CBD5E1] border-t border-[#1D2F57] dark:border-[#192848] mt-16">
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12">
           <div className="md:col-span-5 space-y-3">
@@ -136,7 +136,7 @@ export function Footer({onNavigate, siteSettings}: FooterProps) {
         </div>
 
         <div className="mt-10 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#94A3B8]">
-          <p>© {new Date().getFullYear()} Myanmar Muslim Library.</p>
+          <p>© 2026 Myanmar Muslim Library • Developed by Junide Solaimani</p>
           <p className="font-[Amiri] text-base text-[#E2C792]" dir="rtl">
             وَقُل رَّبِّ زِدْنِي عِلْمًا
           </p>

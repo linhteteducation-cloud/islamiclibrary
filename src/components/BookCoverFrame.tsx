@@ -69,7 +69,7 @@ export function BookCoverFrame({book, compact = false}: BookCoverFrameProps) {
       : null;
 
   return (
-    <div className="relative w-full h-full overflow-hidden select-none bg-[#EFF2F7]">
+    <div className="relative w-full h-full overflow-hidden select-none bg-[#EFF2F7] dark:bg-[#131E36]">
       {/* Styled fallback cover shown while loading or if Drive thumbnail is unavailable */}
       <div
         className={`w-full h-full bg-gradient-to-br ${palette.bg} flex flex-col items-center justify-between ${
@@ -140,7 +140,7 @@ export function BookCoverFrame({book, compact = false}: BookCoverFrameProps) {
             setImageLoaded(false);
             setCandidateIndex((idx) => idx + 1);
           }}
-          className={`absolute inset-0 w-full h-full bg-[#EFF2F7] transition-opacity duration-200 ${
+          className={`absolute inset-0 w-full h-full bg-[#EFF2F7] dark:bg-[#131E36] transition-opacity duration-200 ${
             compact ? 'object-cover object-top' : 'object-contain p-1.5'
           } ${imageLoaded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         />

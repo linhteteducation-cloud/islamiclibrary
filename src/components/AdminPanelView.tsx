@@ -1827,7 +1827,7 @@ export function AdminPanelView({
   // Loading state
   if (authLoading) {
     return (
-      <div className="max-w-[900px] mx-auto px-4 py-16 text-center text-sm text-[#525E75]">
+      <div className="max-w-[900px] mx-auto px-4 py-16 text-center text-sm text-[#525E75] dark:text-[#94A3B8]">
         စနစ်ကို စစ်ဆေးနေပါသည်...
       </div>
     );
@@ -1837,15 +1837,15 @@ export function AdminPanelView({
   if (!user) {
     return (
       <div className="max-w-[560px] mx-auto px-4 py-14 sm:py-20">
-        <div className="bg-white border border-[#E2E6EE] rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-sm">
-          <div className="w-12 h-12 rounded-xl bg-[#EFF3FA] text-[#1E3A8A] flex items-center justify-center mx-auto">
+        <div className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-[#EFF3FA] dark:bg-[#131E36] text-[#1E3A8A] dark:text-[#60A5FA] flex items-center justify-center mx-auto">
             <Shield className="w-6 h-6" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-xl sm:text-2xl font-bold text-[#131B2E]">
+            <h1 className="text-xl sm:text-2xl font-bold text-[#131B2E] dark:text-[#F1F5F9]">
               Admin Panel သို့ ဝင်ရောက်ရန်
             </h1>
-            <p className="text-sm text-[#525E75] leading-relaxed">
+            <p className="text-sm text-[#525E75] dark:text-[#94A3B8] leading-relaxed">
               စာအုပ် PDF များကို Google Drive ထဲသို့ တင်သွင်းရန်၊ မလိုအပ်သော ကဏ္ဍများကို
               ဖယ်ထုတ်စီမံရန်နှင့် ဝက်ဘ်ဆိုက်တစ်ခုလုံးကို ထိန်းချုပ်ရန် Admin Google Account
               ဖြင့် ဝင်ရောက်ပါ။
@@ -1853,7 +1853,7 @@ export function AdminPanelView({
           </div>
 
           {statusBanner && (
-            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 text-left">
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs text-red-700 dark:text-red-300 text-left">
               {statusBanner.text}
             </div>
           )}
@@ -1863,7 +1863,7 @@ export function AdminPanelView({
               type="button"
               disabled={isConnectingAuth}
               onClick={handleGoogleLogin}
-              className="inline-flex items-center gap-3 px-5 py-2.5 rounded-lg border border-[#DADCE0] bg-white hover:bg-[#F8F9FA] text-[#3C4043] font-medium text-sm shadow-xs transition-colors disabled:opacity-60"
+              className="inline-flex items-center gap-3 px-5 py-2.5 rounded-lg border border-[#DADCE0] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#F8F9FA] dark:hover:bg-[#1A2A4A] text-[#3C4043] dark:text-[#F1F5F9] font-medium text-sm shadow-xs transition-colors disabled:opacity-60"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1902,19 +1902,19 @@ export function AdminPanelView({
   if (!isAdmin) {
     return (
       <div className="max-w-[560px] mx-auto px-4 py-14 sm:py-20">
-        <div className="bg-white border border-[#E2E6EE] rounded-2xl p-6 sm:p-8 text-center space-y-4">
-          <AlertTriangle className="w-10 h-10 text-[#B85338] mx-auto" />
-          <h1 className="text-lg font-bold text-[#131B2E]">
+        <div className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-2xl p-6 sm:p-8 text-center space-y-4">
+          <AlertTriangle className="w-10 h-10 text-[#B85338] dark:text-[#F0947A] mx-auto" />
+          <h1 className="text-lg font-bold text-[#131B2E] dark:text-[#F1F5F9]">
             Admin ခွင့်ပြုချက် မရှိပါ
           </h1>
-          <p className="text-sm text-[#525E75]">
+          <p className="text-sm text-[#525E75] dark:text-[#94A3B8]">
             လက်ရှိ ဝင်ရောက်ထားသော အကောင့် ({user.email}) သည် Admin အဖြစ်
             သတ်မှတ်ထားခြင်း မရှိပါ။ Admin အကောင့်ဖြင့် ပြန်လည်ဝင်ရောက်ပါ။
           </p>
           <button
             type="button"
             onClick={() => void onSignOut()}
-            className="px-4 py-2 rounded-lg bg-[#1E3A8A] text-white text-sm font-semibold hover:bg-[#172D6B]"
+            className="px-4 py-2 rounded-lg bg-[#1E3A8A] dark:bg-[#2563EB] text-white text-sm font-semibold hover:bg-[#172D6B] dark:hover:bg-[#3B82F6]"
           >
             Sign Out
           </button>
@@ -1983,8 +1983,8 @@ export function AdminPanelView({
           <div
             className={`p-4 rounded-xl border text-sm space-y-3 ${
               statusBanner.type === 'success'
-                ? 'bg-[#EFF3FA] border-[#1E3A8A]/30 text-[#1E3A8A]'
-                : 'bg-red-50 border-red-200 text-red-800'
+                ? 'bg-[#EFF3FA] dark:bg-[#131E36] border-[#1E3A8A]/30 dark:border-[#60A5FA]/40 text-[#1E3A8A] dark:text-[#93C5FD]'
+                : 'bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-900/60 text-red-800 dark:text-red-300'
             }`}
           >
             <div className="flex items-start justify-between gap-3">
@@ -2002,13 +2002,13 @@ export function AdminPanelView({
             </div>
 
             {driveActivationUrl && statusBanner.type === 'error' && (
-              <div className="pt-2 border-t border-red-200/80 space-y-2.5">
+              <div className="pt-2 border-t border-red-200/80 dark:border-red-900/60 space-y-2.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <a
                     href={driveActivationUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-[38px] px-3.5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172E6E] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="min-h-[38px] px-3.5 py-2 rounded-lg bg-[#1E3A8A] dark:bg-[#2563EB] hover:bg-[#172E6E] dark:hover:bg-[#3B82F6] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
                   >
                     <span>Google Drive API ဖွင့်ရန် (Google Cloud Console)</span>
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -2017,7 +2017,7 @@ export function AdminPanelView({
                     type="button"
                     onClick={() => void refreshDriveFiles()}
                     disabled={isLoadingDrive}
-                    className="min-h-[38px] px-3.5 py-2 rounded-lg bg-white border border-red-300 text-red-800 hover:bg-red-100/60 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="min-h-[38px] px-3.5 py-2 rounded-lg bg-white dark:bg-[#131E36] border border-red-300 dark:border-red-800/60 text-red-800 dark:text-red-300 hover:bg-red-100/60 dark:hover:bg-red-950/80 text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
                   >
                     <RefreshCw
                       className={`w-3.5 h-3.5 ${isLoadingDrive ? 'animate-spin' : ''}`}
@@ -2025,7 +2025,7 @@ export function AdminPanelView({
                     <span>ပြန်လည်စစ်ဆေးရန်</span>
                   </button>
                 </div>
-                <p className="text-xs text-red-700 leading-relaxed">
+                <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
                   မှတ်ချက် — Google Drive API မဖွင့်ရသေးမီကြားကာလတွင်လည်း Google Drive မှ PDF ဖိုင်၏ Share Link
                   (Anyone with the link) ကို အောက်ပါ &ldquo;Google Drive File ID သို့မဟုတ် Share Link&rdquo; အကွက်ထဲသို့ တိုက်ရိုက်ကူးထည့်၍ စာအုပ်တင်နိုင်ပါသည်။
                 </p>
@@ -2035,7 +2035,7 @@ export function AdminPanelView({
         )}
 
         {/* Admin Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-[#E2E6EE]">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-[#E2E6EE] dark:border-[#1E2C4A]">
           {[
             {id: 'books' as const, label: `စာအုပ်နှင့် PDF (${books.length})`, icon: BookPlus},
             {id: 'import' as const, label: 'Web Link မှ စာအုပ်ဆွဲတင်ရန်', icon: Globe},
@@ -2061,8 +2061,8 @@ export function AdminPanelView({
                 onClick={() => setActiveTab(tab.id)}
                 className={`min-h-[42px] px-4 py-2 rounded-t-lg text-xs sm:text-sm font-semibold inline-flex items-center gap-2 whitespace-nowrap shrink-0 border-b-2 transition-colors ${
                   active
-                    ? 'border-[#1E3A8A] text-[#1E3A8A] bg-white'
-                    : 'border-transparent text-[#525D73] hover:text-[#1E3A8A]'
+                    ? 'border-[#1E3A8A] dark:border-[#60A5FA] text-[#1E3A8A] dark:text-[#93C5FD] bg-white dark:bg-[#0D1526]'
+                    : 'border-transparent text-[#525D73] dark:text-[#94A3B8] hover:text-[#1E3A8A] dark:hover:text-[#93C5FD]'
                 }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -2078,17 +2078,17 @@ export function AdminPanelView({
             {/* Upload / Edit Form */}
             <form
               onSubmit={handleSaveBook}
-              className="lg:col-span-5 bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-6 space-y-4"
+              className="lg:col-span-5 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-4"
             >
-              <div className="flex items-center justify-between border-b border-[#EDF1EE] pb-3">
-                <h2 className="text-base font-bold text-[#1A241E]">
+              <div className="flex items-center justify-between border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
+                <h2 className="text-base font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                   {editingBookId ? 'စာအုပ်အချက်အလက် ပြင်ဆင်ရန်' : 'PDF စာအုပ်အသစ် တင်ရန်'}
                 </h2>
                 {editingBookId && (
                   <button
                     type="button"
                     onClick={resetBookForm}
-                    className="text-xs font-semibold text-[#9B7417] hover:underline"
+                    className="text-xs font-semibold text-[#9B7417] dark:text-[#E2C792] hover:underline"
                   >
                     အသစ်ပြန်စရန်
                   </button>
@@ -2096,13 +2096,13 @@ export function AdminPanelView({
               </div>
 
               {/* Direct Google Drive PDF Upload Box */}
-              <div className="rounded-xl border border-dashed border-[#146B3A]/45 bg-[#F6FAF7] p-4 space-y-3">
+              <div className="rounded-xl border border-dashed border-[#146B3A]/45 dark:border-[#34D399]/40 bg-[#F6FAF7] dark:bg-[#091815] p-4 space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-xs font-bold text-[#115E34]">
+                    <p className="text-xs font-bold text-[#115E34] dark:text-[#6EE7B7]">
                       ၁. PDF ဖိုင်ကို Google Drive သို့ တင်သွင်းပါ
                     </p>
-                    <p className="text-[11.5px] text-[#4A5850]">
+                    <p className="text-[11.5px] text-[#4A5850] dark:text-[#94A3B8]">
                       ဖိုင်များကို Google Drive ({siteSettings.driveFolderName}) ထဲတွင် သိမ်းဆည်းပါမည်
                     </p>
                   </div>
@@ -2133,13 +2133,13 @@ export function AdminPanelView({
 
                 {uploadProgress !== null && (
                   <div className="space-y-1">
-                    <div className="w-full h-2 bg-[#DCE6DF] rounded-full overflow-hidden">
+                    <div className="w-full h-2 bg-[#DCE6DF] dark:bg-[#1E2C4A] rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-[#146B3A] transition-all duration-200"
+                        className="h-full bg-[#146B3A] dark:bg-[#34D399] transition-all duration-200"
                         style={{width: `${uploadProgress}%`}}
                       />
                     </div>
-                    <p className="text-[11px] text-[#115E34] tabular-nums">
+                    <p className="text-[11px] text-[#115E34] dark:text-[#6EE7B7] tabular-nums">
                       Google Drive Upload: {uploadProgress}%
                     </p>
                   </div>
@@ -2149,7 +2149,7 @@ export function AdminPanelView({
                   <div className="space-y-2">
                     <label
                       htmlFor="pick-existing-drive-pdf"
-                      className="block text-[11px] font-semibold text-[#4A5850]"
+                      className="block text-[11px] font-semibold text-[#4A5850] dark:text-[#CBD5E1]"
                     >
                       သို့မဟုတ် Drive ထဲရှိပြီးသား PDF ရွေးချယ်၍ တန်းတင်ရန်
                     </label>
@@ -2170,7 +2170,7 @@ export function AdminPanelView({
                           setBookCategoryId(inferred.categoryId);
                         }
                       }}
-                      className="w-full min-h-[40px] px-3 py-1.5 text-xs bg-white border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[40px] px-3 py-1.5 text-xs bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                     >
                       <option value="">-- Google Drive PDF ရွေးချယ်ပါ --</option>
                       {driveFiles.map((f) => (
@@ -2184,7 +2184,7 @@ export function AdminPanelView({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   Google Drive File ID သို့မဟုတ် Share Link *
                 </label>
                 <input
@@ -2195,15 +2195,15 @@ export function AdminPanelView({
                     setBookDriveFileId(extractDriveFileId(e.target.value))
                   }
                   placeholder="PDF တင်ပြီးပါက အလိုအလျောက် ဖြည့်ပေးပါမည် (သို့) Drive Link ကူးထည့်ပါ"
-                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
+                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] font-mono"
                 />
-                <p className="text-[11px] text-[#5A6860] mt-1">
+                <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] mt-1">
                   Drive ချိတ်ဆက်ထားပါက Link ထည့်ရုံဖြင့် စာအုပ်အမည်နှင့် ဖိုင်အရွယ်အစားကို Drive မှ တိုက်ရိုက်ဆွဲယူပေးပါမည်
                 </p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   စာအုပ်အမည် {driveToken ? '(Drive မှ အလိုအလျောက် ယူနိုင်သည်)' : '*'}
                 </label>
                 <input
@@ -2212,12 +2212,12 @@ export function AdminPanelView({
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
                   placeholder="မထည့်ပါက Google Drive ဖိုင်အမည်အတိုင်း တင်ပေးပါမည်"
-                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   စာရေးဆရာ / ပြုစုသူ (မပါလည်း တင်နိုင်သည်)
                 </label>
                 <input
@@ -2225,20 +2225,20 @@ export function AdminPanelView({
                   value={bookAuthor}
                   onChange={(e) => setBookAuthor(e.target.value)}
                   placeholder="စာရေးဆရာအမည် (မပါလျှင် အလွတ်ထားနိုင်သည်)"
-                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-1">
-                    <label className="block text-xs font-semibold text-[#35433A]">
+                    <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1]">
                       ကဏ္ဍ (Category)
                     </label>
                     <button
                       type="button"
                       onClick={onOpenCategoryManager}
-                      className="text-[11px] font-semibold text-[#1E3A8A] hover:underline inline-flex items-center gap-1"
+                      className="text-[11px] font-semibold text-[#1E3A8A] dark:text-[#93C5FD] hover:underline inline-flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" />
                       <span>Customize / ထပ်ခွဲရန်</span>
@@ -2249,7 +2249,7 @@ export function AdminPanelView({
                     onChange={(e) =>
                       setBookCategoryId(e.target.value as BookCategoryId)
                     }
-                    className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                   >
                     {bookCategories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -2260,7 +2260,7 @@ export function AdminPanelView({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                     အမျိုးအစား (Type)
                   </label>
                   <select
@@ -2270,7 +2270,7 @@ export function AdminPanelView({
                         e.target.value as Exclude<MaterialType, 'All Types'>,
                       )
                     }
-                    className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                   >
                     <option value="Book">Book</option>
                     <option value="Periodical">Periodical</option>
@@ -2283,18 +2283,18 @@ export function AdminPanelView({
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                     ခုနှစ်
                   </label>
                   <input
                     type="text"
                     value={bookHijriYear}
                     onChange={(e) => setBookHijriYear(e.target.value)}
-                    className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                     စာမျက်နှာ
                   </label>
                   <input
@@ -2302,11 +2302,11 @@ export function AdminPanelView({
                     min={0}
                     value={bookPages}
                     onChange={(e) => setBookPages(Number(e.target.value))}
-                    className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                  <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                     အရောင်ဒီဇိုင်း
                   </label>
                   <select
@@ -2316,7 +2316,7 @@ export function AdminPanelView({
                         e.target.value as BookItem['coverTheme'],
                       )
                     }
-                    className="w-full min-h-[40px] px-2 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-2 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                   >
                     <option value="emerald">Emerald</option>
                     <option value="gold">Gold</option>
@@ -2328,7 +2328,7 @@ export function AdminPanelView({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   အကျဉ်းချုပ်မိတ်ဆက်
                 </label>
                 <textarea
@@ -2336,11 +2336,11 @@ export function AdminPanelView({
                   value={bookSummary}
                   onChange={(e) => setBookSummary(e.target.value)}
                   placeholder="စာအုပ်အကြောင်း အကျဉ်းချုပ်..."
-                  className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
                 />
               </div>
 
-              <label className="flex items-center gap-2.5 text-sm text-[#1A241E] cursor-pointer">
+              <label className="flex items-center gap-2.5 text-sm text-[#1A241E] dark:text-[#F1F5F9] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={bookPublished}
@@ -2366,17 +2366,17 @@ export function AdminPanelView({
             {/* Existing Books Table / List */}
             <div className="lg:col-span-7 space-y-5">
               {/* Auto Duplicate Detection & Cleanup Panel */}
-              <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 space-y-3.5">
+              <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 space-y-3.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-[#FDF9EE] text-[#9B7417] flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-[#FDF9EE] dark:bg-[#1E190C] text-[#9B7417] dark:text-[#E2C792] flex items-center justify-center shrink-0">
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-[#1A241E]">
+                      <h3 className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                         ထပ်နေသော စာအုပ်များ အလိုအလျောက် ရွေးချယ်ဖယ်ရှားစနစ်
                       </h3>
-                      <p className="text-[11.5px] text-[#5A6860]">
+                      <p className="text-[11.5px] text-[#5A6860] dark:text-[#94A3B8]">
                         ခေါင်းစဉ်တူ (သို့) Drive File ID တူနေသော စာအုပ်ပွားများကို စစ်ဆေးပြီး
                         အလိုအလျောက် အမှန်ခြစ်ရွေးပေးထားပါသည်
                       </p>
@@ -2385,8 +2385,8 @@ export function AdminPanelView({
                   <span
                     className={`text-xs font-bold px-2.5 py-1 rounded-lg ${
                       duplicateEntries.length > 0
-                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                        : 'bg-[#EBF4EE] text-[#115E34]'
+                        ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60'
+                        : 'bg-[#EBF4EE] dark:bg-[#0D231B] text-[#115E34] dark:text-[#6EE7B7]'
                     }`}
                   >
                     {duplicateEntries.length > 0
@@ -2397,7 +2397,7 @@ export function AdminPanelView({
 
                 {duplicateEntries.length > 0 && (
                   <div className="space-y-3 pt-1">
-                    <div className="max-h-[260px] overflow-y-auto border border-[#E2E8E4] rounded-lg divide-y divide-[#EDF1EE]">
+                    <div className="max-h-[260px] overflow-y-auto border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-lg divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                       {duplicateEntries.map((entry) => {
                         const checked = Boolean(
                           selectedDuplicateIds[entry.duplicate.id],
@@ -2406,7 +2406,9 @@ export function AdminPanelView({
                           <label
                             key={entry.duplicate.id}
                             className={`p-3 flex items-start gap-2.5 cursor-pointer text-xs ${
-                              checked ? 'bg-red-50/50' : 'bg-white'
+                              checked
+                                ? 'bg-red-50/50 dark:bg-red-950/30'
+                                : 'bg-white dark:bg-[#0D1526]'
                             }`}
                           >
                             <input
@@ -2423,17 +2425,17 @@ export function AdminPanelView({
                             />
                             <div className="min-w-0 flex-1 space-y-0.5">
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="font-bold text-[#1A241E] truncate">
+                                <span className="font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                                   {entry.duplicate.title}
                                 </span>
-                                <span className="text-[11px] font-semibold text-amber-700">
+                                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                                   ·{' '}
                                   {entry.reason === 'drive-id'
                                     ? 'Drive File ID တူ'
                                     : 'စာအုပ်ခေါင်းစဉ်တူ'}
                                 </span>
                               </div>
-                              <p className="text-[11px] text-[#5A6860] truncate">
+                              <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] truncate">
                                 မူရင်းအဖြစ် ချန်ထားမည်: &ldquo;{entry.keptOriginal.title}&rdquo; ·{' '}
                                 {entry.duplicate.fileSize || 'PDF'}
                               </p>
@@ -2453,19 +2455,19 @@ export function AdminPanelView({
                               next[e.duplicate.id] = true;
                             setSelectedDuplicateIds(next);
                           }}
-                          className="text-xs font-semibold text-[#115E34] hover:underline"
+                          className="text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7] hover:underline"
                         >
                           အားလုံး အော်တိုရွေးမည်
                         </button>
                         <button
                           type="button"
                           onClick={() => setSelectedDuplicateIds({})}
-                          className="text-xs font-medium text-[#5A6860] hover:underline"
+                          className="text-xs font-medium text-[#5A6860] dark:text-[#94A3B8] hover:underline"
                         >
                           ရွေးချယ်မှု ဖျက်မည်
                         </button>
                         {driveToken && (
-                          <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[#35433A] cursor-pointer">
+                          <label className="inline-flex items-center gap-1.5 text-[11.5px] text-[#35433A] dark:text-[#CBD5E1] cursor-pointer">
                             <input
                               type="checkbox"
                               checked={dedupeDeleteDriveFiles}
@@ -2500,20 +2502,20 @@ export function AdminPanelView({
                 )}
               </div>
 
-              <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] pb-3">
-                <h2 className="text-base font-bold text-[#1A241E]">
+              <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
+                <h2 className="text-base font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                   စာကြည့်တိုက်ရှိ စာအုပ်စာရင်း ({books.length})
                 </h2>
                 {books.length > 0 && (
                   <div className="relative w-full sm:w-64">
-                    <Search className="w-3.5 h-3.5 text-[#6B7A70] absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-3.5 h-3.5 text-[#6B7A70] dark:text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       value={bookListSearch}
                       onChange={(e) => setBookListSearch(e.target.value)}
                       placeholder="စာအုပ်အမည် ရှာဖွေရန်..."
-                      className="w-full min-h-[36px] pl-8 pr-3 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[36px] pl-8 pr-3 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
                     />
                   </div>
                 )}
@@ -2521,17 +2523,17 @@ export function AdminPanelView({
 
               {books.length === 0 ? (
                 <div className="py-12 text-center space-y-2">
-                  <FileText className="w-10 h-10 text-[#96A49B] mx-auto" />
-                  <p className="text-sm font-semibold text-[#1A241E]">
+                  <FileText className="w-10 h-10 text-[#96A49B] dark:text-[#64748B] mx-auto" />
+                  <p className="text-sm font-semibold text-[#1A241E] dark:text-[#F1F5F9]">
                     စာအုပ်တစ်အုပ်မျှ မတင်ရသေးပါ
                   </p>
-                  <p className="text-xs text-[#5A6860]">
+                  <p className="text-xs text-[#5A6860] dark:text-[#94A3B8]">
                     ဘယ်ဘက်ပုံစံမှတစ်ဆင့် PDF ဖိုင်ကို Google Drive သို့ တင်သွင်းပြီး
                     ပထမဆုံးစာအုပ်ကို ထည့်သွင်းနိုင်ပါသည်။
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-[#EDF1EE]">
+                <div className="divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                   {books
                     .filter((b) => {
                       const q = bookListSearch.trim().toLowerCase();
@@ -2548,28 +2550,28 @@ export function AdminPanelView({
                       className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-14 rounded-md overflow-hidden border border-[#E2E8E4] shrink-0 bg-[#F3F5F4]">
+                        <div className="w-11 h-14 rounded-md overflow-hidden border border-[#E2E8E4] dark:border-[#1E2C4A] shrink-0 bg-[#F3F5F4] dark:bg-[#131E36]">
                           <BookCoverFrame book={book} compact />
                         </div>
                         <div className="min-w-0 space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-semibold text-[#9B7417]">
+                            <span className="text-[11px] font-semibold text-[#9B7417] dark:text-[#E2C792]">
                               {book.categoryLabel}
                             </span>
-                            <span className="text-[11px] text-[#5A6860]">
+                            <span className="text-[11px] text-[#5A6860] dark:text-[#94A3B8]">
                               · {book.fileSize || 'PDF'}
                             </span>
                             {!book.published && (
-                              <span className="text-[11px] font-semibold text-amber-700">
+                              <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                                 · ဖျောက်ထားသည်
                               </span>
                             )}
                           </div>
-                          <p className="text-sm font-bold text-[#1A241E] truncate">
+                          <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                             {book.title}
                           </p>
                           {book.author.trim() && (
-                            <p className="text-xs text-[#5A6860] truncate">
+                            <p className="text-xs text-[#5A6860] dark:text-[#94A3B8] truncate">
                               {book.author}
                             </p>
                           )}
@@ -2581,7 +2583,7 @@ export function AdminPanelView({
                           type="button"
                           onClick={() => void handleTogglePublish(book)}
                           title={book.published ? 'ဖျောက်ထားရန်' : 'ပြန်ဖော်ပြရန်'}
-                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] text-xs font-medium text-[#35433A] hover:bg-[#F2F6F3] inline-flex items-center gap-1"
+                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-xs font-medium text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#F2F6F3] dark:hover:bg-[#131E36] inline-flex items-center gap-1"
                         >
                           {book.published ? (
                             <>
@@ -2599,7 +2601,7 @@ export function AdminPanelView({
                         <button
                           type="button"
                           onClick={() => handleEditBook(book)}
-                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] text-xs font-medium text-[#115E34] hover:bg-[#EBF4EE] inline-flex items-center gap-1"
+                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-xs font-medium text-[#115E34] dark:text-[#6EE7B7] hover:bg-[#EBF4EE] dark:hover:bg-[#132920] inline-flex items-center gap-1"
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                           <span>ပြင်ရန်</span>
@@ -2616,7 +2618,7 @@ export function AdminPanelView({
                               driveFileId: book.driveFileId,
                             });
                           }}
-                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-700 hover:bg-red-50 inline-flex items-center gap-1"
+                          className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/60 inline-flex items-center gap-1"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>ဖျက်ရန်</span>
@@ -2633,12 +2635,12 @@ export function AdminPanelView({
 
         {/* TAB 2: WEB LINK / BLOGSPOT BATCH IMPORTER */}
         {activeTab === 'import' && (
-          <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-6">
-            <div className="space-y-1.5 border-b border-[#EDF1EE] pb-4">
-              <h2 className="text-lg font-bold text-[#1A241E]">
+          <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-6">
+            <div className="space-y-1.5 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-4">
+              <h2 className="text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                 Blogspot / Web Link မှ စာအုပ် PDF များ Drive ထဲသို့ တိုက်ရိုက်ဆွဲတင်ရန်
               </h2>
-              <p className="text-sm text-[#4A5850] leading-relaxed">
+              <p className="text-sm text-[#4A5850] dark:text-[#94A3B8] leading-relaxed">
                 ပြင်ပ Blogspot နှင့် အစ္စလာမ့်စာကြည့်တိုက် URL များ (ဥပမာ - myanmarfreeislamicbooks.blogspot.com၊ library.ioumyanmar.com)
                 မှ စာအုပ်များ (bit.ly / Google Drive / MediaFire လင့်ခ်များအပါအဝင်) ကို စစ်ဆေးဆွဲယူပြီး သင့် Google Drive ဖိုလ်ဒါ ({siteSettings.driveFolderName})
                 ထဲသို့ အလိုအလျောက် ကူးယူသိမ်းဆည်းကာ ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ တိုက်ရိုက်တင်ပေးပါမည်။
@@ -2646,8 +2648,8 @@ export function AdminPanelView({
             </div>
 
             {!driveToken && (
-              <div className="p-4 rounded-xl bg-[#FDF9EE] border border-[#C59B27]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <p className="text-xs sm:text-sm text-[#6E500A]">
+              <div className="p-4 rounded-xl bg-[#FDF9EE] dark:bg-[#1E190C] border border-[#C59B27]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <p className="text-xs sm:text-sm text-[#6E500A] dark:text-[#F3DFB1]">
                   စာအုပ် PDF များကို သင့် Google Drive ထဲသို့ ထည့်သွင်းနိုင်ရန် ဦးစွာ Google Drive ချိတ်ဆက်ပါ။
                 </p>
                 <button
@@ -2674,7 +2676,7 @@ export function AdminPanelView({
                   value={importSourceUrl}
                   onChange={(e) => setImportSourceUrl(e.target.value)}
                   placeholder="https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0"
-                  className="flex-1 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
+                  className="flex-1 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] font-mono"
                 />
                 <button
                   type="submit"
@@ -2696,7 +2698,7 @@ export function AdminPanelView({
               </form>
 
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="text-[#5A6860] font-medium">အသင့်သုံး လင့်ခ်များ -</span>
+                <span className="text-[#5A6860] dark:text-[#94A3B8] font-medium">အသင့်သုံး လင့်ခ်များ -</span>
                 <button
                   type="button"
                   disabled={isFetchingCatalog || isImportingBatch}
@@ -2705,7 +2707,7 @@ export function AdminPanelView({
                       'https://myanmarfreeislamicbooks.blogspot.com/p/book-list.html?m=0',
                     )
                   }
-                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-medium disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2A4A] text-[#115E34] dark:text-[#6EE7B7] font-medium disabled:opacity-50"
                 >
                   Myanmar Free Islamic Books
                 </button>
@@ -2717,7 +2719,7 @@ export function AdminPanelView({
                       'http://library.ioumyanmar.com/search/label/%E1%80%A1%E1%80%85%E1%80%B9%E1%80%85%E1%80%9C%E1%80%AC%E1%80%99%E1%80%BA%E1%80%80%E1%80%AD%E1%80%AF%20%E1%80%9C%E1%80%B1%E1%80%B7%E1%80%9C%E1%80%AC%E1%80%9C%E1%80%AD%E1%80%AF%E1%80%9E%E1%80%B0%E1%80%99%E1%80%BB%E1%80%AC%E1%80%B8%E1%80%A1%E1%80%90%E1%80%BD%E1%80%80%E1%80%BA?m=1',
                     )
                   }
-                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-medium disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2A4A] text-[#115E34] dark:text-[#6EE7B7] font-medium disabled:opacity-50"
                 >
                   IOU Myanmar (အစ္စလာမ်လေ့လာသူများ)
                 </button>
@@ -2727,7 +2729,7 @@ export function AdminPanelView({
                   onClick={() =>
                     setImportSourceUrl('http://library.ioumyanmar.com/')
                   }
-                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-medium disabled:opacity-50"
+                  className="px-2.5 py-1 rounded-md border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2A4A] text-[#115E34] dark:text-[#6EE7B7] font-medium disabled:opacity-50"
                 >
                   IOU Myanmar (စာအုပ်အားလုံး)
                 </button>
@@ -2737,21 +2739,21 @@ export function AdminPanelView({
             {catalogItems.length > 0 && (
               <div className="space-y-4">
                 {/* Filter & Batch Controls */}
-                <div className="p-4 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-3">
+                <div className="p-4 rounded-xl bg-[#F8FAF9] dark:bg-[#091020] border border-[#E2E8E4] dark:border-[#1E2C4A] space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                     <div className="md:col-span-6 relative">
-                      <Search className="w-4 h-4 text-[#6B7A70] absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Search className="w-4 h-4 text-[#6B7A70] dark:text-[#94A3B8] absolute left-3 top-1/2 -translate-y-1/2" />
                       <input
                         type="text"
                         value={importSearchQuery}
                         onChange={(e) => setImportSearchQuery(e.target.value)}
                         placeholder={`စာအုပ် ${catalogItems.length} အုပ်ထဲမှ ခေါင်းစဉ်ရှာရန်...`}
-                        className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#D4DDD7] rounded-lg"
+                        className="w-full min-h-[40px] pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
                       />
                     </div>
 
                     <div className="md:col-span-6 flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[#35433A] shrink-0">
+                      <span className="text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] shrink-0">
                         ကဏ္ဍသတ်မှတ်ချက်:
                       </span>
                       <select
@@ -2761,7 +2763,7 @@ export function AdminPanelView({
                             e.target.value as 'auto' | BookCategoryId,
                           )
                         }
-                        className="flex-1 min-h-[40px] px-3 py-1.5 text-xs bg-white border border-[#D4DDD7] rounded-lg"
+                        className="flex-1 min-h-[40px] px-3 py-1.5 text-xs bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                       >
                         <option value="auto">
                           စာအုပ်အမည်အလိုက် အလိုအလျောက် ခွဲခြားမည် (Auto)
@@ -2781,7 +2783,7 @@ export function AdminPanelView({
                         type="button"
                         disabled={isImportingBatch}
                         onClick={() => selectFirstUnimported(10)}
-                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-xs font-semibold text-[#115E34] disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2A4A] text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7] disabled:opacity-50"
                       >
                         မတင်ရသေးသည့် ၁၀ အုပ် ရွေးမည်
                       </button>
@@ -2789,7 +2791,7 @@ export function AdminPanelView({
                         type="button"
                         disabled={isImportingBatch}
                         onClick={() => selectFirstUnimported(25)}
-                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-xs font-semibold text-[#115E34] disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2A4A] text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7] disabled:opacity-50"
                       >
                         မတင်ရသေးသည့် ၂၅ အုပ် ရွေးမည်
                       </button>
@@ -2797,7 +2799,7 @@ export function AdminPanelView({
                         type="button"
                         disabled={isImportingBatch}
                         onClick={() => selectFirstUnimported('all')}
-                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-xs font-semibold text-[#35433A] disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2A4A] text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] disabled:opacity-50"
                       >
                         မြင်နေရသမျှ ရွေးမည် ({filteredCatalogItems.length})
                       </button>
@@ -2806,7 +2808,7 @@ export function AdminPanelView({
                           type="button"
                           disabled={isImportingBatch}
                           onClick={() => setSelectedImportUrls({})}
-                          className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-red-50 text-xs font-medium text-[#5A6860]"
+                          className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-red-50 dark:hover:bg-red-950/50 text-xs font-medium text-[#5A6860] dark:text-[#94A3B8]"
                         >
                           ရွေးချယ်မှု ဖျက်မည်
                         </button>
@@ -2848,8 +2850,8 @@ export function AdminPanelView({
                   </div>
 
                   {importProgress && (
-                    <div className="space-y-1.5 pt-2 border-t border-[#E2E8E4]">
-                      <div className="flex items-center justify-between text-xs text-[#115E34] font-semibold">
+                    <div className="space-y-1.5 pt-2 border-t border-[#E2E8E4] dark:border-[#1E2C4A]">
+                      <div className="flex items-center justify-between text-xs text-[#115E34] dark:text-[#6EE7B7] font-semibold">
                         <span className="truncate pr-3">
                           ထည့်သွင်းနေသည်: {importProgress.currentTitle}
                         </span>
@@ -2857,9 +2859,9 @@ export function AdminPanelView({
                           {importProgress.current} / {importProgress.total}
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-[#DCE6DF] rounded-full overflow-hidden">
+                      <div className="w-full h-2 bg-[#DCE6DF] dark:bg-[#1E2C4A] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#146B3A] transition-all duration-300"
+                          className="h-full bg-[#146B3A] dark:bg-[#34D399] transition-all duration-300"
                           style={{
                             width: `${Math.round(
                               (importProgress.current / importProgress.total) *
@@ -2873,7 +2875,7 @@ export function AdminPanelView({
                 </div>
 
                 {/* Catalog Book Rows */}
-                <div className="max-h-[540px] overflow-y-auto border border-[#E2E8E4] rounded-xl divide-y divide-[#EDF1EE]">
+                <div className="max-h-[540px] overflow-y-auto border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                   {filteredCatalogItems.map((item) => {
                     const normalizedTitle = item.title
                       .replace(/\s+/g, ' ')
@@ -2890,7 +2892,9 @@ export function AdminPanelView({
                       <div
                         key={item.postUrl}
                         className={`p-3 sm:px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
-                          isSelected ? 'bg-[#F4FAF6]' : 'bg-white'
+                          isSelected
+                            ? 'bg-[#F4FAF6] dark:bg-[#0D231B]'
+                            : 'bg-white dark:bg-[#0D1526]'
                         }`}
                       >
                         <label className="flex items-start sm:items-center gap-3 min-w-0 cursor-pointer flex-1">
@@ -2908,33 +2912,33 @@ export function AdminPanelView({
                           />
                           <div className="min-w-0 space-y-0.5">
                             <div className="flex flex-wrap items-center gap-2">
-                              <span className="text-[11px] font-mono text-[#6B7A70] tabular-nums">
+                              <span className="text-[11px] font-mono text-[#6B7A70] dark:text-[#94A3B8] tabular-nums">
                                 #{item.index}
                               </span>
-                              <span className="text-xs sm:text-sm font-semibold text-[#1A241E]">
+                              <span className="text-xs sm:text-sm font-semibold text-[#1A241E] dark:text-[#F1F5F9]">
                                 {item.title}
                               </span>
                               {alreadyInLibrary && rowState?.status !== 'done' && (
-                                <span className="text-[11px] font-semibold text-[#115E34]">
+                                <span className="text-[11px] font-semibold text-[#115E34] dark:text-[#6EE7B7]">
                                   · စာကြည့်တိုက်တွင် ရှိပြီး
                                 </span>
                               )}
                             </div>
 
                             {rowState?.status === 'importing' && (
-                              <p className="text-[11px] text-[#9B7417] inline-flex items-center gap-1">
+                              <p className="text-[11px] text-[#9B7417] dark:text-[#E2C792] inline-flex items-center gap-1">
                                 <Loader2 className="w-3 h-3 animate-spin" />
                                 <span>Google Drive ထဲသို့ PDF ကူးယူတင်သွင်းနေသည်...</span>
                               </p>
                             )}
                             {rowState?.status === 'done' && (
-                              <p className="text-[11px] text-[#115E34] inline-flex items-center gap-1 font-medium">
+                              <p className="text-[11px] text-[#115E34] dark:text-[#6EE7B7] inline-flex items-center gap-1 font-medium">
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                                 <span>{rowState.message}</span>
                               </p>
                             )}
                             {rowState?.status === 'error' && (
-                              <p className="text-[11px] text-red-700 inline-flex items-center gap-1">
+                              <p className="text-[11px] text-red-700 dark:text-red-400 inline-flex items-center gap-1">
                                 <XCircle className="w-3.5 h-3.5 shrink-0" />
                                 <span>{rowState.message}</span>
                               </p>
@@ -2947,7 +2951,7 @@ export function AdminPanelView({
                             href={item.postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] text-[11px] font-medium text-[#526058] hover:bg-[#F5F8F6] inline-flex items-center gap-1"
+                            className="px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-[11px] font-medium text-[#526058] dark:text-[#CBD5E1] hover:bg-[#F5F8F6] dark:hover:bg-[#131E36] inline-flex items-center gap-1"
                           >
                             <span>မူရင်း</span>
                             <ExternalLink className="w-3 h-3" />
@@ -2956,7 +2960,7 @@ export function AdminPanelView({
                             type="button"
                             disabled={isImportingBatch || !driveToken}
                             onClick={() => void runBatchImport([item])}
-                            className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] hover:bg-[#DCECE1] text-[#115E34] text-[11px] font-semibold disabled:opacity-50"
+                            className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] hover:bg-[#DCECE1] dark:hover:bg-[#133528] text-[#115E34] dark:text-[#6EE7B7] text-[11px] font-semibold disabled:opacity-50"
                           >
                             Drive ထဲထည့်မည်
                           </button>
@@ -2972,12 +2976,12 @@ export function AdminPanelView({
 
         {/* TAB 3: VISIBILITY & REMOVE UNNECESSARY SECTIONS */}
         {activeTab === 'visibility' && (
-          <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-7">
+          <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-7">
             <div>
-              <h2 className="text-lg font-bold text-[#1A241E] mb-1">
+              <h2 className="text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9] mb-1">
                 မလိုအပ်သော ကဏ္ဍနှင့် စာမျက်နှာများ ဖယ်ထုတ် / ပြသမှု စီမံရန်
               </h2>
-              <p className="text-sm text-[#4A5850]">
+              <p className="text-sm text-[#4A5850] dark:text-[#94A3B8]">
                 အောက်ပါ စာမျက်နှာများနှင့် စာကြည့်တိုက်ကဏ္ဍများထဲမှ မလိုအပ်သည်များကို
                 အမှန်ခြစ်ဖြုတ်၍ ဝက်ဘ်ဆိုက်တစ်ခုလုံးမှ ဖယ်ထုတ်ထားနိုင်ပါသည်။
               </p>
@@ -2985,7 +2989,7 @@ export function AdminPanelView({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
-                <h3 className="text-sm font-bold text-[#115E34] border-b border-[#EDF1EE] pb-2">
+                <h3 className="text-sm font-bold text-[#115E34] dark:text-[#6EE7B7] border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-2">
                   ဝက်ဘ်ဆိုက် စာမျက်နှာများ (Site Sections)
                 </h3>
                 <div className="space-y-2">
@@ -2994,9 +2998,9 @@ export function AdminPanelView({
                     return (
                       <label
                         key={sec.id}
-                        className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8E4] bg-[#F9FBFA] cursor-pointer"
+                        className="flex items-center justify-between p-3 rounded-lg border border-[#E2E8E4] dark:border-[#1E2C4A] bg-[#F9FBFA] dark:bg-[#131E36] cursor-pointer"
                       >
-                        <span className="text-sm font-medium text-[#1A241E]">
+                        <span className="text-sm font-medium text-[#1A241E] dark:text-[#F1F5F9]">
                           {sec.label}
                         </span>
                         <input
@@ -3023,14 +3027,14 @@ export function AdminPanelView({
               </div>
 
               <div className="space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EDF1EE] pb-2">
-                  <h3 className="text-sm font-bold text-[#1E3A8A]">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-2">
+                  <h3 className="text-sm font-bold text-[#1E3A8A] dark:text-[#93C5FD]">
                     စာကြည့်တိုက် ကဏ္ဍများ ({categories.length} ခု)
                   </h3>
                   <button
                     type="button"
                     onClick={onOpenCategoryManager}
-                    className="min-h-[34px] px-3 py-1 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
+                    className="min-h-[34px] px-3 py-1 rounded-lg bg-[#1E3A8A] dark:bg-[#2563EB] hover:bg-[#172D6B] dark:hover:bg-[#3B82F6] text-white text-xs font-semibold inline-flex items-center gap-1.5 transition-colors"
                   >
                     <Sliders className="w-3.5 h-3.5" />
                     <span>Category ထပ်ခွဲ / Customize</span>
@@ -3042,9 +3046,9 @@ export function AdminPanelView({
                     return (
                       <label
                         key={cat.id}
-                        className="flex items-center justify-between p-2.5 rounded-lg border border-[#E2E8E4] bg-[#F9FBFA] cursor-pointer gap-2"
+                        className="flex items-center justify-between p-2.5 rounded-lg border border-[#E2E8E4] dark:border-[#1E2C4A] bg-[#F9FBFA] dark:bg-[#131E36] cursor-pointer gap-2"
                       >
-                        <span className="text-xs font-medium text-[#1A241E] truncate">
+                        <span className="text-xs font-medium text-[#1A241E] dark:text-[#F1F5F9] truncate">
                           {cat.nameMy}
                         </span>
                         <input
@@ -3071,18 +3075,18 @@ export function AdminPanelView({
               </div>
             </div>
 
-            <div className="space-y-2 pt-2 border-t border-[#EDF1EE]">
+            <div className="space-y-2 pt-2 border-t border-[#EDF1EE] dark:border-[#1E2C4A]">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <label
                   htmlFor="hero-desc-editor"
-                  className="block text-sm font-bold text-[#115E34]"
+                  className="block text-sm font-bold text-[#115E34] dark:text-[#6EE7B7]"
                 >
                   မူလစာမျက်နှာ မိတ်ဆက်စာသား (Hero Description)
                 </label>
                 <button
                   type="button"
                   onClick={() => setHeroDescDraft(DEFAULT_HERO_DESCRIPTION)}
-                  className="text-xs font-semibold text-[#146B3A] hover:underline"
+                  className="text-xs font-semibold text-[#146B3A] dark:text-[#6EE7B7] hover:underline"
                 >
                   မူလစာသားအသစ် ပြန်ထည့်ရန်
                 </button>
@@ -3092,7 +3096,7 @@ export function AdminPanelView({
                 rows={3}
                 value={heroDescDraft}
                 onChange={(e) => setHeroDescDraft(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                className="w-full px-3.5 py-2.5 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
               />
             </div>
 
@@ -3109,17 +3113,17 @@ export function AdminPanelView({
 
         {/* TAB 3: GOOGLE DRIVE STORAGE */}
         {activeTab === 'drive' && (
-          <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] pb-4">
+          <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
                   <FolderOpen className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-[#1A241E]">
+                  <h2 className="text-base font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                     Google Drive PDF Storage ({siteSettings.driveFolderName})
                   </h2>
-                  <p className="text-xs text-[#5A6860]">
+                  <p className="text-xs text-[#5A6860] dark:text-[#94A3B8]">
                     Folder ID: {siteSettings.driveFolderId || 'ချိတ်ဆက်ပြီးပါက အလိုအလျောက် ဖန်တီးပေးပါမည်'}
                   </p>
                 </div>
@@ -3150,8 +3154,8 @@ export function AdminPanelView({
                       disabled={isLoadingDrive}
                       className={`min-h-[40px] px-3.5 py-2 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
                         driveScopeMode === 'all'
-                          ? 'bg-[#EBF4EE] border-[#146B3A] text-[#115E34]'
-                          : 'border-[#D4DDD7] text-[#35433A] hover:bg-[#F5F8F6]'
+                          ? 'bg-[#EBF4EE] dark:bg-[#0D231B] border-[#146B3A] dark:border-[#34D399] text-[#115E34] dark:text-[#6EE7B7]'
+                          : 'border-[#D4DDD7] dark:border-[#263759] text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#F5F8F6] dark:hover:bg-[#131E36]'
                       }`}
                     >
                       <FolderOpen className="w-3.5 h-3.5" />
@@ -3180,7 +3184,7 @@ export function AdminPanelView({
                       type="button"
                       onClick={() => void refreshDriveFiles()}
                       disabled={isLoadingDrive}
-                      className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] text-xs font-semibold text-[#115E34] hover:bg-[#EBF4EE] inline-flex items-center gap-1.5"
+                      className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7] hover:bg-[#EBF4EE] dark:hover:bg-[#132920] inline-flex items-center gap-1.5"
                     >
                       <RefreshCw
                         className={`w-3.5 h-3.5 ${isLoadingDrive ? 'animate-spin' : ''}`}
@@ -3193,18 +3197,18 @@ export function AdminPanelView({
             </div>
 
             {!driveToken ? (
-              <p className="text-sm text-[#4A5850] py-6 text-center">
+              <p className="text-sm text-[#4A5850] dark:text-[#94A3B8] py-6 text-center">
                 Google Drive ထဲရှိ PDF ဖိုင်များကို ကြည့်ရှုစီမံရန် "Google Drive ချိတ်ဆက်ရန်"
                 ခလုတ်ကို နှိပ်ပါ။
               </p>
             ) : driveFiles.length === 0 ? (
-              <p className="text-sm text-[#4A5850] py-6 text-center">
+              <p className="text-sm text-[#4A5850] dark:text-[#94A3B8] py-6 text-center">
                 {driveScopeMode === 'all'
                   ? 'သင့် Google Drive ထဲတွင် PDF ဖိုင် မတွေ့ရှိသေးပါ။'
                   : 'Google Drive ဖိုလ်ဒါထဲတွင် PDF ဖိုင် မရှိသေးပါ။ ("Drive တစ်ခုလုံးမှ PDF ရှာရန်" ဖြင့်လည်း စစ်ဆေးနိုင်ပါသည်)'}
               </p>
             ) : (
-                <div className="divide-y divide-[#EDF1EE]">
+                <div className="divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                   {driveFiles.map((file) => {
                     const matchedBook = books.find(
                       (b) => b.driveFileId === file.id,
@@ -3216,16 +3220,16 @@ export function AdminPanelView({
                       >
                         <div className="min-w-0 space-y-0.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-semibold text-[#1A241E] truncate">
+                            <p className="text-sm font-semibold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                               {file.name}
                             </p>
                             {matchedBook && (
-                              <span className="text-[11px] font-semibold text-[#115E34]">
+                              <span className="text-[11px] font-semibold text-[#115E34] dark:text-[#6EE7B7]">
                                 · ဝက်ဘ်ပေါ်တွင် {matchedBook.published ? 'တင်ပြီး' : 'ဖျောက်ထား'}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-[#5A6860] tabular-nums">
+                          <p className="text-xs text-[#5A6860] dark:text-[#94A3B8] tabular-nums">
                             {formatBytes(file.size)} · ID: {file.id}
                           </p>
                         </div>
@@ -3237,7 +3241,7 @@ export function AdminPanelView({
                                 handleEditBook(matchedBook);
                                 setActiveTab('books');
                               }}
-                              className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] text-[#115E34] text-xs font-semibold hover:bg-[#DCECE1]"
+                              className="px-3 py-1.5 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#115E34] dark:text-[#6EE7B7] text-xs font-semibold hover:bg-[#DCECE1] dark:hover:bg-[#133528]"
                             >
                               စာအုပ်အချက်အလက်ပြင်ရန်
                             </button>
@@ -3259,7 +3263,7 @@ export function AdminPanelView({
                                 label: file.name,
                               })
                             }
-                            className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                            className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60"
                           >
                             Drive မှ ဖျက်ရန်
                           </button>
@@ -3271,8 +3275,8 @@ export function AdminPanelView({
               )}
 
               {/* Drive Folder Name Configurator */}
-              <div className="pt-4 border-t border-[#EDF1EE] space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-[#115E34]">
+              <div className="pt-4 border-t border-[#EDF1EE] dark:border-[#1E2C4A] space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[#115E34] dark:text-[#6EE7B7]">
                   Google Drive ဖိုလ်ဒါ အမည်ပြောင်းလဲရန် (Folder Name Settings)
                 </h3>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
@@ -3287,7 +3291,7 @@ export function AdminPanelView({
                       });
                     }}
                     placeholder="ဥပမာ - Myanmar Muslim Library PDFs"
-                    className="flex-1 min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="flex-1 min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
                   />
                   <button
                     type="button"
@@ -3297,11 +3301,11 @@ export function AdminPanelView({
                     ဖိုလ်ဒါအသစ်ဖြင့် ချိတ်ဆက်ရန်
                   </button>
                 </div>
-                <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] leading-relaxed">
                   ဖိုလ်ဒါအမည် ပြောင်းလဲလိုက်ပါက ဤအမည်ဖြင့် Google Drive တွင် ဖိုလ်ဒါအသစ် အလိုအလျောက် ဖန်တီးပေးမည်ဖြစ်ပြီး စာအုပ်အသစ်များကို ယင်းဖိုလ်ဒါအသစ်ထဲသို့ တင်သွားမည် ဖြစ်ပါသည်။
                 </p>
               </div>
-              <p className="text-xs text-[#5A6860] pt-3 border-t border-[#EDF1EE] leading-relaxed">
+              <p className="text-xs text-[#5A6860] dark:text-[#94A3B8] pt-3 border-t border-[#EDF1EE] dark:border-[#1E2C4A] leading-relaxed">
                 Google Drive ({siteSettings.driveFolderName}) ဖိုလ်ဒါထဲသို့ PDF ဖိုင်အသစ်များ တိုက်ရိုက်ထည့်သွင်းတိုင်း ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ အလိုအလျောက် Sync လုပ်၍ တင်ပြပေးပါမည်။ ဝက်ဘ်ပေါ်တွင် ခေတ္တမပြလိုပါက စာအုပ်စာရင်းမှ &ldquo;ဖျောက်ရန်&rdquo; ကို နှိပ်နိုင်ပါသည်။
               </p>
             </div>
@@ -3324,8 +3328,8 @@ export function AdminPanelView({
                   onClick={() => setContentKind(sub.id)}
                   className={`min-h-[38px] px-4 py-1.5 rounded-lg text-xs font-semibold ${
                     contentKind === sub.id
-                      ? 'bg-[#146B3A] text-white'
-                      : 'bg-white border border-[#E2E8E4] text-[#35433A]'
+                      ? 'bg-[#146B3A] dark:bg-[#2563EB] text-white'
+                      : 'bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#F5F8F6] dark:hover:bg-[#131E36]'
                   }`}
                 >
                   {sub.label}
@@ -3367,9 +3371,9 @@ export function AdminPanelView({
                       setIsSavingContent(false);
                     }
                   }}
-                  className="lg:col-span-5 bg-white border border-[#E2E8E4] rounded-xl p-5 space-y-3"
+                  className="lg:col-span-5 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 space-y-3"
                 >
-                  <h3 className="text-sm font-bold text-[#1A241E]">
+                  <h3 className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                     ဒိုအာအသစ် ထည့်သွင်းရန်
                   </h3>
                   <input
@@ -3377,14 +3381,14 @@ export function AdminPanelView({
                     value={duaTitleMy}
                     onChange={(e) => setDuaTitleMy(e.target.value)}
                     placeholder="ခေါင်းစဉ် (မြန်မာ)"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <select
                     value={duaCategoryMy}
                     onChange={(e) =>
                       setDuaCategoryMy(e.target.value as DuaItem['categoryMy'])
                     }
-                    className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                   >
                     <option value="နေ့စဉ်ဒိုအာ">နေ့စဉ်ဒိုအာ</option>
                     <option value="အထူးအအ်မာလ်">အထူးအအ်မာလ်</option>
@@ -3398,13 +3402,13 @@ export function AdminPanelView({
                     value={duaArabic}
                     onChange={(e) => setDuaArabic(e.target.value)}
                     placeholder="Arabic text..."
-                    className="w-full px-3 py-2 text-base font-[Amiri] bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full px-3 py-2 text-base font-[Amiri] bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F3DFB1] placeholder:text-[#64748B] rounded-lg"
                   />
                   <input
                     value={duaTranslit}
                     onChange={(e) => setDuaTranslit(e.target.value)}
                     placeholder="အသံထွက် (Transliteration)"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <textarea
                     required
@@ -3412,13 +3416,13 @@ export function AdminPanelView({
                     value={duaMeaning}
                     onChange={(e) => setDuaMeaning(e.target.value)}
                     placeholder="မြန်မာအနက်အဓိပ္ပာယ် *"
-                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <input
                     value={duaSource}
                     onChange={(e) => setDuaSource(e.target.value)}
                     placeholder="ကျမ်းကိုး (ဥပမာ - စူရဟ် သွာဟာ)"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <button
                     type="submit"
@@ -3430,9 +3434,9 @@ export function AdminPanelView({
                   </button>
                 </form>
 
-                <div className="lg:col-span-7 bg-white border border-[#E2E8E4] rounded-xl p-5 divide-y divide-[#EDF1EE]">
+                <div className="lg:col-span-7 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                   {duas.length === 0 ? (
-                    <p className="text-sm text-[#5A6860] py-8 text-center">
+                    <p className="text-sm text-[#5A6860] dark:text-[#94A3B8] py-8 text-center">
                       ဒိုအာ မထည့်သွင်းရသေးပါ။
                     </p>
                   ) : (
@@ -3442,8 +3446,8 @@ export function AdminPanelView({
                         className="py-3 flex items-center justify-between gap-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-xs text-[#9B7417]">{d.categoryMy}</p>
-                          <p className="text-sm font-bold text-[#1A241E] truncate">
+                          <p className="text-xs text-[#9B7417] dark:text-[#E2C792]">{d.categoryMy}</p>
+                          <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                             {d.titleMy}
                           </p>
                         </div>
@@ -3456,7 +3460,7 @@ export function AdminPanelView({
                               label: d.titleMy,
                             })
                           }
-                          className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                          className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60"
                         >
                           ဖျက်ရန်
                         </button>
@@ -3507,9 +3511,9 @@ export function AdminPanelView({
                       setIsSavingContent(false);
                     }
                   }}
-                  className="lg:col-span-5 bg-white border border-[#E2E8E4] rounded-xl p-5 space-y-3"
+                  className="lg:col-span-5 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 space-y-3"
                 >
-                  <h3 className="text-sm font-bold text-[#1A241E]">
+                  <h3 className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                     ဗီဒီယိုအသစ် ထည့်သွင်းရန်
                   </h3>
                   <input
@@ -3517,14 +3521,14 @@ export function AdminPanelView({
                     value={vidTitle}
                     onChange={(e) => setVidTitle(e.target.value)}
                     placeholder="ဗီဒီယိုခေါင်းစဉ် *"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <input
                     required
                     value={vidSpeaker}
                     onChange={(e) => setVidSpeaker(e.target.value)}
                     placeholder="ဟောကြားသူ *"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
@@ -3532,13 +3536,13 @@ export function AdminPanelView({
                       value={vidCategory}
                       onChange={(e) => setVidCategory(e.target.value)}
                       placeholder="ကဏ္ဍ"
-                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                     />
                     <input
                       value={vidDuration}
                       onChange={(e) => setVidDuration(e.target.value)}
                       placeholder="ကြာချိန် (ဥပမာ 25:10)"
-                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                     />
                   </div>
                   <input
@@ -3547,14 +3551,14 @@ export function AdminPanelView({
                     value={vidUrl}
                     onChange={(e) => setVidUrl(e.target.value)}
                     placeholder="https://... (YouTube / Google Drive Link)"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <textarea
                     rows={3}
                     value={vidDesc}
                     onChange={(e) => setVidDesc(e.target.value)}
                     placeholder="အကြောင်းအရာအကျဉ်း"
-                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <button
                     type="submit"
@@ -3566,9 +3570,9 @@ export function AdminPanelView({
                   </button>
                 </form>
 
-                <div className="lg:col-span-7 bg-white border border-[#E2E8E4] rounded-xl p-5 divide-y divide-[#EDF1EE]">
+                <div className="lg:col-span-7 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                   {videos.length === 0 ? (
-                    <p className="text-sm text-[#5A6860] py-8 text-center">
+                    <p className="text-sm text-[#5A6860] dark:text-[#94A3B8] py-8 text-center">
                       ဗီဒီယို မထည့်သွင်းရသေးပါ။
                     </p>
                   ) : (
@@ -3578,10 +3582,10 @@ export function AdminPanelView({
                         className="py-3 flex items-center justify-between gap-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-xs text-[#9B7417]">
+                          <p className="text-xs text-[#9B7417] dark:text-[#E2C792]">
                             {v.categoryMy} · {v.speaker}
                           </p>
-                          <p className="text-sm font-bold text-[#1A241E] truncate">
+                          <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                             {v.title}
                           </p>
                         </div>
@@ -3594,7 +3598,7 @@ export function AdminPanelView({
                               label: v.title,
                             })
                           }
-                          className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                          className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60"
                         >
                           ဖျက်ရန်
                         </button>
@@ -3636,9 +3640,9 @@ export function AdminPanelView({
                       setIsSavingContent(false);
                     }
                   }}
-                  className="lg:col-span-5 bg-white border border-[#E2E8E4] rounded-xl p-5 space-y-3"
+                  className="lg:col-span-5 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 space-y-3"
                 >
-                  <h3 className="text-sm font-bold text-[#1A241E]">
+                  <h3 className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                     ဆောင်းပါးအသစ် ထည့်သွင်းရန်
                   </h3>
                   <input
@@ -3646,28 +3650,28 @@ export function AdminPanelView({
                     value={artTitle}
                     onChange={(e) => setArtTitle(e.target.value)}
                     placeholder="ဆောင်းပါးခေါင်းစဉ် *"
-                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       value={artKicker}
                       onChange={(e) => setArtKicker(e.target.value)}
                       placeholder="ကဏ္ဍခွဲ"
-                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                     />
                     <input
                       required
                       value={artAuthor}
                       onChange={(e) => setArtAuthor(e.target.value)}
                       placeholder="ရေးသားသူ *"
-                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                     />
                   </div>
                   <input
                     value={artReadTime}
                     onChange={(e) => setArtReadTime(e.target.value)}
                     placeholder="ဖတ်ရှုချိန် (ဥပမာ ၅ မိနစ်ဖတ်)"
-                    className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <textarea
                     required
@@ -3675,7 +3679,7 @@ export function AdminPanelView({
                     value={artExcerpt}
                     onChange={(e) => setArtExcerpt(e.target.value)}
                     placeholder="အကျဉ်းချုပ် *"
-                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <textarea
                     required
@@ -3683,7 +3687,7 @@ export function AdminPanelView({
                     value={artBody}
                     onChange={(e) => setArtBody(e.target.value)}
                     placeholder="ဆောင်းပါးအပြည့်အစုံ *"
-                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                   />
                   <button
                     type="submit"
@@ -3695,9 +3699,9 @@ export function AdminPanelView({
                   </button>
                 </form>
 
-                <div className="lg:col-span-7 bg-white border border-[#E2E8E4] rounded-xl p-5 divide-y divide-[#EDF1EE]">
+                <div className="lg:col-span-7 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                   {articles.length === 0 ? (
-                    <p className="text-sm text-[#5A6860] py-8 text-center">
+                    <p className="text-sm text-[#5A6860] dark:text-[#94A3B8] py-8 text-center">
                       ဆောင်းပါး မထည့်သွင်းရသေးပါ။
                     </p>
                   ) : (
@@ -3707,8 +3711,8 @@ export function AdminPanelView({
                         className="py-3 flex items-center justify-between gap-3"
                       >
                         <div className="min-w-0">
-                          <p className="text-xs text-[#9B7417]">{a.kicker}</p>
-                          <p className="text-sm font-bold text-[#1A241E] truncate">
+                          <p className="text-xs text-[#9B7417] dark:text-[#E2C792]">{a.kicker}</p>
+                          <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                             {a.title}
                           </p>
                         </div>
@@ -3721,7 +3725,7 @@ export function AdminPanelView({
                               label: a.title,
                             })
                           }
-                          className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                          className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60"
                         >
                           ဖျက်ရန်
                         </button>
@@ -3736,31 +3740,31 @@ export function AdminPanelView({
 
         {/* TAB 5: CONTACT MESSAGES INBOX */}
         {activeTab === 'messages' && (
-          <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-4">
-            <h2 className="text-base font-bold text-[#1A241E] border-b border-[#EDF1EE] pb-3">
+          <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-4">
+            <h2 className="text-base font-bold text-[#1A241E] dark:text-[#F1F5F9] border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
               စာဖတ်သူများထံမှ ဆက်သွယ်စာများ ({messages.length})
             </h2>
 
             {messages.length === 0 ? (
               <div className="py-10 text-center space-y-2">
-                <Mail className="w-9 h-9 text-[#96A49B] mx-auto" />
-                <p className="text-sm text-[#5A6860]">
+                <Mail className="w-9 h-9 text-[#96A49B] dark:text-[#64748B] mx-auto" />
+                <p className="text-sm text-[#5A6860] dark:text-[#94A3B8]">
                   ဆက်သွယ်မေးမြန်းစာ မရှိသေးပါ။
                 </p>
               </div>
             ) : (
-              <div className="divide-y divide-[#EDF1EE]">
+              <div className="divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                 {messages.map((msg) => (
                   <div key={msg.id} className="py-4 space-y-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-sm font-bold text-[#1A241E]">
+                        <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                           {msg.name}{' '}
-                          <span className="font-normal text-xs text-[#5A6860]">
+                          <span className="font-normal text-xs text-[#5A6860] dark:text-[#94A3B8]">
                             ({msg.contact || 'ဆက်သွယ်ရန်မထည့်ပါ'})
                           </span>
                         </p>
-                        <p className="text-xs text-[#9B7417]">
+                        <p className="text-xs text-[#9B7417] dark:text-[#E2C792]">
                           {msg.subject}
                           {msg.createdAtLabel ? ` · ${msg.createdAtLabel}` : ''}
                           {msg.status === 'unread' ? ' · အသစ်' : ''}
@@ -3772,7 +3776,7 @@ export function AdminPanelView({
                           <button
                             type="button"
                             onClick={() => void markContactMessageRead(msg.id)}
-                            className="px-3 py-1 rounded-lg bg-[#EBF4EE] text-[#115E34] text-xs font-semibold"
+                            className="px-3 py-1 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#115E34] dark:text-[#6EE7B7] text-xs font-semibold"
                           >
                             ဖတ်ပြီးမှတ်မည်
                           </button>
@@ -3786,13 +3790,13 @@ export function AdminPanelView({
                               label: msg.name,
                             })
                           }
-                          className="px-3 py-1 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                          className="px-3 py-1 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60"
                         >
                           ဖျက်ရန်
                         </button>
                       </div>
                     </div>
-                    <p className="text-sm text-[#35433A] leading-relaxed bg-[#F8FAF9] p-3 rounded-lg">
+                    <p className="text-sm text-[#35433A] dark:text-[#CBD5E1] leading-relaxed bg-[#F8FAF9] dark:bg-[#131E36] p-3 rounded-lg">
                       {msg.message}
                     </p>
                   </div>
@@ -3806,16 +3810,16 @@ export function AdminPanelView({
         {activeTab === 'settings' && user && (
           <div className="space-y-6">
             {/* SECTION 1: APPOINT & MANAGE ADMINS */}
-            <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-5">
-              <div className="flex items-start gap-3 border-b border-[#EDF1EE] pb-4">
-                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+            <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-5">
+              <div className="flex items-start gap-3 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E]">
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                     နောက်ထပ် Admin ခန့်အပ်ခြင်းနှင့် စီမံခန့်ခွဲခြင်း (Admin Roles)
                   </h2>
-                  <p className="text-xs sm:text-sm text-[#4A5850] mt-0.5 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
                     စာအုပ်တင်ခြင်း၊ Drive စီမံခြင်းနှင့် Telegram Bot Sync လုပ်ငန်းများကို
                     ကူညီစီမံရန် ယုံကြည်စိတ်ချရသော Gmail အကောင့်များကို Admin အဖြစ်
                     ထပ်မံခန့်အပ်နိုင်ပါသည်။
@@ -3826,16 +3830,16 @@ export function AdminPanelView({
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 <form
                   onSubmit={(e) => void handleAppointAdmin(e)}
-                  className="lg:col-span-5 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-3.5"
+                  className="lg:col-span-5 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] dark:bg-[#091020] border border-[#E2E8E4] dark:border-[#1E2C4A] space-y-3.5"
                 >
-                  <h3 className="text-sm font-bold text-[#115E34]">
+                  <h3 className="text-sm font-bold text-[#115E34] dark:text-[#6EE7B7]">
                     Admin အသစ် ခန့်အပ်ရန်
                   </h3>
 
                   <div>
                     <label
                       htmlFor="appoint-admin-email"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       Admin ခန့်အပ်မည့် Gmail / Google Account *
                     </label>
@@ -3846,14 +3850,14 @@ export function AdminPanelView({
                       value={newAdminEmail}
                       onChange={(e) => setNewAdminEmail(e.target.value)}
                       placeholder="example@gmail.com"
-                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-white border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="appoint-admin-role"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       တာဝန် / ရာထူးအမည် (Role Label)
                     </label>
@@ -3863,7 +3867,7 @@ export function AdminPanelView({
                       value={newAdminRoleLabel}
                       onChange={(e) => setNewAdminRoleLabel(e.target.value)}
                       placeholder="ဥပမာ - Library Editor / Librarian"
-                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-white border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                     />
                   </div>
 
@@ -3880,32 +3884,32 @@ export function AdminPanelView({
                     </span>
                   </button>
 
-                  <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                  <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] leading-relaxed">
                     ခန့်အပ်လိုက်သော Gmail အကောင့်ဖြင့် ဝက်ဘ်ဆိုက် Admin Panel တွင် Sign in with
                     Google ဝင်ရောက်လိုက်သည်နှင့် Admin စီမံခွင့် အပြည့်အဝ ရရှိပါမည်။
                   </p>
                 </form>
 
                 <div className="lg:col-span-7 space-y-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#526058]">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#526058] dark:text-[#94A3B8]">
                     လက်ရှိ Admin စာရင်း (မူလ Admin + ခန့်အပ်ထားသူများ)
                   </h3>
-                  <div className="border border-[#E2E8E4] rounded-xl divide-y divide-[#EDF1EE]">
+                  <div className="border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
                     {[BOOTSTRAPPED_ADMIN_EMAIL, SECOND_BOOTSTRAPPED_ADMIN_EMAIL].map(
                       (email) => (
                         <div
                           key={email}
-                          className="p-3.5 flex items-center justify-between gap-3 bg-[#FAFCFB]"
+                          className="p-3.5 flex items-center justify-between gap-3 bg-[#FAFCFB] dark:bg-[#0B1221]"
                         >
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#1A241E] truncate">
+                            <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                               {email}
                             </p>
-                            <p className="text-[11px] text-[#115E34] font-semibold">
+                            <p className="text-[11px] text-[#115E34] dark:text-[#6EE7B7] font-semibold">
                               မူလ System Admin (အမြဲတမ်း)
                             </p>
                           </div>
-                          <span className="px-2.5 py-1 rounded-lg bg-[#EBF4EE] text-[#115E34] text-[11px] font-semibold shrink-0">
+                          <span className="px-2.5 py-1 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#115E34] dark:text-[#6EE7B7] text-[11px] font-semibold shrink-0">
                             Primary
                           </span>
                         </div>
@@ -3913,7 +3917,7 @@ export function AdminPanelView({
                     )}
 
                     {adminInvites.length === 0 ? (
-                      <p className="p-4 text-xs text-[#5A6860] text-center">
+                      <p className="p-4 text-xs text-[#5A6860] dark:text-[#94A3B8] text-center">
                         ထပ်မံခန့်အပ်ထားသော Admin မရှိသေးပါ။
                       </p>
                     ) : (
@@ -3927,10 +3931,10 @@ export function AdminPanelView({
                             className="p-3.5 flex flex-wrap items-center justify-between gap-3"
                           >
                             <div className="min-w-0 space-y-0.5">
-                              <p className="text-sm font-bold text-[#1A241E] truncate">
+                              <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
                                 {invite.email}
                               </p>
-                              <p className="text-[11px] text-[#5A6860]">
+                              <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8]">
                                 {invite.roleLabel || 'Library Admin'}
                                 {invite.addedByEmail
                                   ? ` · ခန့်အပ်သူ: ${invite.addedByEmail}`
@@ -3950,12 +3954,12 @@ export function AdminPanelView({
                                     label: invite.email,
                                   })
                                 }
-                                className="px-3 py-1.5 rounded-lg border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-50"
+                                className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60"
                               >
                                 Admin မှ ဖယ်ရှားရန်
                               </button>
                             ) : (
-                              <span className="text-[11px] font-semibold text-[#9B7417]">
+                              <span className="text-[11px] font-semibold text-[#9B7417] dark:text-[#E2C792]">
                                 လက်ရှိဝင်ထားသူ
                               </span>
                             )}
@@ -3969,17 +3973,17 @@ export function AdminPanelView({
             </div>
 
             {/* SECTION 2: PERMANENT TELEGRAM BOT CONNECTION -> GOOGLE DRIVE -> WEBSITE AUTO-SYNC */}
-            <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] pb-4">
+            <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
                     <Bot className="w-5 h-5" />
                   </div>
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-[#1A241E]">
+                    <h2 className="text-base sm:text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                       Telegram Bot ချိတ်ဆက်မှုနှင့် Google Drive / Website အလိုအလျောက် Sync
                     </h2>
-                    <p className="text-xs sm:text-sm text-[#4A5850] mt-0.5 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
                       Telegram Bot ကို ဤဝက်ဘ်ဆိုက်နှင့် အပြီးတိုင် တွဲဆက်ထားပြီး Bot ထံ (သို့) Group/Channel
                       ထဲသို့ ပို့သမျှ PDF စာအုပ်များကို Google Drive ပေါ်သို့ တိုက်ရိုက်တင်ကာ
                       ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ ချက်ချင်း Sync လုပ်ပေးမည် ဖြစ်ပါသည်။
@@ -3988,7 +3992,7 @@ export function AdminPanelView({
                 </div>
 
                 {telegramConfigStatus?.tokenConfigured ? (
-                  <span className="px-3.5 py-1.5 rounded-lg bg-[#EBF4EE] border border-[#146B3A]/30 text-[#115E34] text-xs font-bold inline-flex items-center gap-1.5 shrink-0">
+                  <span className="px-3.5 py-1.5 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] border border-[#146B3A]/30 dark:border-[#10B981]/30 text-[#115E34] dark:text-[#6EE7B7] text-xs font-bold inline-flex items-center gap-1.5 shrink-0">
                     <CheckCircle2 className="w-4 h-4" />
                     <span>
                       ချိတ်ဆက်ပြီး (@
@@ -3999,15 +4003,15 @@ export function AdminPanelView({
                     </span>
                   </span>
                 ) : (
-                  <span className="px-3.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold shrink-0">
+                  <span className="px-3.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-semibold shrink-0">
                     Telegram Bot မချိတ်ဆက်ရသေးပါ
                   </span>
                 )}
               </div>
 
               {/* Setup Instructions */}
-              <div className="rounded-xl bg-[#FDF9EE] border border-[#C59B27]/35 p-4 space-y-2 text-xs text-[#54400B] leading-relaxed">
-                <p className="font-bold text-[#6E500A]">
+              <div className="rounded-xl bg-[#FDF9EE] dark:bg-[#1E190C] border border-[#C59B27]/35 dark:border-[#C59B27]/40 p-4 space-y-2 text-xs text-[#54400B] dark:text-[#E2C792] leading-relaxed">
+                <p className="font-bold text-[#6E500A] dark:text-[#F3DFB1]">
                   Telegram Bot ချိတ်ဆက်ရန် လိုအပ်သည့် အချက်အလက်များနှင့် အဆင့်များ:
                 </p>
                 <ol className="list-decimal list-inside space-y-1">
@@ -4039,16 +4043,16 @@ export function AdminPanelView({
                 {/* Left: Bot Config Form */}
                 <form
                   onSubmit={(e) => void handleSaveTelegramConfig(e)}
-                  className="lg:col-span-6 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-4"
+                  className="lg:col-span-6 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] dark:bg-[#091020] border border-[#E2E8E4] dark:border-[#1E2C4A] space-y-4"
                 >
-                  <h3 className="text-sm font-bold text-[#115E34]">
+                  <h3 className="text-sm font-bold text-[#115E34] dark:text-[#6EE7B7]">
                     ၁. Telegram Bot အချက်အလက် ချိတ်ဆက်သိမ်းဆည်းရန်
                   </h3>
 
                   <div>
                     <label
                       htmlFor="tg-bot-token"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       Telegram Bot API Token{' '}
                       {telegramConfigStatus?.tokenConfigured
@@ -4066,9 +4070,9 @@ export function AdminPanelView({
                           ? 'Token ပြောင်းလိုမှသာ အသစ်ထည့်ပါ (သိမ်းဆည်းပြီးဖြစ်သည်)'
                           : '1234567890:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
                       }
-                      className="w-full min-h-[42px] px-3 py-2 text-xs sm:text-sm bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                      className="w-full min-h-[42px] px-3 py-2 text-xs sm:text-sm bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
                     />
-                    <p className="text-[11px] text-[#5A6860] mt-1">
+                    <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] mt-1">
                       Bot Token ကို Server ဘက်တွင်သာ လုံခြုံစွာ သိမ်းဆည်းထားပြီး အခြားသူများ
                       မြင်တွေ့နိုင်မည် မဟုတ်ပါ။
                     </p>
@@ -4078,7 +4082,7 @@ export function AdminPanelView({
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <label
                         htmlFor="tg-allowed-chats"
-                        className="block text-xs font-semibold text-[#35433A]"
+                        className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1]"
                       >
                         Allowed Chat IDs (ကော်မာခံ၍ ထည့်နိုင်သည် — မထည့်လည်းရသည်)
                       </label>
@@ -4087,7 +4091,7 @@ export function AdminPanelView({
                           type="button"
                           disabled={isCheckingTelegramChats}
                           onClick={() => void handleCheckTelegramChats()}
-                          className="text-[11px] font-bold text-[#146B3A] hover:underline disabled:opacity-50"
+                          className="text-[11px] font-bold text-[#146B3A] dark:text-[#6EE7B7] hover:underline disabled:opacity-50"
                         >
                           {isCheckingTelegramChats
                             ? 'စစ်ဆေးနေသည်...'
@@ -4103,13 +4107,13 @@ export function AdminPanelView({
                         setTelegramAllowedChatsInput(e.target.value)
                       }
                       placeholder="ဥပမာ - -1001234567890, 987654321 (အားလုံးလက်ခံရန် အလွတ်ထားပါ)"
-                      className="w-full min-h-[42px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                      className="w-full min-h-[42px] px-3 py-2 text-xs bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
                     />
                   </div>
 
                   {discoveredTelegramChats.length > 0 && (
-                    <div className="p-3 rounded-lg bg-white border border-[#D4DDD7] space-y-2">
-                      <p className="text-[11px] font-bold text-[#115E34]">
+                    <div className="p-3 rounded-lg bg-white dark:bg-[#0D1526] border border-[#D4DDD7] dark:border-[#263759] space-y-2">
+                      <p className="text-[11px] font-bold text-[#115E34] dark:text-[#6EE7B7]">
                         တွေ့ရှိထားသော Telegram Chat များ (နှိပ်၍ Chat ID ထည့်နိုင်သည်):
                       </p>
                       <div className="flex flex-wrap gap-1.5">
@@ -4128,7 +4132,7 @@ export function AdminPanelView({
                                 );
                               }
                             }}
-                            className="px-2.5 py-1 rounded-md border border-[#146B3A]/30 bg-[#EBF4EE] hover:bg-[#DCECE1] text-[#115E34] text-[11px] font-medium"
+                            className="px-2.5 py-1 rounded-md border border-[#146B3A]/30 dark:border-[#10B981]/30 bg-[#EBF4EE] dark:bg-[#0D231B] hover:bg-[#DCECE1] dark:hover:bg-[#133328] text-[#115E34] dark:text-[#6EE7B7] text-[11px] font-medium"
                           >
                             {chat.title} ({chat.chatId})
                             {chat.pendingPdfCount > 0
@@ -4143,7 +4147,7 @@ export function AdminPanelView({
                   <div>
                     <label
                       htmlFor="tg-default-cat"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       Website တင်ရာတွင် ထည့်သွင်းမည့် ကဏ္ဍ (Default Category)
                     </label>
@@ -4155,7 +4159,7 @@ export function AdminPanelView({
                           e.target.value as 'auto' | BookCategoryId,
                         )
                       }
-                      className="w-full min-h-[42px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg"
+                      className="w-full min-h-[42px] px-3 py-2 text-xs bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                     >
                       <option value="auto">
                         စာအုပ်အမည်အလိုက် အလိုအလျောက် ခွဲခြားမည် (Auto)
@@ -4168,12 +4172,12 @@ export function AdminPanelView({
                     </select>
                   </div>
 
-                  <label className="flex items-center gap-2.5 text-xs text-[#1A241E] cursor-pointer">
+                  <label className="flex items-center gap-2.5 text-xs text-[#1A241E] dark:text-[#F1F5F9] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={telegramAutoSyncInput}
                       onChange={(e) => setTelegramAutoSyncInput(e.target.checked)}
-                      className="w-4 h-4 accent-[#146B3A]"
+                      className="w-4 h-4 accent-[#146B3A] dark:accent-[#3B82F6]"
                     />
                     <span>
                       Drive ပေါ်ရောက်သည်နှင့် ဝက်ဘ်ဆိုက်စာကြည့်တိုက်ပေါ်သို့ အလိုအလျောက်
@@ -4200,7 +4204,7 @@ export function AdminPanelView({
                         type="button"
                         disabled={isSavingTelegram}
                         onClick={() => void handleDisconnectTelegram()}
-                        className="min-h-[42px] px-3.5 py-2 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold"
+                        className="min-h-[42px] px-3.5 py-2 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/60 text-xs font-semibold"
                       >
                         ဖြုတ်သိမ်းရန်
                       </button>
@@ -4209,12 +4213,12 @@ export function AdminPanelView({
                 </form>
 
                 {/* Right: Upload to Google Drive + Fast Auto-Sync Control Box */}
-                <div className="lg:col-span-6 p-4 sm:p-5 rounded-xl bg-[#F6FAF7] border border-[#146B3A]/30 space-y-4">
+                <div className="lg:col-span-6 p-4 sm:p-5 rounded-xl bg-[#F6FAF7] dark:bg-[#091020] border border-[#146B3A]/30 dark:border-[#1E2C4A] space-y-4">
                   <div className="space-y-1">
-                    <h3 className="text-sm font-bold text-[#115E34]">
+                    <h3 className="text-sm font-bold text-[#115E34] dark:text-[#6EE7B7]">
                       ၂. Telegram Bot မှ Google Drive ပေါ်တင်ပြီး Website Sync လုပ်ရန်
                     </h3>
-                    <p className="text-xs text-[#4A5850] leading-relaxed">
+                    <p className="text-xs text-[#4A5850] dark:text-[#94A3B8] leading-relaxed">
                       Telegram Bot ထံ ပို့ထားသော PDF စာအုပ်များကို ခလုတ်တစ်ချက်တည်းဖြင့် သင့်
                       Google Drive ထဲသို့ တိုက်ရိုက်တင်သွင်းပြီး Website တွင် အလိုအလျောက်
                       Sync လုပ်ဖော်ပြပေးပါမည်။
@@ -4222,8 +4226,8 @@ export function AdminPanelView({
                   </div>
 
                   {!driveToken && (
-                    <div className="p-3.5 rounded-lg bg-[#FDF9EE] border border-[#C59B27]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                      <p className="text-xs text-[#6E500A]">
+                    <div className="p-3.5 rounded-lg bg-[#FDF9EE] dark:bg-[#1E190C] border border-[#C59B27]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <p className="text-xs text-[#6E500A] dark:text-[#F3DFB1]">
                         Drive ပေါ်တင်နိုင်ရန် ဦးစွာ Google Drive ချိတ်ဆက်ပေးပါ။
                       </p>
                       <button
@@ -4273,7 +4277,7 @@ export function AdminPanelView({
                           !telegramConfigStatus?.tokenConfigured
                         }
                         onClick={() => void handleCheckTelegramChats()}
-                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-[#115E34] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2947] text-[#115E34] dark:text-[#6EE7B7] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
                       >
                         <RefreshCw
                           className={`w-3.5 h-3.5 ${isCheckingTelegramChats ? 'animate-spin' : ''}`}
@@ -4292,7 +4296,7 @@ export function AdminPanelView({
                         onClick={() =>
                           void refreshDriveFiles({scope: 'folder', autoSync: true})
                         }
-                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] bg-white hover:bg-[#EBF4EE] text-[#35433A] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
+                        className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2947] text-[#35433A] dark:text-[#CBD5E1] text-xs font-semibold inline-flex items-center gap-1.5 disabled:opacity-50"
                       >
                         <HardDrive className="w-3.5 h-3.5" />
                         <span>Drive → Website အမြန် Sync လုပ်ရန်</span>
@@ -4301,7 +4305,7 @@ export function AdminPanelView({
                   </div>
 
                   {/* Continuous Live Auto-Poll Mode */}
-                  <div className="p-3.5 rounded-lg bg-white border border-[#DCE6DF] space-y-2">
+                  <div className="p-3.5 rounded-lg bg-white dark:bg-[#0D1526] border border-[#DCE6DF] dark:border-[#1E2C4A] space-y-2">
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
@@ -4312,13 +4316,13 @@ export function AdminPanelView({
                         onChange={(e) =>
                           setTelegramLiveAutoPoll(e.target.checked)
                         }
-                        className="w-4 h-4 mt-0.5 accent-[#146B3A] shrink-0"
+                        className="w-4 h-4 mt-0.5 accent-[#146B3A] dark:accent-[#3B82F6] shrink-0"
                       />
                       <div className="text-xs space-y-0.5">
-                        <p className="font-bold text-[#1A241E]">
+                        <p className="font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                           အလိုအလျောက် Continuous Sync ဖွင့်ထားမည် (စက္ကန့် ၈ တိုင်း)
                         </p>
-                        <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                        <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] leading-relaxed">
                           ဤခလုတ် ဖွင့်ထားစဉ် Telegram Bot ထံသို့ PDF ပို့လိုက်သည်နှင့် Google Drive
                           ပေါ်သို့ အော်တိုတင်ပေးပြီး Drive Tool မှလည်း ၅ စက္ကန့်အတွင်း Website
                           ပေါ်သို့ အမြန် Sync လုပ်တင်ပေးနေပါမည်။
@@ -4328,17 +4332,17 @@ export function AdminPanelView({
                   </div>
 
                   {lastTelegramSyncResult && (
-                    <div className="p-3.5 rounded-lg bg-white border border-[#E2E8E4] text-xs space-y-1">
-                      <p className="font-bold text-[#115E34]">
+                    <div className="p-3.5 rounded-lg bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] text-xs space-y-1">
+                      <p className="font-bold text-[#115E34] dark:text-[#6EE7B7]">
                         နောက်ဆုံး Sync ရလဒ် ({lastTelegramSyncResult.timestamp})
                       </p>
-                      <p className="text-[#35433A]">
+                      <p className="text-[#35433A] dark:text-[#CBD5E1]">
                         Google Drive တင်ပြီး: {lastTelegramSyncResult.uploadedCount} အုပ် ·
                         Website တင်ပြီး: {lastTelegramSyncResult.publishedCount} အုပ် · ကျော်သွားသည်:{' '}
                         {lastTelegramSyncResult.skippedCount} ခု
                       </p>
                       {lastTelegramSyncResult.errors.length > 0 && (
-                        <p className="text-red-700 text-[11px]">
+                        <p className="text-red-700 dark:text-red-300 text-[11px]">
                           သတိပြုရန်: {lastTelegramSyncResult.errors[0]}
                         </p>
                       )}
@@ -4349,16 +4353,16 @@ export function AdminPanelView({
             </div>
 
             {/* SECTION 3: GOOGLE SEARCH CONSOLE & SEO STATUS */}
-            <div className="bg-white border border-[#E2E8E4] rounded-xl p-5 sm:p-7 space-y-5">
-              <div className="flex items-start gap-3 border-b border-[#EDF1EE] pb-4">
-                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+            <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-5">
+              <div className="flex items-start gap-3 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-4">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
                   <Search className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E]">
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                     Google Search Console &amp; SEO (Google တွင် ရှာတွေ့စေရန်)
                   </h2>
-                  <p className="text-xs sm:text-sm text-[#4A5850] mt-0.5 leading-relaxed">
+                  <p className="text-xs sm:text-sm text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
                     သင့်ဝဘ်ဆိုက်ကို Google Search နှင့် AI များ ရှာတွေ့နိုင်ရန် SEO Title၊
                     မြန်မာ+အင်္ဂလိပ် Meta Description၊ OpenGraph ပုံ၊ Schema.org
                     Structured Data၊ <code className="font-mono">/sitemap.xml</code> နှင့်{' '}
@@ -4369,18 +4373,18 @@ export function AdminPanelView({
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className="lg:col-span-5 space-y-3 p-4 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4]">
-                  <h3 className="text-sm font-bold text-[#115E34]">
+                <div className="lg:col-span-5 space-y-3 p-4 rounded-xl bg-[#F8FAF9] dark:bg-[#091020] border border-[#E2E8E4] dark:border-[#1E2C4A]">
+                  <h3 className="text-sm font-bold text-[#115E34] dark:text-[#6EE7B7]">
                     Google Search Console တွင် တင်သွင်းရန် လင့်ခ်များ
                   </h3>
 
                   <div className="space-y-2.5 text-xs">
-                    <div className="p-2.5 rounded-lg bg-white border border-[#DCE6DF] space-y-1">
-                      <span className="font-semibold text-[#526058]">
+                    <div className="p-2.5 rounded-lg bg-white dark:bg-[#0D1526] border border-[#DCE6DF] dark:border-[#1E2C4A] space-y-1">
+                      <span className="font-semibold text-[#526058] dark:text-[#94A3B8]">
                         1. URL Prefix (ဝဘ်ဆိုက်ပင်မလင့်ခ်)
                       </span>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 truncate font-mono text-[#1A241E]">
+                        <code className="flex-1 truncate font-mono text-[#1A241E] dark:text-[#F1F5F9]">
                           {seoCanonicalOriginInput}
                         </code>
                         <button
@@ -4388,7 +4392,7 @@ export function AdminPanelView({
                           onClick={() =>
                             void handleCopySeoValue('origin', seoCanonicalOriginInput)
                           }
-                          className="px-2.5 py-1 rounded border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-semibold inline-flex items-center gap-1 shrink-0"
+                          className="px-2.5 py-1 rounded border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2947] text-[#115E34] dark:text-[#6EE7B7] font-semibold inline-flex items-center gap-1 shrink-0"
                         >
                           <Copy className="w-3 h-3" />
                           <span>{copiedSeoKey === 'origin' ? 'ကူးပြီး' : 'Copy'}</span>
@@ -4396,12 +4400,12 @@ export function AdminPanelView({
                       </div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-white border border-[#DCE6DF] space-y-1">
-                      <span className="font-semibold text-[#526058]">
+                    <div className="p-2.5 rounded-lg bg-white dark:bg-[#0D1526] border border-[#DCE6DF] dark:border-[#1E2C4A] space-y-1">
+                      <span className="font-semibold text-[#526058] dark:text-[#94A3B8]">
                         2. Sitemap URL (စာမျက်နှာနှင့် စာအုပ်အားလုံးစာရင်း)
                       </span>
                       <div className="flex items-center gap-2">
-                        <code className="flex-1 truncate font-mono text-[#1A241E]">
+                        <code className="flex-1 truncate font-mono text-[#1A241E] dark:text-[#F1F5F9]">
                           {`${seoCanonicalOriginInput.replace(/\/$/, '')}/sitemap.xml`}
                         </code>
                         <button
@@ -4412,7 +4416,7 @@ export function AdminPanelView({
                               `${seoCanonicalOriginInput.replace(/\/$/, '')}/sitemap.xml`,
                             )
                           }
-                          className="px-2.5 py-1 rounded border border-[#D4DDD7] bg-[#F8FAF9] hover:bg-[#EBF4EE] text-[#115E34] font-semibold inline-flex items-center gap-1 shrink-0"
+                          className="px-2.5 py-1 rounded border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1A2947] text-[#115E34] dark:text-[#6EE7B7] font-semibold inline-flex items-center gap-1 shrink-0"
                         >
                           <Copy className="w-3 h-3" />
                           <span>{copiedSeoKey === 'sitemap' ? 'ကူးပြီး' : 'Copy'}</span>
@@ -4423,7 +4427,7 @@ export function AdminPanelView({
                           href="/sitemap.xml"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] font-semibold text-[#146B3A] hover:underline inline-flex items-center gap-1"
+                          className="text-[11px] font-semibold text-[#146B3A] dark:text-[#6EE7B7] hover:underline inline-flex items-center gap-1"
                         >
                           <span>sitemap.xml စစ်ကြည့်ရန်</span>
                           <ExternalLink className="w-3 h-3" />
@@ -4432,7 +4436,7 @@ export function AdminPanelView({
                           href="/robots.txt"
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[11px] font-semibold text-[#146B3A] hover:underline inline-flex items-center gap-1"
+                          className="text-[11px] font-semibold text-[#146B3A] dark:text-[#6EE7B7] hover:underline inline-flex items-center gap-1"
                         >
                           <span>robots.txt စစ်ကြည့်ရန်</span>
                           <ExternalLink className="w-3 h-3" />
@@ -4440,7 +4444,7 @@ export function AdminPanelView({
                       </div>
                     </div>
 
-                    <div className="p-2.5 rounded-lg bg-[#EBF4EE]/60 border border-[#C7DED0] text-[#115E34] space-y-1 leading-relaxed">
+                    <div className="p-2.5 rounded-lg bg-[#EBF4EE]/60 dark:bg-[#0D231B] border border-[#C7DED0] dark:border-[#10B981]/30 text-[#115E34] dark:text-[#6EE7B7] space-y-1 leading-relaxed">
                       <p className="font-bold">တပ်ဆင်ပြီးသား SEO စနစ်များ:</p>
                       <p>✓ Bilingual Title &amp; Meta Description (MY/EN)</p>
                       <p>✓ OpenGraph &amp; Twitter Share Card (/og-cover.jpg)</p>
@@ -4452,16 +4456,16 @@ export function AdminPanelView({
 
                 <form
                   onSubmit={(e) => void handleSaveSeoConfig(e)}
-                  className="lg:col-span-7 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] border border-[#E2E8E4] space-y-3.5"
+                  className="lg:col-span-7 p-4 sm:p-5 rounded-xl bg-[#F8FAF9] dark:bg-[#091020] border border-[#E2E8E4] dark:border-[#1E2C4A] space-y-3.5"
                 >
-                  <h3 className="text-sm font-bold text-[#115E34]">
+                  <h3 className="text-sm font-bold text-[#115E34] dark:text-[#6EE7B7]">
                     Google Search Console ပိုင်ရှင်အတည်ပြုချက် (Verify Ownership)
                   </h3>
 
                   <div>
                     <label
                       htmlFor="seo-canonical-origin"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       ဝဘ်ဆိုက် Domain URL (Vercel / Custom Domain)
                     </label>
@@ -4471,14 +4475,14 @@ export function AdminPanelView({
                       value={seoCanonicalOriginInput}
                       onChange={(e) => setSeoCanonicalOriginInput(e.target.value)}
                       placeholder="https://islamiclibrary-three.vercel.app"
-                      className="w-full min-h-[40px] px-3 py-2 text-xs sm:text-sm bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs sm:text-sm bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="seo-google-meta-token"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       Google Verification HTML Tag (သို့) content ကုဒ် (Optional)
                     </label>
@@ -4488,14 +4492,14 @@ export function AdminPanelView({
                       value={seoMetaTokenInput}
                       onChange={(e) => setSeoMetaTokenInput(e.target.value)}
                       placeholder='<meta name="google-site-verification" content="abc..." />'
-                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
                     />
                   </div>
 
                   <div>
                     <label
                       htmlFor="seo-google-html-file"
-                      className="block text-xs font-semibold text-[#35433A] mb-1"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
                     >
                       Google HTML Verification ဖိုင်နာမည် (Optional)
                     </label>
@@ -4505,7 +4509,7 @@ export function AdminPanelView({
                       value={seoHtmlFilenameInput}
                       onChange={(e) => setSeoHtmlFilenameInput(e.target.value)}
                       placeholder="google1234abcd5678ef.html"
-                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-white border border-[#D4DDD7] rounded-lg font-mono"
+                      className="w-full min-h-[40px] px-3 py-2 text-xs bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
                     />
                   </div>
 
@@ -4527,7 +4531,7 @@ export function AdminPanelView({
                     )}
                   </button>
 
-                  <p className="text-[11px] text-[#5A6860] leading-relaxed">
+                  <p className="text-[11px] text-[#5A6860] dark:text-[#94A3B8] leading-relaxed">
                     မှတ်ချက် - Vercel Static Build ပေါ်တွင် တင်ထားပါက Google Search Console
                     မှရရှိသော HTML Tag ကုဒ် (သို့) <code className="font-mono">google...html</code>{' '}
                     ဖိုင်နာမည်ကို Chat ထဲတွင် ပေးပို့လိုက်ပါက ဝဘ်ဆိုက် Code ထဲသို့
@@ -4551,14 +4555,14 @@ export function AdminPanelView({
           <form
             onSubmit={(e) => void handleSaveEditModal(e)}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white border border-[#E2E8E4] rounded-2xl max-w-xl w-full p-5 sm:p-6 space-y-4 shadow-2xl my-auto max-h-[92vh] overflow-y-auto"
+            className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-2xl max-w-xl w-full p-5 sm:p-6 space-y-4 shadow-2xl my-auto max-h-[92vh] overflow-y-auto"
           >
-            <div className="flex items-center justify-between border-b border-[#EDF1EE] pb-3">
+            <div className="flex items-center justify-between border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#EBF4EE] text-[#146B3A] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
                   <Edit3 className="w-4 h-4" />
                 </div>
-                <h3 className="text-base font-bold text-[#1A241E]">
+                <h3 className="text-base font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                   စာအုပ်အချက်အလက် ပြင်ဆင်ရန်
                 </h3>
               </div>
@@ -4566,20 +4570,20 @@ export function AdminPanelView({
                 type="button"
                 disabled={isSavingEditModal}
                 onClick={() => setEditModalBookId(null)}
-                className="text-xs font-semibold text-[#5A6860] hover:text-[#1A241E] px-2 py-1"
+                className="text-xs font-semibold text-[#5A6860] dark:text-[#94A3B8] hover:text-[#1A241E] dark:hover:text-[#F1F5F9] px-2 py-1"
               >
                 ပိတ်ရန်
               </button>
             </div>
 
             {editModalError && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700 leading-relaxed">
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs text-red-700 dark:text-red-300 leading-relaxed">
                 {editModalError}
               </div>
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-[#35433A] mb-1">
+              <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                 စာအုပ်အမည် *
               </label>
               <input
@@ -4587,12 +4591,12 @@ export function AdminPanelView({
                 required
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#35433A] mb-1">
+              <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                 စာရေးဆရာ / ပြုစုသူ
               </label>
               <input
@@ -4600,20 +4604,20 @@ export function AdminPanelView({
                 value={editAuthor}
                 onChange={(e) => setEditAuthor(e.target.value)}
                 placeholder="စာရေးဆရာအမည် (မပါလျှင် အလွတ်ထားနိုင်သည်)"
-                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1">
-                  <label className="block text-xs font-semibold text-[#35433A]">
+                  <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1]">
                     ကဏ္ဍ (Category)
                   </label>
                   <button
                     type="button"
                     onClick={onOpenCategoryManager}
-                    className="text-[11px] font-semibold text-[#1E3A8A] hover:underline inline-flex items-center gap-1"
+                    className="text-[11px] font-semibold text-[#1E3A8A] dark:text-[#93C5FD] hover:underline inline-flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" />
                     <span>Customize</span>
@@ -4624,7 +4628,7 @@ export function AdminPanelView({
                   onChange={(e) =>
                     setEditCategoryId(e.target.value as BookCategoryId)
                   }
-                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                 >
                   {bookCategories.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -4635,7 +4639,7 @@ export function AdminPanelView({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   အမျိုးအစား (Type)
                 </label>
                 <select
@@ -4645,7 +4649,7 @@ export function AdminPanelView({
                       e.target.value as Exclude<MaterialType, 'All Types'>,
                     )
                   }
-                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[42px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                 >
                   <option value="Book">Book</option>
                   <option value="Periodical">Periodical</option>
@@ -4658,18 +4662,18 @@ export function AdminPanelView({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   ခုနှစ်
                 </label>
                 <input
                   type="text"
                   value={editHijriYear}
                   onChange={(e) => setEditHijriYear(e.target.value)}
-                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   စာမျက်နှာ
                 </label>
                 <input
@@ -4678,11 +4682,11 @@ export function AdminPanelView({
                   max={10000}
                   value={editPages}
                   onChange={(e) => setEditPages(Number(e.target.value) || 0)}
-                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   ဖိုင်အရွယ်အစား
                 </label>
                 <input
@@ -4690,11 +4694,11 @@ export function AdminPanelView({
                   value={editFileSize}
                   onChange={(e) => setEditFileSize(e.target.value)}
                   placeholder="PDF"
-                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-[#35433A] mb-1">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                   အရောင်ဒီဇိုင်း
                 </label>
                 <select
@@ -4704,7 +4708,7 @@ export function AdminPanelView({
                       e.target.value as BookItem['coverTheme'],
                     )
                   }
-                  className="w-full min-h-[40px] px-2 py-1.5 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                  className="w-full min-h-[40px] px-2 py-1.5 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
                 >
                   <option value="emerald">Emerald</option>
                   <option value="gold">Gold</option>
@@ -4717,11 +4721,11 @@ export function AdminPanelView({
 
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="block text-xs font-semibold text-[#35433A]">
+                <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1]">
                   Google Drive File ID သို့မဟုတ် Share Link *
                 </label>
                 {driveToken && (
-                  <label className="text-[11px] font-bold text-[#146B3A] hover:underline cursor-pointer inline-flex items-center gap-1">
+                  <label className="text-[11px] font-bold text-[#146B3A] dark:text-[#6EE7B7] hover:underline cursor-pointer inline-flex items-center gap-1">
                     <Upload className="w-3 h-3" />
                     <span>
                       {isUploadingReplacementPdf
@@ -4745,12 +4749,12 @@ export function AdminPanelView({
                 onChange={(e) =>
                   setEditDriveFileId(extractDriveFileId(e.target.value))
                 }
-                className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg font-mono"
+                className="w-full min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg font-mono"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#35433A] mb-1">
+              <label className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1">
                 အကျဉ်းချုပ်မိတ်ဆက်
               </label>
               <textarea
@@ -4758,26 +4762,26 @@ export function AdminPanelView({
                 value={editSummary}
                 onChange={(e) => setEditSummary(e.target.value)}
                 placeholder="စာအုပ်အကြောင်း အကျဉ်းချုပ်..."
-                className="w-full px-3 py-2 text-sm bg-[#F8FAF9] border border-[#D4DDD7] rounded-lg"
+                className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
               />
             </div>
 
-            <label className="flex items-center gap-2.5 text-sm text-[#1A241E] cursor-pointer">
+            <label className="flex items-center gap-2.5 text-sm text-[#1A241E] dark:text-[#F1F5F9] cursor-pointer">
               <input
                 type="checkbox"
                 checked={editPublished}
                 onChange={(e) => setEditPublished(e.target.checked)}
-                className="w-4 h-4 accent-[#146B3A]"
+                className="w-4 h-4 accent-[#146B3A] dark:accent-[#3B82F6]"
               />
               <span>ဝက်ဘ်ဆိုက်တွင် တိုက်ရိုက်ဖော်ပြမည် (Published)</span>
             </label>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EDF1EE]">
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#EDF1EE] dark:border-[#1E2C4A]">
               <button
                 type="button"
                 disabled={isSavingEditModal || isUploadingReplacementPdf}
                 onClick={() => setEditModalBookId(null)}
-                className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DDD7] text-xs sm:text-sm font-semibold text-[#35433A] hover:bg-[#F5F8F6]"
+                className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-xs sm:text-sm font-semibold text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#F5F8F6] dark:hover:bg-[#131E36]"
               >
                 မပြင်တော့ပါ
               </button>
@@ -4802,18 +4806,18 @@ export function AdminPanelView({
           onClick={() => !isDeleting && setPendingDelete(null)}
         >
           <div
-            className="bg-white border border-[#E2E8E4] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
+            className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-[#1A241E]">
+                <h3 className="text-base font-bold text-[#1A241E] dark:text-[#F1F5F9]">
                   ဖျက်သိမ်းရန် အတည်ပြုပါ
                 </h3>
-                <p className="text-sm text-[#4A5850] mt-1 leading-relaxed">
+                <p className="text-sm text-[#4A5850] dark:text-[#94A3B8] mt-1 leading-relaxed">
                   “{pendingDelete.label}” ကို အပြီးတိုင် ဖျက်သိမ်းရန် သေချာပါသလား။
                   ဤလုပ်ဆောင်ချက်ကို ပြန်လည်ပြင်ဆင်၍ မရပါ။
                 </p>
@@ -4823,7 +4827,7 @@ export function AdminPanelView({
             {pendingDelete.kind === 'book' &&
               pendingDelete.driveFileId &&
               driveToken && (
-                <label className="flex items-center gap-2.5 p-3 rounded-lg bg-[#F8FAF9] border border-[#E2E8E4] text-xs text-[#1A241E] cursor-pointer">
+                <label className="flex items-center gap-2.5 p-3 rounded-lg bg-[#F8FAF9] dark:bg-[#131E36] border border-[#E2E8E4] dark:border-[#263759] text-xs text-[#1A241E] dark:text-[#F1F5F9] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={alsoDeleteFromDrive}
@@ -4841,7 +4845,7 @@ export function AdminPanelView({
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setPendingDelete(null)}
-                className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] text-xs font-semibold text-[#35433A] hover:bg-[#F5F8F6]"
+                className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#F5F8F6] dark:hover:bg-[#131E36]"
               >
                 မဖျက်တော့ပါ
               </button>

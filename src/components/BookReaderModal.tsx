@@ -17,6 +17,7 @@ import {isValidSafeHttpsUrl} from '../lib/googleDrive';
 import {BookCategoryId, BookItem, CategoryItem} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
 import {BookTitleEditor} from './BookTitleEditor';
+import {ThemeToggle} from './ThemeToggle';
 
 interface BookReaderModalProps {
   book: BookItem | null;
@@ -94,30 +95,32 @@ export function BookReaderModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="book-modal-title"
-      className="fixed inset-0 z-50 bg-[#0D1830]/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 lg:p-6"
+      className="fixed inset-0 z-50 bg-[#0D1830]/70 dark:bg-[#02050C]/85 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 lg:p-6"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-5xl h-[94vh] sm:h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-[#E2E6EE] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-[#0D1526] w-full max-w-5xl h-[94vh] sm:h-[90vh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-[#E2E6EE] dark:border-[#1E2C4A] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Modal Bar */}
-        <div className="px-4 sm:px-6 py-3.5 border-b border-[#E2E6EE] bg-[#F6F7FA] flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-3.5 border-b border-[#E2E6EE] dark:border-[#1E2C4A] bg-[#F6F7FA] dark:bg-[#09101E] flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
-            <p className="text-[11.5px] font-semibold text-[#B85338] truncate">
+            <p className="text-[11.5px] font-semibold text-[#B85338] dark:text-[#F0947A] truncate">
               {categories.find((c) => c.id === book.categoryId)?.nameMy ||
                 book.categoryLabel}{' '}
               · {book.type}
             </p>
             <h2
               id="book-modal-title"
-              className="text-sm sm:text-base font-bold text-[#131B2E] truncate"
+              className="text-sm sm:text-base font-bold text-[#131B2E] dark:text-[#F1F5F9] truncate"
             >
               {book.title}
             </h2>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            <ThemeToggle variant="surface" />
+
             <button
               type="button"
               onClick={() => onToggleBookmark(book.id)}
@@ -125,7 +128,7 @@ export function BookReaderModal({
               className={`min-h-[40px] px-3 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
                 isBookmarked
                   ? 'bg-[#B85338] border-[#B85338] text-white'
-                  : 'bg-white border-[#D4DBE8] text-[#334155] hover:bg-[#EFF3FA]'
+                  : 'bg-white dark:bg-[#131E36] border-[#D4DBE8] dark:border-[#263759] text-[#334155] dark:text-[#F1F5F9] hover:bg-[#EFF3FA] dark:hover:bg-[#1B2A4A]'
               }`}
             >
               <Bookmark
@@ -141,7 +144,7 @@ export function BookReaderModal({
               type="button"
               onClick={onClose}
               aria-label="Close reader"
-              className="w-10 h-10 rounded-lg bg-white border border-[#D4DBE8] text-[#334155] hover:bg-[#EFF3FA] flex items-center justify-center transition-colors"
+              className="w-10 h-10 rounded-lg bg-white dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] text-[#334155] dark:text-[#F1F5F9] hover:bg-[#EFF3FA] dark:hover:bg-[#1B2A4A] flex items-center justify-center transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -151,9 +154,9 @@ export function BookReaderModal({
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* Book Details */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 pb-5 border-b border-[#E6EAF2]">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 pb-5 border-b border-[#E6EAF2] dark:border-[#1E2C4A]">
             <div className="sm:col-span-3 lg:col-span-2">
-              <div className="aspect-[3/4] max-w-[140px] mx-auto sm:max-w-none rounded-lg overflow-hidden border border-[#E2E6EE] shadow-sm">
+              <div className="aspect-[3/4] max-w-[140px] mx-auto sm:max-w-none rounded-lg overflow-hidden border border-[#E2E6EE] dark:border-[#1E2C4A] shadow-sm">
                 <BookCoverFrame book={book} />
               </div>
             </div>
@@ -167,11 +170,11 @@ export function BookReaderModal({
                   variant="modal"
                 />
 
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-[#525E75]">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs sm:text-sm text-[#525E75] dark:text-[#94A3B8]">
                   {isAdmin && onChangeBookCategory && categories.length > 0 && (
-                    <label className="inline-flex items-center gap-1.5 bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg px-2.5 py-1 text-xs font-medium text-[#131B2E]">
-                      <FolderOpen className="w-3.5 h-3.5 text-[#1E3A8A]" />
-                      <span className="text-[#525E75]">ကဏ္ဍ:</span>
+                    <label className="inline-flex items-center gap-1.5 bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg px-2.5 py-1 text-xs font-medium text-[#131B2E] dark:text-[#F1F5F9]">
+                      <FolderOpen className="w-3.5 h-3.5 text-[#1E3A8A] dark:text-[#93C5FD]" />
+                      <span className="text-[#525E75] dark:text-[#94A3B8]">ကဏ္ဍ:</span>
                       <select
                         value={book.categoryId}
                         disabled={isUpdatingCategory}
@@ -186,12 +189,16 @@ export function BookReaderModal({
                           }
                         }}
                         aria-label="စာအုပ်ကဏ္ဍပြောင်းရန်"
-                        className="bg-transparent text-xs font-semibold text-[#1E3A8A] focus:outline-none cursor-pointer"
+                        className="bg-transparent text-xs font-semibold text-[#1E3A8A] dark:text-[#93C5FD] focus:outline-none cursor-pointer"
                       >
                         {categories
                           .filter((c) => c.id !== 'videos')
                           .map((c) => (
-                            <option key={c.id} value={c.id}>
+                            <option
+                              key={c.id}
+                              value={c.id}
+                              className="bg-white dark:bg-[#0D1526] text-[#131B2E] dark:text-[#F1F5F9]"
+                            >
                               {c.nameMy}
                             </option>
                           ))}
@@ -200,7 +207,7 @@ export function BookReaderModal({
                   )}
                   {book.author.trim() && (
                     <span className="inline-flex items-center gap-1.5">
-                      <User className="w-4 h-4 text-[#1E3A8A]" />
+                      <User className="w-4 h-4 text-[#1E3A8A] dark:text-[#93C5FD]" />
                       {book.author}
                     </span>
                   )}
@@ -229,7 +236,7 @@ export function BookReaderModal({
                 </div>
 
                 {book.summary && (
-                  <p className="text-sm text-[#334155] leading-[1.8] pt-1">
+                  <p className="text-sm text-[#334155] dark:text-[#CBD5E1] leading-[1.8] pt-1">
                     {book.summary}
                   </p>
                 )}
@@ -241,7 +248,7 @@ export function BookReaderModal({
                     type="button"
                     onClick={handleDirectDownload}
                     disabled={isDownloading}
-                    className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] disabled:opacity-70 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A]"
+                    className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] dark:bg-[#2563EB] hover:bg-[#172D6B] dark:hover:bg-[#1D4ED8] disabled:opacity-70 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1E3A8A] dark:focus-visible:ring-[#60A5FA]"
                   >
                     {isDownloading ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -260,9 +267,9 @@ export function BookReaderModal({
                     href={safeViewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DBE8] bg-white hover:bg-[#EFF3FA] text-[#131B2E] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                    className="min-h-[42px] px-4 py-2 rounded-lg border border-[#D4DBE8] dark:border-[#263759] bg-white dark:bg-[#131E36] hover:bg-[#EFF3FA] dark:hover:bg-[#1B2A4A] text-[#131B2E] dark:text-[#F1F5F9] text-sm font-semibold inline-flex items-center gap-2 transition-colors"
                   >
-                    <ExternalLink className="w-4 h-4 text-[#1E3A8A]" />
+                    <ExternalLink className="w-4 h-4 text-[#1E3A8A] dark:text-[#93C5FD]" />
                     <span>Google Drive ဖြင့်ဖွင့်ရန်</span>
                   </a>
                 )}
@@ -271,7 +278,7 @@ export function BookReaderModal({
               {downloadError && (
                 <p
                   role="alert"
-                  className="text-xs font-medium text-[#B85338] bg-[#FEF2F2] border border-[#FECACA] rounded-lg px-3 py-2"
+                  className="text-xs font-medium text-[#B85338] dark:text-[#FCA5A5] bg-[#FEF2F2] dark:bg-[#2B1218] border border-[#FECACA] dark:border-[#7F1D1D] rounded-lg px-3 py-2"
                 >
                   {downloadError}
                 </p>
@@ -282,11 +289,11 @@ export function BookReaderModal({
           {/* Embedded Google Drive PDF Reader */}
           {safeViewUrl ? (
             <div className="space-y-2.5">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#525E75]">
-                <FileText className="w-4 h-4 text-[#1E3A8A]" />
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#525E75] dark:text-[#94A3B8]">
+                <FileText className="w-4 h-4 text-[#1E3A8A] dark:text-[#93C5FD]" />
                 <span>PDF အွန်လိုင်းစာဖတ်စနစ် (Google Drive Viewer)</span>
               </div>
-              <div className="w-full h-[55vh] sm:h-[60vh] rounded-xl overflow-hidden border border-[#E2E6EE] bg-[#EFF2F7]">
+              <div className="w-full h-[55vh] sm:h-[60vh] rounded-xl overflow-hidden border border-[#E2E6EE] dark:border-[#1E2C4A] bg-[#EFF2F7] dark:bg-[#09101E]">
                 <iframe
                   title={book.title}
                   src={safeViewUrl}
@@ -296,7 +303,7 @@ export function BookReaderModal({
               </div>
             </div>
           ) : (
-            <div className="p-8 rounded-xl border border-[#E2E6EE] bg-[#F6F7FA] text-center text-sm text-[#525E75]">
+            <div className="p-8 rounded-xl border border-[#E2E6EE] dark:border-[#1E2C4A] bg-[#F6F7FA] dark:bg-[#09101E] text-center text-sm text-[#525E75] dark:text-[#94A3B8]">
               PDF ကြည့်ရှုရန် လင့်ခ်မရှိသေးပါ။
             </div>
           )}

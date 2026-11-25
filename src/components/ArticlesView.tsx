@@ -28,12 +28,12 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
 
       <section className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         {articles.length === 0 ? (
-          <div className="bg-white border border-[#E2E6EE] rounded-xl p-10 text-center space-y-2">
-            <Newspaper className="w-9 h-9 text-[#64748B] mx-auto" />
-            <p className="text-base font-semibold text-[#131B2E]">
+          <div className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl p-10 text-center space-y-2">
+            <Newspaper className="w-9 h-9 text-[#64748B] dark:text-[#94A3B8] mx-auto" />
+            <p className="text-base font-semibold text-[#131B2E] dark:text-[#F1F5F9]">
               ဆောင်းပါးများ မထည့်သွင်းရသေးပါ
             </p>
-            <p className="text-sm text-[#525E75]">
+            <p className="text-sm text-[#525E75] dark:text-[#94A3B8]">
               Admin Panel မှတစ်ဆင့် သတင်းနှင့် ဆောင်းပါးအသစ်များ ထည့်သွင်းနိုင်ပါသည်။
             </p>
           </div>
@@ -42,19 +42,19 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
             {articles.map((article) => (
               <article
                 key={article.id}
-                className="bg-white border border-[#E2E6EE] hover:border-[#1E3A8A]/40 rounded-xl p-5 sm:p-6 flex flex-col transition-all hover:shadow-md"
+                className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] hover:border-[#1E3A8A]/40 dark:hover:border-[#60A5FA]/50 rounded-xl p-5 sm:p-6 flex flex-col transition-all hover:shadow-md dark:hover:shadow-black/40"
               >
-                <p className="text-xs font-semibold text-[#B85338] mb-1.5">
+                <p className="text-xs font-semibold text-[#B85338] dark:text-[#F0947A] mb-1.5">
                   {article.kicker}
                 </p>
-                <h2 className="text-lg font-bold text-[#131B2E] leading-snug mb-2">
+                <h2 className="text-lg font-bold text-[#131B2E] dark:text-[#F1F5F9] leading-snug mb-2">
                   {article.title}
                 </h2>
-                <p className="text-sm text-[#475569] leading-[1.8] mb-5 flex-1">
+                <p className="text-sm text-[#475569] dark:text-[#CBD5E1] leading-[1.8] mb-5 flex-1">
                   {article.excerpt}
                 </p>
-                <div className="pt-4 border-t border-[#EFF2F7] flex items-center justify-between gap-3">
-                  <span className="text-xs text-[#525E75]">
+                <div className="pt-4 border-t border-[#EFF2F7] dark:border-[#1E2C4A] flex items-center justify-between gap-3">
+                  <span className="text-xs text-[#525E75] dark:text-[#94A3B8]">
                     {article.author}
                     {article.createdAtLabel ? ` · ${article.createdAtLabel}` : ''}
                     {article.readTime ? ` · ${article.readTime}` : ''}
@@ -62,7 +62,7 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
                   <button
                     type="button"
                     onClick={() => setActiveArticleId(article.id)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E3A8A] hover:text-[#1D4ED8]"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-[#1E3A8A] dark:text-[#93C5FD] hover:text-[#1D4ED8] dark:hover:text-white"
                   >
                     <span>အပြည့်အစုံဖတ်ရန်</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -78,36 +78,36 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 bg-[#0D1830]/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-50 bg-[#0D1830]/70 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={() => setActiveArticleId(null)}
         >
           <div
-            className="bg-white w-full max-w-2xl max-h-[90vh] rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-[#E2E6EE]"
+            className="bg-white dark:bg-[#0D1526] w-full max-w-2xl max-h-[90vh] rounded-t-2xl sm:rounded-2xl overflow-hidden flex flex-col shadow-2xl border border-[#E2E6EE] dark:border-[#1E2C4A]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3.5 border-b border-[#E2E6EE] bg-[#F6F7FA] flex items-center justify-between gap-3">
-              <span className="text-xs font-semibold text-[#B85338]">
+            <div className="px-5 py-3.5 border-b border-[#E2E6EE] dark:border-[#1E2C4A] bg-[#F6F7FA] dark:bg-[#091020] flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-[#B85338] dark:text-[#F0947A]">
                 {activeArticle.kicker}
               </span>
               <button
                 type="button"
                 onClick={() => setActiveArticleId(null)}
                 aria-label="Close article"
-                className="w-10 h-10 rounded-lg border border-[#D4DBE8] bg-white flex items-center justify-center text-[#131B2E] hover:bg-[#EFF3FA]"
+                className="w-10 h-10 rounded-lg border border-[#D4DBE8] dark:border-[#263759] bg-white dark:bg-[#131E36] flex items-center justify-center text-[#131B2E] dark:text-[#F1F5F9] hover:bg-[#EFF3FA] dark:hover:bg-[#1A2A4A]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="overflow-y-auto p-6 sm:p-8 space-y-5">
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#131B2E] leading-snug">
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#131B2E] dark:text-[#F1F5F9] leading-snug">
                 {activeArticle.title}
               </h2>
-              <p className="text-xs text-[#525E75] pb-4 border-b border-[#EFF2F7]">
+              <p className="text-xs text-[#525E75] dark:text-[#94A3B8] pb-4 border-b border-[#EFF2F7] dark:border-[#1E2C4A]">
                 {activeArticle.author}
                 {activeArticle.createdAtLabel ? ` · ${activeArticle.createdAtLabel}` : ''}
                 {activeArticle.readTime ? ` · ${activeArticle.readTime}` : ''}
               </p>
-              <div className="space-y-4 text-[15.5px] leading-[1.9] text-[#1E293B] max-w-prose whitespace-pre-line">
+              <div className="space-y-4 text-[15.5px] leading-[1.9] text-[#1E293B] dark:text-[#CBD5E1] max-w-prose whitespace-pre-line">
                 {activeArticle.body}
               </div>
             </div>

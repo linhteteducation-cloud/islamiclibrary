@@ -104,10 +104,10 @@ export function PWAInstallButton({
           onClick={() => setGuideOpen(false)}
         >
           <div
-            className="w-full max-w-md rounded-xl bg-white text-[#131B2E] shadow-2xl border border-[#E2E8F0] overflow-hidden"
+            className="w-full max-w-md rounded-xl bg-white dark:bg-[#0D1526] text-[#131B2E] dark:text-[#F1F5F9] shadow-2xl border border-[#E2E8F0] dark:border-[#1E2C4A] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-[#0D1830] px-5 py-4 flex items-center justify-between border-b border-[#1D2F57]">
+            <div className="bg-[#0D1830] dark:bg-[#070E1E] px-5 py-4 flex items-center justify-between border-b border-[#1D2F57] dark:border-[#1E2C4A]">
               <div className="flex items-center gap-3">
                 <img
                   src="/pwa-192x192.png"
@@ -136,9 +136,9 @@ export function PWAInstallButton({
               </button>
             </div>
 
-            <div className="p-5 space-y-4 text-sm leading-relaxed text-[#334155]">
+            <div className="p-5 space-y-4 text-sm leading-relaxed text-[#334155] dark:text-[#CBD5E1]">
               {isInAppBrowser && (
-                <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/60 p-3 text-xs text-amber-900 dark:text-amber-200">
                   လက်ရှိ Facebook / Messenger စတဲ့ App အတွင်း Browser မှ ဖွင့်ထားပါက{' '}
                   <strong>Open in Browser (Chrome သို့မဟုတ် Safari)</strong> ဖြင့် အရင်ဖွင့်ပြီးမှ Install လုပ်ပါ။
                 </div>
@@ -147,35 +147,35 @@ export function PWAInstallButton({
               {isIOS ? (
                 <ol className="space-y-3">
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] dark:bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                       ၁
                     </span>
                     <span>
                       Safari အောက်ခြေ (သို့မဟုတ် အပေါ်) ရှိ{' '}
-                      <strong className="inline-flex items-center gap-1 text-[#0D1830]">
-                        <Share className="w-3.5 h-3.5 text-[#1D4ED8]" /> Share
+                      <strong className="inline-flex items-center gap-1 text-[#0D1830] dark:text-[#F1F5F9]">
+                        <Share className="w-3.5 h-3.5 text-[#1D4ED8] dark:text-[#60A5FA]" /> Share
                       </strong>{' '}
                       ခလုတ်ကို နှိပ်ပါ။
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] dark:bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                       ၂
                     </span>
                     <span>
                       အောက်သို့ဆွဲချပြီး{' '}
-                      <strong className="text-[#0D1830]">
+                      <strong className="text-[#0D1830] dark:text-[#F1F5F9]">
                         Add to Home Screen
                       </strong>{' '}
                       ကို ရွေးချယ်နှိပ်ပါ။
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] dark:bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                       ၃
                     </span>
                     <span>
-                      ညာဘက်အပေါ်ရှိ <strong className="text-[#0D1830]">Add</strong>{' '}
+                      ညာဘက်အပေါ်ရှိ <strong className="text-[#0D1830] dark:text-[#F1F5F9]">Add</strong>{' '}
                       ကို နှိပ်လိုက်ပါက ဖုန်း Home Screen ပေါ်တွင် App အဖြစ် ရောက်ရှိပါမည်။
                     </span>
                   </li>
@@ -183,32 +183,32 @@ export function PWAInstallButton({
               ) : (
                 <ol className="space-y-3">
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] dark:bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                       ၁
                     </span>
                     <span>
                       Chrome သို့မဟုတ် Edge Browser ညာဘက်အပေါ်ထောင့်ရှိ{' '}
-                      <strong className="inline-flex items-center gap-0.5 text-[#0D1830]">
-                        <MoreVertical className="w-3.5 h-3.5 text-[#1D4ED8]" />{' '}
+                      <strong className="inline-flex items-center gap-0.5 text-[#0D1830] dark:text-[#F1F5F9]">
+                        <MoreVertical className="w-3.5 h-3.5 text-[#1D4ED8] dark:text-[#60A5FA]" />{' '}
                         Menu (⋮)
                       </strong>{' '}
                       ကို နှိပ်ပါ။
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="w-6 h-6 rounded-full bg-[#1E3A8A] dark:bg-[#2563EB] text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
                       ၂
                     </span>
                     <span>
-                      <strong className="text-[#0D1830]">
+                      <strong className="text-[#0D1830] dark:text-[#F1F5F9]">
                         Install app
                       </strong>{' '}
                       သို့မဟုတ်{' '}
-                      <strong className="text-[#0D1830]">
+                      <strong className="text-[#0D1830] dark:text-[#F1F5F9]">
                         Add to Home screen
                       </strong>{' '}
                       ကို နှိပ်၍{' '}
-                      <strong className="text-[#0D1830]">Install</strong>{' '}
+                      <strong className="text-[#0D1830] dark:text-[#F1F5F9]">Install</strong>{' '}
                       အတည်ပြုပါ။
                     </span>
                   </li>
@@ -218,7 +218,7 @@ export function PWAInstallButton({
               <button
                 type="button"
                 onClick={() => setGuideOpen(false)}
-                className="w-full py-2.5 rounded-lg bg-[#0D1830] text-white text-sm font-semibold hover:bg-[#17284E] transition-colors"
+                className="w-full py-2.5 rounded-lg bg-[#0D1830] dark:bg-[#2563EB] text-white text-sm font-semibold hover:bg-[#17284E] dark:hover:bg-[#3B82F6] transition-colors"
               >
                 နားလည်ပါပြီ
               </button>

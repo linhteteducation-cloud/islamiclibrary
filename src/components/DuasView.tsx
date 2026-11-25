@@ -90,8 +90,8 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                     onClick={() => setSelectedCat(cat)}
                     className={`min-h-[40px] px-3.5 py-1.5 rounded-lg text-xs sm:text-[13px] font-medium whitespace-nowrap shrink-0 transition-colors ${
                       active
-                        ? 'bg-[#1E3A8A] text-white font-semibold'
-                        : 'bg-white border border-[#E2E6EE] text-[#334155] hover:bg-[#EFF3FA]'
+                        ? 'bg-[#1E3A8A] dark:bg-[#2563EB] text-white font-semibold'
+                        : 'bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] text-[#334155] dark:text-[#CBD5E1] hover:bg-[#EFF3FA] dark:hover:bg-[#131E36]'
                     }`}
                   >
                     {cat}
@@ -101,12 +101,12 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
             </div>
 
             {visibleDuas.length === 0 ? (
-              <div className="bg-white border border-[#E2E6EE] rounded-xl p-10 text-center space-y-2">
-                <HeartHandshake className="w-9 h-9 text-[#64748B] mx-auto" />
-                <p className="text-base font-semibold text-[#131B2E]">
+              <div className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl p-10 text-center space-y-2">
+                <HeartHandshake className="w-9 h-9 text-[#64748B] dark:text-[#94A3B8] mx-auto" />
+                <p className="text-base font-semibold text-[#131B2E] dark:text-[#F1F5F9]">
                   ဒိုအာများ မထည့်သွင်းရသေးပါ
                 </p>
-                <p className="text-sm text-[#525E75]">
+                <p className="text-sm text-[#525E75] dark:text-[#94A3B8]">
                   Admin Panel မှတစ်ဆင့် ဒိုအာအသစ်များ ထည့်သွင်းနိုင်ပါသည်။
                 </p>
               </div>
@@ -115,15 +115,15 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                 {visibleDuas.map((dua) => (
                   <article
                     key={dua.id}
-                    className="bg-white border border-[#E2E6EE] rounded-xl p-5 sm:p-6 space-y-4"
+                    className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-4"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold text-[#B85338] mb-1">
+                        <p className="text-xs font-semibold text-[#B85338] dark:text-[#F0947A] mb-1">
                           {dua.categoryMy}
                           {dua.source ? ` · ${dua.source}` : ''}
                         </p>
-                        <h2 className="text-base sm:text-lg font-bold text-[#131B2E]">
+                        <h2 className="text-base sm:text-lg font-bold text-[#131B2E] dark:text-[#F1F5F9]">
                           {dua.titleMy}
                         </h2>
                       </div>
@@ -131,7 +131,7 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                       <button
                         type="button"
                         onClick={() => handleCopyArabic(dua)}
-                        className="min-h-[40px] px-3.5 py-1.5 rounded-lg border border-[#D4DBE8] bg-[#F6F7FA] hover:bg-[#EFF3FA] text-xs font-semibold text-[#1E3A8A] inline-flex items-center gap-1.5 transition-colors shrink-0"
+                        className="min-h-[40px] px-3.5 py-1.5 rounded-lg border border-[#D4DBE8] dark:border-[#263759] bg-[#F6F7FA] dark:bg-[#131E36] hover:bg-[#EFF3FA] dark:hover:bg-[#1A2A4A] text-xs font-semibold text-[#1E3A8A] dark:text-[#93C5FD] inline-flex items-center gap-1.5 transition-colors shrink-0"
                       >
                         {copiedId === dua.id ? (
                           <>
@@ -149,22 +149,22 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
 
                     <div
                       dir="rtl"
-                      className="bg-[#F8F9FC] border border-[#E2E6EE] rounded-xl px-5 py-5 text-right font-[Amiri] text-2xl sm:text-[28px] leading-[2.1] text-[#0F2357]"
+                      className="bg-[#F8F9FC] dark:bg-[#091020] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl px-5 py-5 text-right font-[Amiri] text-2xl sm:text-[28px] leading-[2.1] text-[#0F2357] dark:text-[#F3DFB1]"
                     >
                       {dua.arabic}
                     </div>
 
                     <div className="space-y-2 text-sm">
                       {dua.transliteration && (
-                        <p className="text-[#525E75] italic">
-                          <span className="font-semibold not-italic text-[#131B2E]">
+                        <p className="text-[#525E75] dark:text-[#94A3B8] italic">
+                          <span className="font-semibold not-italic text-[#131B2E] dark:text-[#E2E8F0]">
                             အသံထွက် —{' '}
                           </span>
                           {dua.transliteration}
                         </p>
                       )}
-                      <p className="text-[#1E293B] leading-[1.85]">
-                        <span className="font-semibold text-[#1E3A8A]">
+                      <p className="text-[#1E293B] dark:text-[#CBD5E1] leading-[1.85]">
+                        <span className="font-semibold text-[#1E3A8A] dark:text-[#93C5FD]">
                           အနက်အဓိပ္ပာယ် —{' '}
                         </span>
                         {dua.meaningMy}
@@ -177,24 +177,24 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
           </div>
 
           <aside className="lg:col-span-4 lg:sticky lg:top-20">
-            <div className="bg-white border border-[#E2E6EE] rounded-xl p-5 sm:p-6 space-y-5">
-              <div className="flex items-center justify-between border-b border-[#EFF2F7] pb-3.5">
+            <div className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-5">
+              <div className="flex items-center justify-between border-b border-[#EFF2F7] dark:border-[#1E2C4A] pb-3.5">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#B85338]" />
-                  <h3 className="text-base font-bold text-[#131B2E]">
+                  <Sparkles className="w-4 h-4 text-[#B85338] dark:text-[#F0947A]" />
+                  <h3 className="text-base font-bold text-[#131B2E] dark:text-[#F1F5F9]">
                     တစ်စဗီဟ် (ဇိကိရ် မှတ်တမ်း)
                   </h3>
                 </div>
-                <div className="flex items-center gap-1 bg-[#EFF2F7] p-0.5 rounded-md">
+                <div className="flex items-center gap-1 bg-[#EFF2F7] dark:bg-[#131E36] p-0.5 rounded-md">
                   {([33, 99] as const).map((t) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setTasbihTarget(t)}
-                      className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums ${
+                      className={`px-2.5 py-1 text-xs font-semibold rounded tabular-nums transition-colors ${
                         tasbihTarget === t
-                          ? 'bg-white text-[#1E3A8A] shadow-xs'
-                          : 'text-[#525E75]'
+                          ? 'bg-white dark:bg-[#2563EB] text-[#1E3A8A] dark:text-white shadow-xs'
+                          : 'text-[#525E75] dark:text-[#94A3B8]'
                       }`}
                     >
                       {t}
@@ -214,8 +214,8 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                     }}
                     className={`py-2 px-2 rounded-lg text-center border transition-colors ${
                       dhikrIdx === idx
-                        ? 'bg-[#EFF3FA] border-[#1E3A8A]/40 text-[#1E3A8A]'
-                        : 'bg-[#F8F9FC] border-[#E2E6EE] text-[#475569]'
+                        ? 'bg-[#EFF3FA] dark:bg-[#1A2A4A] border-[#1E3A8A]/40 dark:border-[#60A5FA]/50 text-[#1E3A8A] dark:text-[#93C5FD]'
+                        : 'bg-[#F8F9FC] dark:bg-[#091020] border-[#E2E6EE] dark:border-[#1E2C4A] text-[#475569] dark:text-[#CBD5E1]'
                     }`}
                   >
                     <span className="font-[Amiri] text-base block leading-tight">
@@ -228,11 +228,11 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
               <div className="text-center py-3">
                 <p
                   dir="rtl"
-                  className="font-[Amiri] text-3xl text-[#1E3A8A] mb-2"
+                  className="font-[Amiri] text-3xl text-[#1E3A8A] dark:text-[#F3DFB1] mb-2"
                 >
                   {activeDhikr.ar}
                 </p>
-                <p className="text-xs text-[#525E75] leading-relaxed mb-5">
+                <p className="text-xs text-[#525E75] dark:text-[#94A3B8] leading-relaxed mb-5">
                   {activeDhikr.my}
                 </p>
 
@@ -241,7 +241,7 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                   onClick={() =>
                     setTasbihCount((c) => (c >= tasbihTarget ? 1 : c + 1))
                   }
-                  className="w-36 h-36 mx-auto rounded-full bg-[#1E3A8A] hover:bg-[#172D6B] active:scale-[0.97] text-white shadow-md flex flex-col items-center justify-center transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-[#93C5FD]"
+                  className="w-36 h-36 mx-auto rounded-full bg-[#1E3A8A] dark:bg-[#2563EB] hover:bg-[#172D6B] dark:hover:bg-[#3B82F6] active:scale-[0.97] text-white shadow-md flex flex-col items-center justify-center transition-all focus:outline-none focus-visible:ring-4 focus-visible:ring-[#93C5FD]"
                 >
                   <span className="text-4xl font-bold tabular-nums">
                     {tasbihCount}
@@ -252,8 +252,8 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                 </button>
               </div>
 
-              <div className="flex items-center justify-between pt-3 border-t border-[#EFF2F7]">
-                <span className="text-xs text-[#525E75]">
+              <div className="flex items-center justify-between pt-3 border-t border-[#EFF2F7] dark:border-[#1E2C4A]">
+                <span className="text-xs text-[#525E75] dark:text-[#94A3B8]">
                   {tasbihCount === tasbihTarget
                     ? 'သတ်မှတ်အကြိမ်ရေ ပြည့်မြောက်ပါပြီ'
                     : 'နှိပ်၍ ဇိကိရ်ပွားများပါ'}
@@ -261,7 +261,7 @@ export function DuasView({duas}: {duas: DuaItem[]}) {
                 <button
                   type="button"
                   onClick={() => setTasbihCount(0)}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#525E75] hover:text-[#1E3A8A] py-1 px-2 rounded-md hover:bg-[#EFF3FA]"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-[#525E75] dark:text-[#94A3B8] hover:text-[#1E3A8A] dark:hover:text-[#93C5FD] py-1 px-2 rounded-md hover:bg-[#EFF3FA] dark:hover:bg-[#131E36]"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>ပြန်စရန်</span>

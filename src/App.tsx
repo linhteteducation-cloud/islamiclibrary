@@ -22,6 +22,7 @@ import {
   DEFAULT_SITE_SETTINGS,
   mergeCategories,
 } from './data/libraryData';
+import {useTheme} from './hooks/useTheme';
 import {
   checkIsAdminUser,
   initFirebaseAuth,
@@ -140,6 +141,7 @@ function upsertHeadMeta(
 }
 
 export default function App() {
+  useTheme();
   const initialUrlState = parseInitialRouteFromUrl();
   const [currentPage, setCurrentPage] = useState<PageRoute>(initialUrlState.page);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>(
@@ -540,7 +542,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F6F7FA] text-[#131B2E]">
+    <div className="min-h-screen flex flex-col bg-[#F6F7FA] dark:bg-[#060B17] text-[#131B2E] dark:text-[#F1F5F9] transition-colors duration-150">
       <Navbar
         currentPage={currentPage}
         onNavigate={handleNavigate}

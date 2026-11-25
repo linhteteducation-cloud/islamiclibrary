@@ -232,15 +232,15 @@ export function CategoryManagerModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="category-manager-title"
-      className="fixed inset-0 z-50 bg-[#0D1830]/70 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 lg:p-6"
+      className="fixed inset-0 z-50 bg-[#0D1830]/70 dark:bg-black/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 lg:p-6"
       onClick={onClose}
     >
       <div
-        className="bg-white w-full max-w-4xl h-[92vh] sm:h-[88vh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-[#E2E6EE] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-[#0D1526] w-full max-w-4xl h-[92vh] sm:h-[88vh] rounded-t-2xl sm:rounded-2xl shadow-2xl border border-[#E2E6EE] dark:border-[#1E2C4A] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-4 sm:px-6 py-4 bg-[#0D1830] text-white flex items-center justify-between gap-3 shrink-0">
+        <div className="px-4 sm:px-6 py-4 bg-[#0D1830] dark:bg-[#070E1E] border-b border-transparent dark:border-[#1E2C4A] text-white flex items-center justify-between gap-3 shrink-0">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold tracking-wider uppercase text-[#93C5FD]">
               Admin Category Customizer
@@ -265,13 +265,13 @@ export function CategoryManagerModal({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#F6F7FA]">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#F6F7FA] dark:bg-[#060B17]">
           {feedback && (
             <div
               className={`rounded-xl border px-4 py-3 text-xs sm:text-sm font-medium flex items-center justify-between gap-3 ${
                 feedback.type === 'success'
-                  ? 'bg-[#EFF3FA] border-[#1E3A8A]/30 text-[#1E3A8A]'
-                  : 'bg-red-50 border-red-200 text-red-700'
+                  ? 'bg-[#EFF3FA] dark:bg-[#131E36] border-[#1E3A8A]/30 dark:border-[#60A5FA]/40 text-[#1E3A8A] dark:text-[#93C5FD]'
+                  : 'bg-red-50 dark:bg-red-950/60 border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300'
               }`}
             >
               <span>{feedback.text}</span>
@@ -288,18 +288,18 @@ export function CategoryManagerModal({
           {/* Section 1: Add New Category */}
           <form
             onSubmit={handleAddCategory}
-            className="bg-white border border-[#E2E6EE] rounded-xl p-4 sm:p-5 space-y-4"
+            className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl p-4 sm:p-5 space-y-4"
           >
-            <div className="flex items-center gap-2 border-b border-[#EFF2F7] pb-3">
-              <Plus className="w-4 h-4 text-[#1E3A8A]" />
-              <h3 className="text-sm sm:text-base font-bold text-[#131B2E]">
+            <div className="flex items-center gap-2 border-b border-[#EFF2F7] dark:border-[#1E2C4A] pb-3">
+              <Plus className="w-4 h-4 text-[#1E3A8A] dark:text-[#60A5FA]" />
+              <h3 className="text-sm sm:text-base font-bold text-[#131B2E] dark:text-[#F1F5F9]">
                 Category အသစ် ထပ်ခွဲထည့်သွင်းရန်
               </h3>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <label className="block text-xs font-semibold text-[#334155] mb-1">
+                <label className="block text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                   မြန်မာကဏ္ဍအမည် (Myanmar Name) *
                 </label>
                 <input
@@ -309,12 +309,12 @@ export function CategoryManagerModal({
                   onChange={(e) => setNewNameMy(e.target.value)}
                   maxLength={120}
                   placeholder="ဥပမာ - စီရသ် (တမန်တော်မြတ်အတ္ထုပ္ပတ္တိ)"
-                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg text-[#131B2E] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:bg-white"
+                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] dark:focus:ring-[#60A5FA] focus:bg-white dark:focus:bg-[#131E36]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#334155] mb-1">
+                <label className="block text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                   အင်္ဂလိပ်အမည် (English Name - Optional)
                 </label>
                 <input
@@ -323,13 +323,13 @@ export function CategoryManagerModal({
                   onChange={(e) => setNewNameEn(e.target.value)}
                   maxLength={120}
                   placeholder="e.g., Seerah & Biography"
-                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg text-[#131B2E] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:bg-white"
+                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] dark:focus:ring-[#60A5FA] focus:bg-white dark:focus:bg-[#131E36]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-[#334155] mb-1">
+              <label className="block text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                 ကဏ္ဍအကြောင်းအရာ အကျဉ်း (Description - Optional)
               </label>
               <input
@@ -338,12 +338,12 @@ export function CategoryManagerModal({
                 onChange={(e) => setNewDescription(e.target.value)}
                 maxLength={400}
                 placeholder="ဤကဏ္ဍအောက်ရှိ စာအုပ်များအကြောင်း အကျဉ်းချုပ်..."
-                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg text-[#131B2E] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] focus:bg-white"
+                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] focus:outline-none focus:ring-2 focus:ring-[#1E3A8A] dark:focus:ring-[#60A5FA] focus:bg-white dark:focus:bg-[#131E36]"
               />
             </div>
 
             <div>
-              <span className="block text-xs font-semibold text-[#334155] mb-2">
+              <span className="block text-xs font-semibold text-[#334155] dark:text-[#CBD5E1] mb-2">
                 အိုင်ကွန်ရွေးချယ်ရန် (Icon)
               </span>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -356,8 +356,8 @@ export function CategoryManagerModal({
                       onClick={() => setNewIcon(opt.id)}
                       className={`min-h-[40px] px-2.5 py-2 rounded-lg border text-xs font-medium flex items-center gap-2 transition-colors ${
                         selected
-                          ? 'bg-[#1E3A8A] border-[#1E3A8A] text-white'
-                          : 'bg-[#F6F7FA] border-[#D4DBE8] text-[#334155] hover:bg-[#EFF3FA]'
+                          ? 'bg-[#1E3A8A] dark:bg-[#2563EB] border-[#1E3A8A] dark:border-[#2563EB] text-white'
+                          : 'bg-[#F6F7FA] dark:bg-[#131E36] border-[#D4DBE8] dark:border-[#263759] text-[#334155] dark:text-[#CBD5E1] hover:bg-[#EFF3FA] dark:hover:bg-[#1A2A4A]'
                       }`}
                     >
                       <CategoryIcon name={opt.id} className="w-4 h-4 shrink-0" />
@@ -372,7 +372,7 @@ export function CategoryManagerModal({
               <button
                 type="submit"
                 disabled={isAdding}
-                className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+                className="min-h-[42px] px-5 py-2 rounded-lg bg-[#1E3A8A] dark:bg-[#2563EB] hover:bg-[#172D6B] dark:hover:bg-[#3B82F6] disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
               >
                 {isAdding ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -385,13 +385,13 @@ export function CategoryManagerModal({
           </form>
 
           {/* Section 2: Existing & Custom Categories List */}
-          <div className="bg-white border border-[#E2E6EE] rounded-xl p-4 sm:p-5 space-y-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EFF2F7] pb-3">
+          <div className="bg-white dark:bg-[#0D1526] border border-[#E2E6EE] dark:border-[#1E2C4A] rounded-xl p-4 sm:p-5 space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EFF2F7] dark:border-[#1E2C4A] pb-3">
               <div>
-                <h3 className="text-sm sm:text-base font-bold text-[#131B2E]">
+                <h3 className="text-sm sm:text-base font-bold text-[#131B2E] dark:text-[#F1F5F9]">
                   ရှိပြီးသား Category များ Customize လုပ်ရန် ({categories.length})
                 </h3>
-                <p className="text-xs text-[#525E75]">
+                <p className="text-xs text-[#525E75] dark:text-[#94A3B8]">
                   ကဏ္ဍအမည်၊ အိုင်ကွန်၊ ရှင်းလင်းချက်နှင့် ပြသ/ဖျောက်မှုများကို စိတ်ကြိုက်ပြင်ဆင်နိုင်ပါသည်။
                 </p>
               </div>
@@ -409,8 +409,8 @@ export function CategoryManagerModal({
                     key={cat.id}
                     className={`rounded-xl border p-3.5 transition-colors ${
                       isHidden
-                        ? 'bg-[#F8F9FC] border-[#E2E6EE] opacity-80'
-                        : 'bg-white border-[#E2E6EE]'
+                        ? 'bg-[#F8F9FC] dark:bg-[#091020] border-[#E2E6EE] dark:border-[#1E2C4A] opacity-80'
+                        : 'bg-white dark:bg-[#0B1221] border-[#E2E6EE] dark:border-[#1E2C4A]'
                     }`}
                   >
                     {isEditingThis ? (
@@ -420,7 +420,7 @@ export function CategoryManagerModal({
                       >
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[11.5px] font-semibold text-[#334155] mb-1">
+                            <label className="block text-[11.5px] font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                               မြန်မာအမည် *
                             </label>
                             <input
@@ -429,11 +429,11 @@ export function CategoryManagerModal({
                               value={editNameMy}
                               onChange={(e) => setEditNameMy(e.target.value)}
                               maxLength={120}
-                              className="w-full min-h-[40px] px-3 py-1.5 text-sm bg-[#F6F7FA] border border-[#1E3A8A] rounded-lg"
+                              className="w-full min-h-[40px] px-3 py-1.5 text-sm bg-[#F6F7FA] dark:bg-[#131E36] border border-[#1E3A8A] dark:border-[#60A5FA] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11.5px] font-semibold text-[#334155] mb-1">
+                            <label className="block text-[11.5px] font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                               အင်္ဂလိပ်အမည်
                             </label>
                             <input
@@ -441,14 +441,14 @@ export function CategoryManagerModal({
                               value={editNameEn}
                               onChange={(e) => setEditNameEn(e.target.value)}
                               maxLength={120}
-                              className="w-full min-h-[40px] px-3 py-1.5 text-sm bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg"
+                              className="w-full min-h-[40px] px-3 py-1.5 text-sm bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                             />
                           </div>
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                           <div className="sm:col-span-3">
-                            <label className="block text-[11.5px] font-semibold text-[#334155] mb-1">
+                            <label className="block text-[11.5px] font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                               ရှင်းလင်းချက်
                             </label>
                             <input
@@ -458,11 +458,11 @@ export function CategoryManagerModal({
                                 setEditDescription(e.target.value)
                               }
                               maxLength={400}
-                              className="w-full min-h-[40px] px-3 py-1.5 text-sm bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg"
+                              className="w-full min-h-[40px] px-3 py-1.5 text-sm bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11.5px] font-semibold text-[#334155] mb-1">
+                            <label className="block text-[11.5px] font-semibold text-[#334155] dark:text-[#CBD5E1] mb-1">
                               အိုင်ကွန်
                             </label>
                             <select
@@ -470,7 +470,7 @@ export function CategoryManagerModal({
                               onChange={(e) =>
                                 setEditIcon(e.target.value as CategoryIconName)
                               }
-                              className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F6F7FA] border border-[#D4DBE8] rounded-lg"
+                              className="w-full min-h-[40px] px-2.5 py-1.5 text-xs bg-[#F6F7FA] dark:bg-[#131E36] border border-[#D4DBE8] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9]"
                             >
                               {CATEGORY_ICON_OPTIONS.map((opt) => (
                                 <option key={opt.id} value={opt.id}>
@@ -485,7 +485,7 @@ export function CategoryManagerModal({
                           <button
                             type="submit"
                             disabled={isSavingEdit}
-                            className="min-h-[38px] px-4 py-1.5 rounded-lg bg-[#1E3A8A] hover:bg-[#172D6B] text-white text-xs font-semibold inline-flex items-center gap-1.5"
+                            className="min-h-[38px] px-4 py-1.5 rounded-lg bg-[#1E3A8A] dark:bg-[#2563EB] hover:bg-[#172D6B] dark:hover:bg-[#3B82F6] text-white text-xs font-semibold inline-flex items-center gap-1.5"
                           >
                             {isSavingEdit ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -498,7 +498,7 @@ export function CategoryManagerModal({
                           <button
                             type="button"
                             onClick={() => setEditingId(null)}
-                            className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DBE8] bg-[#F6F7FA] hover:bg-[#EFF3FA] text-[#334155] text-xs font-medium"
+                            className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DBE8] dark:border-[#263759] bg-[#F6F7FA] dark:bg-[#131E36] hover:bg-[#EFF3FA] dark:hover:bg-[#1A2A4A] text-[#334155] dark:text-[#CBD5E1] text-xs font-medium"
                           >
                             မလုပ်တော့ပါ
                           </button>
@@ -507,7 +507,7 @@ export function CategoryManagerModal({
                     ) : (
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-start gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-lg bg-[#EFF3FA] text-[#1E3A8A] flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-[#EFF3FA] dark:bg-[#131E36] text-[#1E3A8A] dark:text-[#60A5FA] flex items-center justify-center shrink-0">
                             <CategoryIcon
                               name={cat.iconName}
                               className="w-5 h-5"
@@ -515,33 +515,33 @@ export function CategoryManagerModal({
                           </div>
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
-                              <h4 className="text-sm font-bold text-[#131B2E] truncate">
+                              <h4 className="text-sm font-bold text-[#131B2E] dark:text-[#F1F5F9] truncate">
                                 {cat.nameMy}
                               </h4>
                               {cat.isCustom && (
-                                <span className="text-[11px] font-semibold text-[#1E3A8A] bg-[#EFF3FA] px-2 py-0.5 rounded">
+                                <span className="text-[11px] font-semibold text-[#1E3A8A] dark:text-[#93C5FD] bg-[#EFF3FA] dark:bg-[#131E36] px-2 py-0.5 rounded">
                                   အသစ်ထပ်ခွဲထားမှု
                                 </span>
                               )}
                               {cat.isOverridden && (
-                                <span className="text-[11px] font-semibold text-[#B85338] bg-[#B85338]/10 px-2 py-0.5 rounded">
+                                <span className="text-[11px] font-semibold text-[#B85338] dark:text-[#F0947A] bg-[#B85338]/10 dark:bg-[#B85338]/20 px-2 py-0.5 rounded">
                                   Customize ပြီး
                                 </span>
                               )}
                               {isHidden && (
-                                <span className="text-[11px] font-semibold text-[#64748B] bg-[#EFF2F7] px-2 py-0.5 rounded">
+                                <span className="text-[11px] font-semibold text-[#64748B] dark:text-[#94A3B8] bg-[#EFF2F7] dark:bg-[#131E36] px-2 py-0.5 rounded">
                                   ဖျောက်ထားသည်
                                 </span>
                               )}
                             </div>
-                            <p className="text-xs text-[#525E75] truncate">
+                            <p className="text-xs text-[#525E75] dark:text-[#94A3B8] truncate">
                               {cat.nameEn || cat.id}
                               {cat.id !== 'videos' && (
                                 <> · စာအုပ် {bookCount} အုပ်</>
                               )}
                             </p>
                             {cat.descriptionMy && (
-                              <p className="text-xs text-[#64748B] line-clamp-1 mt-0.5">
+                              <p className="text-xs text-[#64748B] dark:text-[#94A3B8] line-clamp-1 mt-0.5">
                                 {cat.descriptionMy}
                               </p>
                             )}
@@ -552,7 +552,7 @@ export function CategoryManagerModal({
                           <button
                             type="button"
                             onClick={() => startEdit(cat, idx)}
-                            className="min-h-[36px] px-3 py-1.5 rounded-lg border border-[#D4DBE8] bg-[#F6F7FA] hover:bg-[#EFF3FA] text-[#1E3A8A] text-xs font-semibold inline-flex items-center gap-1.5"
+                            className="min-h-[36px] px-3 py-1.5 rounded-lg border border-[#D4DBE8] dark:border-[#263759] bg-[#F6F7FA] dark:bg-[#131E36] hover:bg-[#EFF3FA] dark:hover:bg-[#1A2A4A] text-[#1E3A8A] dark:text-[#93C5FD] text-xs font-semibold inline-flex items-center gap-1.5"
                           >
                             <Pencil className="w-3.5 h-3.5" />
                             <span>ပြင်ရန်</span>
@@ -564,8 +564,8 @@ export function CategoryManagerModal({
                             onClick={() => void handleToggleVisibility(cat.id)}
                             className={`min-h-[36px] px-3 py-1.5 rounded-lg border text-xs font-semibold inline-flex items-center gap-1.5 transition-colors ${
                               isHidden
-                                ? 'border-[#1E3A8A]/30 bg-[#EFF3FA] text-[#1E3A8A] hover:bg-[#E0E8F9]'
-                                : 'border-[#D4DBE8] bg-white text-[#334155] hover:bg-[#F6F7FA]'
+                                ? 'border-[#1E3A8A]/30 dark:border-[#60A5FA]/40 bg-[#EFF3FA] dark:bg-[#131E36] text-[#1E3A8A] dark:text-[#93C5FD] hover:bg-[#E0E8F9] dark:hover:bg-[#1A2A4A]'
+                                : 'border-[#D4DBE8] dark:border-[#263759] bg-white dark:bg-[#0D1526] text-[#334155] dark:text-[#CBD5E1] hover:bg-[#F6F7FA] dark:hover:bg-[#131E36]'
                             }`}
                           >
                             {isHidden ? (
@@ -595,7 +595,7 @@ export function CategoryManagerModal({
                                 <button
                                   type="button"
                                   onClick={() => setConfirmDeleteId(null)}
-                                  className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[#D4DBE8] text-xs text-[#525E75]"
+                                  className="min-h-[36px] px-2.5 py-1.5 rounded-lg border border-[#D4DBE8] dark:border-[#263759] text-xs text-[#525E75] dark:text-[#94A3B8]"
                                 >
                                   မဖျက်တော့ပါ
                                 </button>
@@ -604,7 +604,7 @@ export function CategoryManagerModal({
                               <button
                                 type="button"
                                 onClick={() => setConfirmDeleteId(cat.id)}
-                                className="min-h-[36px] px-3 py-1.5 rounded-lg border border-red-200 bg-red-50/70 hover:bg-red-100 text-red-700 text-xs font-semibold inline-flex items-center gap-1.5"
+                                className="min-h-[36px] px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-red-50/70 dark:bg-red-950/50 hover:bg-red-100 dark:hover:bg-red-950/80 text-red-700 dark:text-red-300 text-xs font-semibold inline-flex items-center gap-1.5"
                               >
                                 {cat.isCustom ? (
                                   <>

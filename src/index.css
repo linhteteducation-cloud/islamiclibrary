@@ -1,19 +1,36 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "PaOhMyanmarPyum";
+  src: url("/fonts/PaOhMyanmarPyum.ttf") format("truetype");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC;
+}
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", "Noto Sans Myanmar", system-ui, sans-serif;
-  --font-serif: "Playfair Display", "Noto Serif Myanmar", Georgia, serif;
-  --font-myanmar: "Noto Sans Myanmar", "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-myanmar-serif: "Noto Serif Myanmar", "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "PaOhMyanmarPyum", "Noto Sans Myanmar", system-ui, sans-serif;
+  --font-serif: "Playfair Display", "PaOhMyanmarPyum", "Noto Serif Myanmar", Georgia, serif;
+  --font-myanmar: "PaOhMyanmarPyum", "Noto Sans Myanmar", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-myanmar-serif: "PaOhMyanmarPyum", "Noto Serif Myanmar", "Playfair Display", Georgia, serif;
   --font-arabic: "Amiri", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Editorial Deep Lapis Blue + Alabaster Paper + Curatorial 2027 Key Accents */
+  /* Editorial Deep Lapis Blue + Alabaster Paper + High-Contrast Night Palette */
   --color-canvas: #F6F7FA;
   --color-surface: #FFFFFF;
   --color-surface-muted: #EFF2F7;
   --color-ink: #131B2E;
   --color-ink-muted: #525E75;
+
+  --color-night-canvas: #060B17;
+  --color-night-surface: #0D1526;
+  --color-night-elevated: #131E36;
+  --color-night-border: #1E2C4A;
+  --color-night-ink: #F1F5F9;
+  --color-night-ink-muted: #94A3B8;
 
   --color-navy-deep: #0D1830;
   --color-lapis-primary: #1E3A8A;
@@ -30,7 +47,14 @@
     font-family: var(--font-sans);
     background-color: #F6F7FA;
     color: #131B2E;
+    color-scheme: light;
     text-rendering: optimizeLegibility;
+  }
+
+  html.dark {
+    background-color: #060B17;
+    color: #F1F5F9;
+    color-scheme: dark;
   }
 
   /* Deep Midnight Lapis Blue editorial banner surface */
@@ -40,6 +64,14 @@
       radial-gradient(circle at 82% 20%, rgba(37, 99, 235, 0.22) 0%, transparent 48%),
       radial-gradient(circle at 18% 85%, rgba(184, 83, 56, 0.16) 0%, transparent 45%),
       linear-gradient(135deg, #0A1326 0%, #12244D 55%, #173066 100%);
+  }
+
+  html.dark .islamic-lattice-bg {
+    background-color: #070D1C;
+    background-image:
+      radial-gradient(circle at 82% 20%, rgba(59, 130, 246, 0.16) 0%, transparent 48%),
+      radial-gradient(circle at 18% 85%, rgba(226, 199, 146, 0.08) 0%, transparent 45%),
+      linear-gradient(135deg, #040812 0%, #0A142B 55%, #0F1E40 100%);
   }
 
   .islamic-pattern-overlay {
@@ -60,13 +92,25 @@
   background: #EFF2F7;
 }
 
+html.dark ::-webkit-scrollbar-track {
+  background: #0B1222;
+}
+
 ::-webkit-scrollbar-thumb {
   background: rgba(30, 58, 138, 0.25);
   border-radius: 4px;
 }
 
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgba(147, 197, 253, 0.28);
+}
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(30, 58, 138, 0.45);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 197, 253, 0.48);
 }
 
 @media (prefers-reduced-motion: reduce) {
