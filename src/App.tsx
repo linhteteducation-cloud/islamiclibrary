@@ -502,6 +502,29 @@ export default function App() {
     });
   };
 
+  const handleUpdateBookDetails = async (
+    bookId: string,
+    newTitle: string,
+    categoryId: BookCategoryId,
+  ) => {
+    if (!isAdmin) {
+      throw new Error('Admin အကောင့်ဖြင့် ချိတ်ဆက်ထားမှသာ ပြင်ဆင်နိုင်ပါမည်။');
+    }
+    const cleanedTitle = newTitle.trim().slice(0, 240);
+    if (!cleanedTitle) {
+      throw new Error('စာအုပ်အမည် ထည့်သွင်းပါ။');
+    }
+    const cat = mergedCategories.find((c) => c.id === categoryId);
+    if (!cat || cat.id === 'videos') {
+      throw new Error('မှန်ကန်သော Category ကို ရွေးချယ်ပါ။');
+    }
+    await updateBookRecord(bookId, {
+      title: cleanedTitle,
+      categoryId: cat.id as BookCategoryId,
+      categoryLabel: cat.nameMy,
+    });
+  };
+
   const handleSaveCategory = async (payload: {
     id: string;
     nameMy: string;
@@ -560,6 +583,7 @@ export default function App() {
             onOpenBook={handleOpenBook}
             isAdmin={isAdmin}
             onRenameBook={handleRenameBook}
+            onUpdateBookDetails={handleUpdateBookDetails}
             onOpenCategoryManager={() => setCategoryManagerOpen(true)}
           />
         )}
@@ -577,6 +601,7 @@ export default function App() {
             onToggleBookmark={handleToggleBookmark}
             isAdmin={isAdmin}
             onRenameBook={handleRenameBook}
+            onUpdateBookDetails={handleUpdateBookDetails}
             onOpenCategoryManager={() => setCategoryManagerOpen(true)}
           />
         )}
@@ -622,6 +647,7 @@ export default function App() {
         categories={mergedCategories}
         onRenameBook={handleRenameBook}
         onChangeBookCategory={handleChangeBookCategory}
+        onUpdateBookDetails={handleUpdateBookDetails}
       />
 
       <CategoryManagerModal

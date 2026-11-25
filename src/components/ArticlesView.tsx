@@ -1,5 +1,6 @@
 import {useState} from 'react';
 import {ArrowRight, Newspaper, X} from 'lucide-react';
+import {getScriptFontClass} from '../lib/scriptFonts';
 import {ArticleItem} from '../types/library';
 
 export function ArticlesView({articles}: {articles: ArticleItem[]}) {
@@ -47,10 +48,14 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
                 <p className="text-xs font-semibold text-[#B85338] dark:text-[#F0947A] mb-1.5">
                   {article.kicker}
                 </p>
-                <h2 className="text-lg font-bold text-[#131B2E] dark:text-[#F1F5F9] leading-snug mb-2">
+                <h2
+                  className={`text-lg font-bold text-[#131B2E] dark:text-[#F1F5F9] leading-snug mb-2 ${getScriptFontClass(article.title)}`}
+                >
                   {article.title}
                 </h2>
-                <p className="text-sm text-[#475569] dark:text-[#CBD5E1] leading-[1.8] mb-5 flex-1">
+                <p
+                  className={`text-sm text-[#475569] dark:text-[#CBD5E1] leading-[1.8] mb-5 flex-1 ${getScriptFontClass(article.excerpt)}`}
+                >
                   {article.excerpt}
                 </p>
                 <div className="pt-4 border-t border-[#EFF2F7] dark:border-[#1E2C4A] flex items-center justify-between gap-3">
@@ -99,7 +104,9 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
               </button>
             </div>
             <div className="overflow-y-auto p-6 sm:p-8 space-y-5">
-              <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#131B2E] dark:text-[#F1F5F9] leading-snug">
+              <h2
+                className={`font-serif text-xl sm:text-2xl font-bold text-[#131B2E] dark:text-[#F1F5F9] leading-snug ${getScriptFontClass(activeArticle.title)}`}
+              >
                 {activeArticle.title}
               </h2>
               <p className="text-xs text-[#525E75] dark:text-[#94A3B8] pb-4 border-b border-[#EFF2F7] dark:border-[#1E2C4A]">
@@ -107,7 +114,9 @@ export function ArticlesView({articles}: {articles: ArticleItem[]}) {
                 {activeArticle.createdAtLabel ? ` · ${activeArticle.createdAtLabel}` : ''}
                 {activeArticle.readTime ? ` · ${activeArticle.readTime}` : ''}
               </p>
-              <div className="space-y-4 text-[15.5px] leading-[1.9] text-[#1E293B] dark:text-[#CBD5E1] max-w-prose whitespace-pre-line">
+              <div
+                className={`space-y-4 text-[15.5px] leading-[1.9] text-[#1E293B] dark:text-[#CBD5E1] max-w-prose whitespace-pre-line ${getScriptFontClass(activeArticle.body)}`}
+              >
                 {activeArticle.body}
               </div>
             </div>

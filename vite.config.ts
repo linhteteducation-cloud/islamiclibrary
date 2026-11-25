@@ -22,6 +22,8 @@ export default defineConfig(() => {
           'pwa-512x512.png',
           'pwa-maskable-512x512.png',
           'fonts/PaOhMyanmarPyum.ttf',
+          'fonts/Amiri-Regular.ttf',
+          'fonts/Amiri-Bold.ttf',
         ],
         manifest: {
           id: '/',
@@ -62,7 +64,7 @@ export default defineConfig(() => {
           disableDevLogs: true,
           maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
-          globIgnores: ['**/assets/aistudio/**'],
+          globIgnores: ['**/assets/aistudio/**', '**/fonts/JameelNooriNastaleeq.woff'],
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [
             /^\/api\//,
@@ -70,6 +72,20 @@ export default defineConfig(() => {
             /^\/sitemap\.xml$/,
           ],
           runtimeCaching: [
+            {
+              urlPattern: /\/fonts\/.*\.(?:woff2?|ttf)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'local-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
               handler: 'CacheFirst',

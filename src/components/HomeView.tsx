@@ -14,7 +14,9 @@ import {
   downloadBookDirectly,
   resolveBookDriveFileId,
 } from '../lib/directDownload';
+import {getScriptFontClass} from '../lib/scriptFonts';
 import {
+  BookCategoryId,
   BookItem,
   CategoryId,
   CategoryItem,
@@ -34,6 +36,11 @@ interface HomeViewProps {
   onOpenBook: (book: BookItem) => void;
   isAdmin?: boolean;
   onRenameBook?: (bookId: string, newTitle: string) => Promise<void>;
+  onUpdateBookDetails?: (
+    bookId: string,
+    newTitle: string,
+    categoryId: BookCategoryId,
+  ) => Promise<void>;
   onOpenCategoryManager?: () => void;
 }
 
@@ -46,6 +53,7 @@ export function HomeView({
   onOpenBook,
   isAdmin = false,
   onRenameBook,
+  onUpdateBookDetails,
   onOpenCategoryManager,
 }: HomeViewProps) {
   const [downloadingBookId, setDownloadingBookId] = useState<string | null>(
@@ -257,13 +265,31 @@ export function HomeView({
                     </p>
                     <BookTitleEditor
                       title={book.title}
-                      canEdit={Boolean(isAdmin && onRenameBook)}
-                      onSaveTitle={(nextTitle) =>
-                        onRenameBook!(book.id, nextTitle)
+                      categoryId={book.categoryId}
+                      categories={categories}
+                      canEdit={Boolean(
+                        isAdmin && (onUpdateBookDetails || onRenameBook),
+                      )}
+                      onSaveTitle={
+                        onRenameBook
+                          ? (nextTitle) => onRenameBook(book.id, nextTitle)
+                          : undefined
+                      }
+                      onSaveBookDetails={
+                        onUpdateBookDetails
+                          ? (nextTitle, nextCategoryId) =>
+                              onUpdateBookDetails(
+                                book.id,
+                                nextTitle,
+                                nextCategoryId,
+                              )
+                          : undefined
                       }
                     />
                     {book.author.trim() ? (
-                      <p className="text-xs text-[#525E75] dark:text-[#94A3B8] truncate mb-4">
+                      <p
+                        className={`text-xs text-[#525E75] dark:text-[#94A3B8] truncate mb-4 ${getScriptFontClass(book.author)}`}
+                      >
                         {book.author}
                       </p>
                     ) : (

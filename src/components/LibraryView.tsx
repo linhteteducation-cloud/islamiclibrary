@@ -24,7 +24,9 @@ import {
   removeRecentDownload,
   subscribeRecentDownloads,
 } from '../lib/recentDownloads';
+import {getScriptFontClass} from '../lib/scriptFonts';
 import {
+  BookCategoryId,
   BookItem,
   CategoryId,
   CategoryItem,
@@ -48,6 +50,11 @@ interface LibraryViewProps {
   onToggleBookmark: (bookId: string) => void;
   isAdmin?: boolean;
   onRenameBook?: (bookId: string, newTitle: string) => Promise<void>;
+  onUpdateBookDetails?: (
+    bookId: string,
+    newTitle: string,
+    categoryId: BookCategoryId,
+  ) => Promise<void>;
   onOpenCategoryManager?: () => void;
 }
 
@@ -72,6 +79,7 @@ export function LibraryView({
   onToggleBookmark,
   isAdmin = false,
   onRenameBook,
+  onUpdateBookDetails,
   onOpenCategoryManager,
 }: LibraryViewProps) {
   const [searchDraft, setSearchDraft] = useState('');
@@ -523,7 +531,7 @@ export function LibraryView({
                             type="button"
                             disabled={!liveBook}
                             onClick={() => liveBook && onOpenBook(liveBook)}
-                            className="block w-full text-left text-xs font-bold text-[#131B2E] dark:text-[#F1F5F9] hover:text-[#1E3A8A] dark:hover:text-[#93C5FD] disabled:hover:text-[#131B2E] dark:disabled:hover:text-[#F1F5F9] truncate"
+                            className={`block w-full text-left text-xs font-bold text-[#131B2E] dark:text-[#F1F5F9] hover:text-[#1E3A8A] dark:hover:text-[#93C5FD] disabled:hover:text-[#131B2E] dark:disabled:hover:text-[#F1F5F9] truncate ${getScriptFontClass(entry.title)}`}
                           >
                             {entry.title}
                           </button>
@@ -723,16 +731,36 @@ export function LibraryView({
 
                         <BookTitleEditor
                           title={book.title}
-                          canEdit={Boolean(isAdmin && onRenameBook)}
-                          onSaveTitle={(nextTitle) =>
-                            onRenameBook!(book.id, nextTitle)
+                          categoryId={book.categoryId}
+                          categories={categories}
+                          canEdit={Boolean(
+                            isAdmin && (onUpdateBookDetails || onRenameBook),
+                          )}
+                          onSaveTitle={
+                            onRenameBook
+                              ? (nextTitle) => onRenameBook(book.id, nextTitle)
+                              : undefined
+                          }
+                          onSaveBookDetails={
+                            onUpdateBookDetails
+                              ? (nextTitle, nextCategoryId) =>
+                                  onUpdateBookDetails(
+                                    book.id,
+                                    nextTitle,
+                                    nextCategoryId,
+                                  )
+                              : undefined
                           }
                         />
 
                         {book.author.trim() ? (
                           <p className="text-xs text-[#525E75] dark:text-[#94A3B8] flex items-center gap-1.5 truncate mb-4">
                             <User className="w-3.5 h-3.5 shrink-0 text-[#64748B] dark:text-[#94A3B8]" />
-                            <span className="truncate">{book.author}</span>
+                            <span
+                              className={`truncate ${getScriptFontClass(book.author)}`}
+                            >
+                              {book.author}
+                            </span>
                           </p>
                         ) : (
                           <div className="mb-3" />

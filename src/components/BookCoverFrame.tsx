@@ -1,6 +1,7 @@
 import {useEffect, useMemo, useState} from 'react';
 import {BookOpen} from 'lucide-react';
 import {buildDriveThumbnailUrls} from '../lib/googleDrive';
+import {getScriptFontClass} from '../lib/scriptFonts';
 import {BookItem} from '../types/library';
 
 interface BookCoverFrameProps {
@@ -102,7 +103,7 @@ export function BookCoverFrame({book, compact = false}: BookCoverFrameProps) {
                   <BookOpen className={`w-4 h-4 ${palette.accent}`} />
                 </div>
                 <p
-                  className={`${palette.text} font-semibold text-xs sm:text-sm leading-snug line-clamp-3`}
+                  className={`${palette.text} font-semibold text-xs sm:text-sm leading-snug line-clamp-3 ${getScriptFontClass(book.title)}`}
                 >
                   {book.title}
                 </p>

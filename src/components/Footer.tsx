@@ -135,9 +135,92 @@ export function Footer({onNavigate, siteSettings}: FooterProps) {
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#94A3B8]">
-          <p>© 2026 Myanmar Muslim Library • Developed by Junide Solaimani</p>
-          <p className="font-[Amiri] text-base text-[#E2C792]" dir="rtl">
+        <div className="mt-10 pt-6 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-[#94A3B8]">
+          <div className="flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left">
+            <p>© 2026 Myanmar Muslim Library • Developed by Junide Solaimani</p>
+
+            <div
+              className="flex items-center gap-1.5"
+              aria-label="Junide Solaimani social profile links"
+            >
+              <a
+                href="https://www.facebook.com/junidesolaimani"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Facebook — Junide Solaimani"
+                aria-label="Junide Solaimani on Facebook"
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 hover:border-[#93C5FD]/40 text-[#CBD5E1] hover:text-white flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M13.5 21v-7.5h2.5l.4-3h-2.9V8.6c0-.9.3-1.5 1.5-1.5h1.6V4.4c-.3 0-1.2-.1-2.3-.1-2.3 0-3.8 1.4-3.8 4v2.2H8v3h2.5V21h3z" />
+                </svg>
+              </a>
+
+              <a
+                href="https://t.me/junidesolaimani"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Telegram — Junide Solaimani"
+                aria-label="Junide Solaimani on Telegram"
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 hover:border-[#93C5FD]/40 text-[#CBD5E1] hover:text-white flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M21.4 4.6 2.9 11.7c-1.3.5-1.3 1.2-.2 1.5l4.7 1.5 11-6.9c.5-.3 1-.1.6.2l-8.9 8-.3 4.8c.5 0 .7-.2 1-.5l2.3-2.2 4.8 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.3-1.6z" />
+                </svg>
+              </a>
+
+              <a
+                href="https://github.com/junidesolaimani"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="GitHub — Junide Solaimani"
+                aria-label="Junide Solaimani on GitHub"
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 hover:border-[#93C5FD]/40 text-[#CBD5E1] hover:text-white flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M12 2C6.48 2 2 6.58 2 12.23c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49 0-.24-.01-1.04-.01-1.88-2.78.62-3.37-1.2-3.37-1.2-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1 .07 1.53 1.05 1.53 1.05.9 1.57 2.35 1.12 2.92.85.09-.67.35-1.12.64-1.38-2.22-.26-4.56-1.14-4.56-5.07 0-1.12.39-2.04 1.03-2.76-.1-.26-.45-1.3.1-2.71 0 0 .84-.27 2.75 1.05A9.4 9.4 0 0 1 12 6.85c.85 0 1.7.12 2.5.35 1.9-1.32 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.72 1.03 1.64 1.03 2.76 0 3.94-2.34 4.81-4.57 5.06.36.32.68.94.68 1.9 0 1.37-.01 2.48-.01 2.81 0 .27.18.6.69.49A10.22 10.22 0 0 0 22 12.23C22 6.58 17.52 2 12 2z" />
+                </svg>
+              </a>
+
+              <a
+                href="mailto:linhteteducation@gmail.com"
+                title="Email — Junide Solaimani"
+                aria-label="Email Junide Solaimani"
+                className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/15 border border-white/10 hover:border-[#93C5FD]/40 text-[#CBD5E1] hover:text-white flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <rect width="20" height="16" x="2" y="4" rx="2" />
+                  <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+              </a>
+            </div>
+          </div>
+
+          <p className="font-[Amiri] text-base text-[#E2C792]" dir="rtl" lang="ar">
             وَقُل رَّبِّ زِدْنِي عِلْمًا
           </p>
         </div>

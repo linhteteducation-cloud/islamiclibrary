@@ -14,6 +14,7 @@ import {
   resolveBookPdfSource,
 } from '../lib/directDownload';
 import {isValidSafeHttpsUrl} from '../lib/googleDrive';
+import {getScriptFontClass} from '../lib/scriptFonts';
 import {BookCategoryId, BookItem, CategoryItem} from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
 import {BookTitleEditor} from './BookTitleEditor';
@@ -31,6 +32,11 @@ interface BookReaderModalProps {
     bookId: string,
     categoryId: BookCategoryId,
   ) => Promise<void>;
+  onUpdateBookDetails?: (
+    bookId: string,
+    newTitle: string,
+    categoryId: BookCategoryId,
+  ) => Promise<void>;
 }
 
 export function BookReaderModal({
@@ -42,6 +48,7 @@ export function BookReaderModal({
   categories = [],
   onRenameBook,
   onChangeBookCategory,
+  onUpdateBookDetails,
 }: BookReaderModalProps) {
   const [isUpdatingCategory, setIsUpdatingCategory] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -112,7 +119,7 @@ export function BookReaderModal({
             </p>
             <h2
               id="book-modal-title"
-              className="text-sm sm:text-base font-bold text-[#131B2E] dark:text-[#F1F5F9] truncate"
+              className={`text-sm sm:text-base font-bold text-[#131B2E] dark:text-[#F1F5F9] truncate ${getScriptFontClass(book.title)}`}
             >
               {book.title}
             </h2>
@@ -165,8 +172,26 @@ export function BookReaderModal({
               <div className="space-y-2">
                 <BookTitleEditor
                   title={book.title}
-                  canEdit={Boolean(isAdmin && onRenameBook)}
-                  onSaveTitle={(nextTitle) => onRenameBook!(book.id, nextTitle)}
+                  categoryId={book.categoryId}
+                  categories={categories}
+                  canEdit={Boolean(
+                    isAdmin && (onUpdateBookDetails || onRenameBook),
+                  )}
+                  onSaveTitle={
+                    onRenameBook
+                      ? (nextTitle) => onRenameBook(book.id, nextTitle)
+                      : undefined
+                  }
+                  onSaveBookDetails={
+                    onUpdateBookDetails
+                      ? (nextTitle, nextCategoryId) =>
+                          onUpdateBookDetails(
+                            book.id,
+                            nextTitle,
+                            nextCategoryId,
+                          )
+                      : undefined
+                  }
                   variant="modal"
                 />
 
@@ -206,7 +231,9 @@ export function BookReaderModal({
                     </label>
                   )}
                   {book.author.trim() && (
-                    <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={`inline-flex items-center gap-1.5 ${getScriptFontClass(book.author)}`}
+                    >
                       <User className="w-4 h-4 text-[#1E3A8A] dark:text-[#93C5FD]" />
                       {book.author}
                     </span>
@@ -236,7 +263,9 @@ export function BookReaderModal({
                 </div>
 
                 {book.summary && (
-                  <p className="text-sm text-[#334155] dark:text-[#CBD5E1] leading-[1.8] pt-1">
+                  <p
+                    className={`text-sm text-[#334155] dark:text-[#CBD5E1] leading-[1.8] pt-1 ${getScriptFontClass(book.summary)}`}
+                  >
                     {book.summary}
                   </p>
                 )}
