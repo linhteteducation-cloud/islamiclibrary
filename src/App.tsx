@@ -65,7 +65,7 @@ import {
 } from './types/library';
 
 const BOOKMARKS_STORAGE_KEY = 'mil_bookmarks_v2';
-const DEFAULT_SEO_ORIGIN = 'https://islamiclibrary-three.vercel.app';
+const DEFAULT_SEO_ORIGIN = 'https://myanmarmuslimlibrary.org';
 const VALID_ROUTES: PageRoute[] = [
   'home',
   'library',

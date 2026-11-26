@@ -1095,7 +1095,7 @@ let telegramSyncInFlight = false;
 // ---------- SEO & Google Search Console Helpers ----------
 
 const SEO_CONFIG_PATH = path.join(TELEGRAM_DATA_DIR, 'seo-config.json');
-const DEFAULT_PUBLIC_SITE_URL = 'https://islamiclibrary-three.vercel.app';
+const DEFAULT_PUBLIC_SITE_URL = 'https://myanmarmuslimlibrary.org';
 const SITEMAP_CATEGORY_IDS = [
   'quran-tafsir',
   'hadith',
@@ -1118,7 +1118,7 @@ interface StoredSeoConfig {
 
 const DEFAULT_SEO_CONFIG: StoredSeoConfig = {
   canonicalOrigin: DEFAULT_PUBLIC_SITE_URL,
-  googleSiteVerificationToken: '',
+  googleSiteVerificationToken: 'QSdzjUI4Vkl2tQQmHHW42y_k4TCKKpIoXoz482Gtj7g',
   googleVerificationHtmlFilename: '',
 };
 
@@ -1339,7 +1339,7 @@ async function startServer() {
     const seo = readStoredSeoConfig();
     const origin = resolvePublicOrigin(req, seo);
     res.type('text/plain; charset=utf-8').send(
-      `User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${origin}/sitemap.xml\n`,
+      `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /fatwa-admin\n\nSitemap: ${origin}/sitemap.xml\n`,
     );
   });
 
@@ -1362,6 +1362,7 @@ async function startServer() {
         priority: '0.8',
       })),
       {loc: `${origin}/duas`, changefreq: 'weekly', priority: '0.8'},
+      {loc: `${origin}/fatwa`, changefreq: 'weekly', priority: '0.8'},
       {loc: `${origin}/videos`, changefreq: 'weekly', priority: '0.8'},
       {loc: `${origin}/articles`, changefreq: 'weekly', priority: '0.8'},
       {loc: `${origin}/publishing`, changefreq: 'monthly', priority: '0.6'},

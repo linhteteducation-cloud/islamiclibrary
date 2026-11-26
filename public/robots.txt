@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /
 Disallow: /api/
+Disallow: /admin
+Disallow: /fatwa-admin
 
-Sitemap: https://islamiclibrary-three.vercel.app/sitemap.xml
+Sitemap: https://myanmarmuslimlibrary.org/sitemap.xml

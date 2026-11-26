@@ -463,9 +463,11 @@ export function AdminPanelView({
   }, [isAdmin]);
 
   const [seoCanonicalOriginInput, setSeoCanonicalOriginInput] = useState(
-    'https://islamiclibrary-three.vercel.app',
+    'https://myanmarmuslimlibrary.org',
   );
-  const [seoMetaTokenInput, setSeoMetaTokenInput] = useState('');
+  const [seoMetaTokenInput, setSeoMetaTokenInput] = useState(
+    'QSdzjUI4Vkl2tQQmHHW42y_k4TCKKpIoXoz482Gtj7g',
+  );
   const [seoHtmlFilenameInput, setSeoHtmlFilenameInput] = useState('');
   const [isSavingSeoConfig, setIsSavingSeoConfig] = useState(false);
   const [copiedSeoKey, setCopiedSeoKey] = useState<string | null>(null);
@@ -5216,7 +5218,7 @@ export function AdminPanelView({
                       type="url"
                       value={seoCanonicalOriginInput}
                       onChange={(e) => setSeoCanonicalOriginInput(e.target.value)}
-                      placeholder="https://islamiclibrary-three.vercel.app"
+                      placeholder="https://myanmarmuslimlibrary.org"
                       className="w-full min-h-[40px] px-3 py-2 text-xs sm:text-sm bg-white dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
                     />
                   </div>
