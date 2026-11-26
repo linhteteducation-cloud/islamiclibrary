@@ -4,7 +4,11 @@
 - Every document in `/books`, `/duas`, `/videos`, `/articles`, and `/siteSettings` can only be created, updated, or deleted by an authenticated, email-verified Admin (`isAdmin()`).
 - Public readers can read published `/books` (`resource.data.published == true`) or Admins can read all `/books`.
 - All `/books` documents must contain valid `https://` Google Drive URLs (`driveViewUrl`, `driveDownloadUrl`) and a valid `driveFileId` matching `^[a-zA-Z0-9_\-]+$`.
+- `/siteSettings/main` allows strict optional `contactLinks` map with bounded `https://` URLs (`facebook`, `telegram`, `youtube`, `whatsapp`, `github`, `website`), email, and phone string formats (preventing `javascript:` / `data:` URL injection).
 - `/contactMessages` allows public `create` with strict field validation (`status == 'unread'`, `createdAt == request.time`, bounded sizes), while `get`, `list`, `update`, and `delete` are strictly restricted to `isAdmin()` so visitor contact PII cannot be read by other users.
+- `/fatwaQuestions` allows public `create` with strict validation (`status == 'pending'`, empty answer fields, valid Email/Phone/Viber formats), while `get`, `list`, `update`, and `delete` are strictly restricted to `isAdmin()` so asker Name, City, Email, Phone, and Viber No PII never leaks.
+- `/publishedFatwas` contains zero PII and allows public reads, while only Admins can create/update/delete published answers.
+- `/fatwaCategories` allows public reads and strictly Admin-only writes/deletes.
 - `createdAt` and `uploadedByUid` / `createdByUid` are immutable after creation; `createdAt` and `updatedAt` must equal `request.time`.
 
 ## 2. Adversarial Test Payloads ("Dirty Dozen")

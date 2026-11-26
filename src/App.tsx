@@ -6,6 +6,8 @@ import {BookReaderModal} from './components/BookReaderModal';
 import {CategoryManagerModal} from './components/CategoryManagerModal';
 import {DownloadToast} from './components/DownloadToast';
 import {DuasView} from './components/DuasView';
+import {FatwaAdminView} from './components/FatwaAdminView';
+import {FatwaView} from './components/FatwaView';
 import {Footer} from './components/Footer';
 import {HomeView} from './components/HomeView';
 import {
@@ -19,6 +21,7 @@ import {OfflineIndicator} from './components/OfflineIndicator';
 import {VideosView} from './components/VideosView';
 import {
   CATEGORIES,
+  DEFAULT_FATWA_CATEGORIES,
   DEFAULT_SITE_SETTINGS,
   mergeCategories,
 } from './data/libraryData';
@@ -38,6 +41,9 @@ import {
   subscribeBooks,
   subscribeCategories,
   subscribeDuas,
+  subscribeFatwaCategories,
+  subscribeFatwaQuestions,
+  subscribePublishedFatwas,
   subscribeSiteSettings,
   subscribeVideos,
   updateBookRecord,
@@ -50,7 +56,10 @@ import {
   CategoryId,
   CategoryItem,
   DuaItem,
+  FatwaCategoryItem,
+  FatwaQuestionItem,
   PageRoute,
+  PublishedFatwaItem,
   SiteSettings,
   VideoItem,
 } from './types/library';
@@ -61,6 +70,8 @@ const VALID_ROUTES: PageRoute[] = [
   'home',
   'library',
   'duas',
+  'fatwa',
+  'fatwa-admin',
   'videos',
   'articles',
   'about',
@@ -166,6 +177,14 @@ export default function App() {
   const [customCategoryDocs, setCustomCategoryDocs] = useState<CategoryItem[]>(
     [],
   );
+  const [fatwaCategoryDocs, setFatwaCategoryDocs] = useState<
+    FatwaCategoryItem[]
+  >([]);
+  const [fatwaQuestions, setFatwaQuestions] = useState<FatwaQuestionItem[]>([]);
+  const [publishedFatwas, setPublishedFatwas] = useState<PublishedFatwaItem[]>(
+    [],
+  );
+  const [adminInitialTab, setAdminInitialTab] = useState<string | null>(null);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>(
     DEFAULT_SITE_SETTINGS,
@@ -174,6 +193,17 @@ export default function App() {
   const mergedCategories = useMemo(
     () => mergeCategories(customCategoryDocs),
     [customCategoryDocs],
+  );
+  const activeFatwaCategories = useMemo(
+    () =>
+      fatwaCategoryDocs.length > 0
+        ? fatwaCategoryDocs
+        : DEFAULT_FATWA_CATEGORIES,
+    [fatwaCategoryDocs],
+  );
+  const pendingFatwaCount = useMemo(
+    () => fatwaQuestions.filter((q) => q.status === 'pending').length,
+    [fatwaQuestions],
   );
 
   const [bookmarks, setBookmarks] = useState<string[]>(() => {
@@ -217,6 +247,8 @@ export default function App() {
     const unsubVideos = subscribeVideos(setVideos);
     const unsubArticles = subscribeArticles(setArticles);
     const unsubCategories = subscribeCategories(setCustomCategoryDocs);
+    const unsubFatwaCategories = subscribeFatwaCategories(setFatwaCategoryDocs);
+    const unsubPublishedFatwas = subscribePublishedFatwas(setPublishedFatwas);
 
     return () => {
       unsubSettings();
@@ -224,12 +256,22 @@ export default function App() {
       unsubVideos();
       unsubArticles();
       unsubCategories();
+      unsubFatwaCategories();
+      unsubPublishedFatwas();
     };
   }, []);
 
   useEffect(() => {
     const unsubBooks = subscribeBooks(isAdmin, setBooks);
-    return () => unsubBooks();
+    if (!isAdmin) {
+      setFatwaQuestions([]);
+      return () => unsubBooks();
+    }
+    const unsubFatwaQuestions = subscribeFatwaQuestions(setFatwaQuestions);
+    return () => {
+      unsubBooks();
+      unsubFatwaQuestions();
+    };
   }, [isAdmin]);
 
   const publishedBooks = books.filter((b) => b.published);
@@ -311,6 +353,12 @@ export default function App() {
       title = 'ဒိုအာနှင့် အအ်မာလ်များ (Duas) | Myanmar Muslim Library';
       description =
         'နေ့စဉ်ဖတ်ရှုရန် ဒိုအာများ၊ ကုရ်အာန်လာ ဒိုအာများနှင့် အဓိပ္ပာယ်များ — Daily Islamic Duas in Arabic and Burmese.';
+    } else if (currentPage === 'fatwa') {
+      title = 'ဖသ်ဝါ မေးမြန်းရန် (Ask Fatwa) | Myanmar Muslim Library';
+      description =
+        'အစ္စလာမ်သာသနာ့ ရှရီအသ်ဆိုင်ရာ မေးခွန်းများ မေးမြန်းရန်နှင့် ဖြေကြားပြီး ဖသ်ဝါများ ဖတ်ရှုရန် — Burmese Islamic Fatwa Q&A.';
+    } else if (currentPage === 'fatwa-admin') {
+      title = 'ဖသ်ဝါ ဖြေကြားရန် (Admin) | Myanmar Muslim Library';
     } else if (currentPage === 'videos') {
       title = 'ဗီဒီယိုတရားတော်များ (Videos) | Myanmar Muslim Library';
       description =
@@ -340,7 +388,7 @@ export default function App() {
       'meta[name="robots"]',
       'name',
       'robots',
-      currentPage === 'admin'
+      currentPage === 'admin' || currentPage === 'fatwa-admin'
         ? 'noindex, nofollow'
         : 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1',
     );
@@ -570,6 +618,8 @@ export default function App() {
         currentPage={currentPage}
         onNavigate={handleNavigate}
         siteSettings={siteSettings}
+        isAdmin={isAdmin}
+        pendingFatwaCount={pendingFatwaCount}
       />
 
       <main className="flex-1">
@@ -607,6 +657,28 @@ export default function App() {
         )}
 
         {currentPage === 'duas' && <DuasView duas={duas} />}
+        {currentPage === 'fatwa' && (
+          <FatwaView
+            fatwaCategories={activeFatwaCategories}
+            publishedFatwas={publishedFatwas}
+          />
+        )}
+        {currentPage === 'fatwa-admin' && (
+          <FatwaAdminView
+            user={user}
+            isAdmin={isAdmin}
+            authLoading={authLoading}
+            onSignInGoogle={handleSignInGoogle}
+            fatwaCategories={activeFatwaCategories}
+            fatwaQuestions={fatwaQuestions}
+            onNavigate={(page) => {
+              if (page === 'admin') {
+                setAdminInitialTab('fatwaCategories');
+              }
+              handleNavigate(page);
+            }}
+          />
+        )}
         {currentPage === 'videos' && <VideosView videos={videos} />}
         {currentPage === 'articles' && <ArticlesView articles={articles} />}
         {currentPage === 'about' && <AboutView onNavigate={handleNavigate} />}
@@ -630,6 +702,12 @@ export default function App() {
             videos={videos}
             articles={articles}
             siteSettings={siteSettings}
+            fatwaCategories={activeFatwaCategories}
+            fatwaCategoryDocs={fatwaCategoryDocs}
+            pendingFatwaCount={pendingFatwaCount}
+            onNavigate={handleNavigate}
+            requestedTab={adminInitialTab}
+            onClearRequestedTab={() => setAdminInitialTab(null)}
           />
         )}
       </main>

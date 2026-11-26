@@ -6,6 +6,7 @@ import {
   FileText,
   HeartHandshake,
   Loader2,
+  Scale,
   Shield,
   SlidersHorizontal,
   X,
@@ -116,11 +117,17 @@ export function HomeView({
             {siteSettings.heroDescription}
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5">
+          <div
+            className={`grid grid-cols-1 ${
+              showDuasButton
+                ? 'sm:grid-cols-3 max-w-3xl'
+                : 'sm:grid-cols-2 max-w-xl'
+            } gap-3 mx-auto`}
+          >
             <button
               type="button"
               onClick={() => onNavigate('library')}
-              className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white font-semibold text-sm shadow-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
+              className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#1D4ED8] hover:bg-[#1E40AF] text-white font-semibold text-sm shadow-sm whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#93C5FD]"
             >
               <BookOpen className="w-4 h-4 shrink-0" />
               <span>စာကြည့်တိုက်ဖွင့်ရန်</span>
@@ -130,12 +137,21 @@ export function HomeView({
               <button
                 type="button"
                 onClick={() => onNavigate('duas')}
-                className="w-full sm:w-auto min-h-[44px] inline-flex items-center justify-center gap-2.5 px-6 py-2.5 rounded-lg bg-white/10 hover:bg-white/18 border border-white/25 text-white font-semibold text-sm transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-white/10 hover:bg-white/18 border border-white/25 text-white font-semibold text-sm whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
               >
                 <HeartHandshake className="w-4 h-4 shrink-0 text-[#E2C792]" />
                 <span>ဒိုအာနှင့်အအ်မာလ်များ</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => onNavigate('fatwa')}
+              className="w-full min-h-[46px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] border border-[#34D399]/35 text-white font-semibold text-sm shadow-sm whitespace-nowrap transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6EE7B7]"
+            >
+              <Scale className="w-4 h-4 shrink-0 text-[#E2C792]" />
+              <span>ဖသ်ဝါမေးမြန်းရန်</span>
+            </button>
           </div>
         </div>
       </section>

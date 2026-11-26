@@ -144,7 +144,7 @@
     },
     "SiteSettings": {
       "title": "SiteSettings",
-      "description": "Global site visibility and Google Drive library folder configuration managed by Admin",
+      "description": "Global site visibility, footer contact links, and Google Drive library folder configuration managed by Admin",
       "type": "object",
       "properties": {
         "hiddenSections": { "type": "array" },
@@ -152,6 +152,29 @@
         "driveFolderId": { "type": "string", "maxLength": 200 },
         "driveFolderName": { "type": "string", "maxLength": 120 },
         "heroDescription": { "type": "string", "maxLength": 1000 },
+        "contactLinks": {
+          "type": "object",
+          "properties": {
+            "facebook": { "type": "string", "maxLength": 300 },
+            "telegram": { "type": "string", "maxLength": 300 },
+            "youtube": { "type": "string", "maxLength": 300 },
+            "whatsapp": { "type": "string", "maxLength": 300 },
+            "github": { "type": "string", "maxLength": 300 },
+            "email": { "type": "string", "maxLength": 160 },
+            "phone": { "type": "string", "maxLength": 30 },
+            "website": { "type": "string", "maxLength": 300 }
+          },
+          "required": [
+            "facebook",
+            "telegram",
+            "youtube",
+            "whatsapp",
+            "github",
+            "email",
+            "phone",
+            "website"
+          ]
+        },
         "updatedByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -274,6 +297,99 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "FatwaCategory": {
+      "title": "FatwaCategory",
+      "description": "Fatwa Q&A category managed fully by Admin in Admin Panel",
+      "type": "object",
+      "properties": {
+        "nameMy": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "nameEn": { "type": "string", "maxLength": 120 },
+        "descriptionMy": { "type": "string", "maxLength": 400 },
+        "sortOrder": { "type": "integer" },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "nameMy",
+        "nameEn",
+        "descriptionMy",
+        "sortOrder",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "FatwaQuestion": {
+      "title": "FatwaQuestion",
+      "description": "Private Fatwa inquiry containing asker contact PII readable and answerable strictly by Admins",
+      "type": "object",
+      "properties": {
+        "askerName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "city": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "email": { "type": "string", "minLength": 5, "maxLength": 160 },
+        "phone": { "type": "string", "minLength": 5, "maxLength": 30 },
+        "viber": { "type": "string", "maxLength": 30 },
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "categoryLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "question": { "type": "string", "minLength": 1, "maxLength": 6000 },
+        "status": { "type": "string", "enum": ["pending", "answered", "archived"] },
+        "answerText": { "type": "string", "maxLength": 12000 },
+        "muftiName": { "type": "string", "maxLength": 160 },
+        "isPublishedPublicly": { "type": "boolean" },
+        "publishedFatwaId": { "type": "string", "maxLength": 128 },
+        "answeredByUid": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "askerName",
+        "city",
+        "email",
+        "phone",
+        "viber",
+        "categoryId",
+        "categoryLabel",
+        "subject",
+        "question",
+        "status",
+        "answerText",
+        "muftiName",
+        "isPublishedPublicly",
+        "publishedFatwaId",
+        "answeredByUid",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "PublishedFatwa": {
+      "title": "PublishedFatwa",
+      "description": "Publicly readable Fatwa Q&A archive without any asker contact PII",
+      "type": "object",
+      "properties": {
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 60 },
+        "categoryLabel": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "question": { "type": "string", "minLength": 1, "maxLength": 6000 },
+        "answerText": { "type": "string", "minLength": 1, "maxLength": 12000 },
+        "muftiName": { "type": "string", "maxLength": 160 },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "categoryId",
+        "categoryLabel",
+        "subject",
+        "question",
+        "answerText",
+        "muftiName",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -316,6 +432,18 @@
     "/categories/{categoryId}": {
       "schema": { "$ref": "#/entities/Category" },
       "description": "Custom or customized library categories managed by Admin"
+    },
+    "/fatwaCategories/{categoryId}": {
+      "schema": { "$ref": "#/entities/FatwaCategory" },
+      "description": "Fatwa Q&A categories managed by Admin"
+    },
+    "/fatwaQuestions/{questionId}": {
+      "schema": { "$ref": "#/entities/FatwaQuestion" },
+      "description": "Private Fatwa inquiries with asker contact PII restricted strictly to Admin"
+    },
+    "/publishedFatwas/{fatwaId}": {
+      "schema": { "$ref": "#/entities/PublishedFatwa" },
+      "description": "Publicly readable Fatwa Q&A answers without any personal contact PII"
     }
   }
 }

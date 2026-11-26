@@ -2,6 +2,8 @@ export type PageRoute =
   | 'home'
   | 'library'
   | 'duas'
+  | 'fatwa'
+  | 'fatwa-admin'
   | 'videos'
   | 'articles'
   | 'about'
@@ -114,12 +116,24 @@ export interface ArticleItem {
   createdAtLabel?: string;
 }
 
+export interface FooterContactLinks {
+  facebook: string;
+  telegram: string;
+  youtube: string;
+  whatsapp: string;
+  github: string;
+  email: string;
+  phone: string;
+  website: string;
+}
+
 export interface SiteSettings {
   hiddenSections: string[];
   hiddenCategories: string[];
   driveFolderId: string;
   driveFolderName: string;
   heroDescription: string;
+  contactLinks?: FooterContactLinks;
 }
 
 export interface ContactMessageItem {
@@ -161,3 +175,47 @@ export interface TelegramSettings {
   lastUpdateId: number;
 }
 
+export interface FatwaCategoryItem {
+  id: string;
+  nameMy: string;
+  nameEn: string;
+  descriptionMy: string;
+  sortOrder: number;
+  isDefaultSeed?: boolean;
+  createdByUid?: string;
+}
+
+export type FatwaQuestionStatus = 'pending' | 'answered' | 'archived';
+
+export interface FatwaQuestionItem {
+  id: string;
+  askerName: string;
+  city: string;
+  email: string;
+  phone: string;
+  viber: string;
+  categoryId: string;
+  categoryLabel: string;
+  subject: string;
+  question: string;
+  status: FatwaQuestionStatus;
+  answerText: string;
+  muftiName: string;
+  isPublishedPublicly: boolean;
+  publishedFatwaId: string;
+  answeredByUid: string;
+  createdAtLabel?: string;
+  answeredAtLabel?: string;
+}
+
+export interface PublishedFatwaItem {
+  id: string;
+  categoryId: string;
+  categoryLabel: string;
+  subject: string;
+  question: string;
+  answerText: string;
+  muftiName: string;
+  createdByUid: string;
+  answeredAtLabel?: string;
+}

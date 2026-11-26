@@ -4,10 +4,46 @@
 @font-face {
   font-family: "PaOhMyanmarPyum";
   src: url("/fonts/PaOhMyanmarPyum.ttf") format("truetype");
-  font-weight: 100 900;
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
-  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC, U+E000-F0FF;
+}
+
+@font-face {
+  font-family: "PaOhMyanmarPyum";
+  src: url("/fonts/PaOhMyanmarPyum.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC, U+E000-F0FF;
+}
+
+@font-face {
+  font-family: "PaOhMyanmarPyum";
+  src: url("/fonts/PaOhMyanmarPyum.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC, U+E000-F0FF;
+}
+
+@font-face {
+  font-family: "PaOhMyanmarPyum";
+  src: url("/fonts/PaOhMyanmarPyum.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC, U+E000-F0FF;
+}
+
+@font-face {
+  font-family: "PaOhMyanmarPyum";
+  src: url("/fonts/PaOhMyanmarPyum.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+1000-109F, U+A9E0-A9FF, U+AA60-AA7F, U+200C-200D, U+25CC, U+E000-F0FF;
 }
 
 @font-face {
@@ -29,18 +65,42 @@
 @font-face {
   font-family: "Jameel Noori Nastaleeq";
   src: url("/fonts/JameelNooriNastaleeq.woff") format("woff");
-  font-weight: 100 900;
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Jameel Noori Nastaleeq";
+  src: url("/fonts/JameelNooriNastaleeq.woff") format("woff");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Jameel Noori Nastaleeq";
+  src: url("/fonts/JameelNooriNastaleeq.woff") format("woff");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Jameel Noori Nastaleeq";
+  src: url("/fonts/JameelNooriNastaleeq.woff") format("woff");
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
 @theme {
-  --font-sans: "Plus Jakarta Sans", "PaOhMyanmarPyum", "Noto Sans Myanmar", "Amiri", "Jameel Noori Nastaleeq", system-ui, sans-serif;
-  --font-serif: "Playfair Display", "PaOhMyanmarPyum", "Noto Serif Myanmar", "Amiri", "Jameel Noori Nastaleeq", Georgia, serif;
-  --font-myanmar: "PaOhMyanmarPyum", "Noto Sans Myanmar", "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-myanmar-serif: "PaOhMyanmarPyum", "Noto Serif Myanmar", "Playfair Display", Georgia, serif;
-  --font-arabic: "Amiri", Georgia, serif;
-  --font-urdu: "Jameel Noori Nastaleeq", "Amiri", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", "PaOhMyanmarPyum", "Amiri", "Jameel Noori Nastaleeq", system-ui, sans-serif;
+  --font-serif: "Playfair Display", "PaOhMyanmarPyum", "Amiri", "Jameel Noori Nastaleeq", Georgia, serif;
+  --font-myanmar: "PaOhMyanmarPyum", "Plus Jakarta Sans", "Amiri", "Jameel Noori Nastaleeq", system-ui, sans-serif;
+  --font-myanmar-serif: "PaOhMyanmarPyum", "Playfair Display", "Amiri", "Jameel Noori Nastaleeq", Georgia, serif;
+  --font-arabic: "Amiri", "PaOhMyanmarPyum", Georgia, serif;
+  --font-urdu: "Jameel Noori Nastaleeq", "Amiri", "PaOhMyanmarPyum", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   /* Editorial Deep Lapis Blue + Alabaster Paper + High-Contrast Night Palette */
@@ -80,6 +140,11 @@
     background-color: #060B17;
     color: #F1F5F9;
     color-scheme: dark;
+  }
+
+  .font-myanmar,
+  [lang="my"] {
+    font-family: var(--font-myanmar);
   }
 
   .font-arabic,

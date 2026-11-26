@@ -17,14 +17,18 @@ import {
   HardDrive,
   Inbox,
   LayoutGrid,
+  Link2,
   Loader2,
   LogOut,
   Mail,
+  Phone,
   Plus,
   RefreshCw,
+  Scale,
   Search,
   Send,
   Settings,
+  Share2,
   Shield,
   Sliders,
   Sparkles,
@@ -35,7 +39,10 @@ import {
   XCircle,
 } from 'lucide-react';
 import {
+  DEFAULT_CONTACT_LINKS,
+  DEFAULT_FATWA_CATEGORIES,
   DEFAULT_HERO_DESCRIPTION,
+  generateFatwaCategorySlug,
   MANAGEABLE_SECTIONS,
 } from '../data/libraryData';
 import {
@@ -43,6 +50,7 @@ import {
   SECOND_BOOTSTRAPPED_ADMIN_EMAIL,
 } from '../lib/firebase';
 import {findDuplicateBooks, normalizeBookTitle} from '../lib/bookDedupe';
+import {getScriptFontClass} from '../lib/scriptFonts';
 import {
   appointAdminByEmail,
   createArticleRecord,
@@ -54,11 +62,15 @@ import {
   deleteBookRecord,
   deleteContactMessage,
   deleteDuaRecord,
+  deleteFatwaCategoryRecord,
   deleteVideoRecord,
   markContactMessageRead,
+  normalizeSingleContactLink,
   revokeAdminInvite,
+  saveFatwaCategoryRecord,
   saveSiteSettings,
   saveTelegramSettings,
+  seedDefaultFatwaCategories,
   subscribeAdminInvites,
   subscribeContactMessages,
   subscribeTelegramSettings,
@@ -102,7 +114,10 @@ import {
   ContactMessageItem,
   DriveFileSummary,
   DuaItem,
+  FatwaCategoryItem,
+  FooterContactLinks,
   MaterialType,
+  PageRoute,
   SiteSettings,
   TelegramSettings,
   VideoItem,
@@ -123,6 +138,12 @@ interface AdminPanelViewProps {
   videos: VideoItem[];
   articles: ArticleItem[];
   siteSettings: SiteSettings;
+  fatwaCategories: FatwaCategoryItem[];
+  fatwaCategoryDocs: FatwaCategoryItem[];
+  pendingFatwaCount: number;
+  onNavigate: (page: PageRoute) => void;
+  requestedTab?: string | null;
+  onClearRequestedTab?: () => void;
 }
 
 type AdminTab =
@@ -132,6 +153,8 @@ type AdminTab =
   | 'drive'
   | 'content'
   | 'messages'
+  | 'fatwaCategories'
+  | 'links'
   | 'settings';
 
 interface PendingDelete {
@@ -142,6 +165,7 @@ interface PendingDelete {
     | 'article'
     | 'driveFile'
     | 'message'
+    | 'fatwaCategory'
     | 'adminInvite';
   id: string;
   label: string;
@@ -162,6 +186,12 @@ export function AdminPanelView({
   videos,
   articles,
   siteSettings,
+  fatwaCategories,
+  fatwaCategoryDocs,
+  pendingFatwaCount,
+  onNavigate,
+  requestedTab,
+  onClearRequestedTab,
 }: AdminPanelViewProps) {
   const bookCategories = useMemo(
     () => categories.filter((c) => c.id !== 'videos'),
@@ -276,6 +306,25 @@ export function AdminPanelView({
   );
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
+  // Footer contact links sync draft
+  const [contactLinksDraft, setContactLinksDraft] = useState<FooterContactLinks>(
+    siteSettings.contactLinks ?? DEFAULT_CONTACT_LINKS,
+  );
+  const [isSavingContactLinks, setIsSavingContactLinks] = useState(false);
+  const [contactLinksError, setContactLinksError] = useState<string | null>(
+    null,
+  );
+
+  // Fatwa categories full CRUD state
+  const [fatwaCatNameMy, setFatwaCatNameMy] = useState('');
+  const [fatwaCatNameEn, setFatwaCatNameEn] = useState('');
+  const [fatwaCatDescMy, setFatwaCatDescMy] = useState('');
+  const [fatwaCatOrder, setFatwaCatOrder] = useState(0);
+  const [editingFatwaCatId, setEditingFatwaCatId] = useState<string | null>(
+    null,
+  );
+  const [isSavingFatwaCat, setIsSavingFatwaCat] = useState(false);
+
   // Sub-content CRUD state
   const [contentKind, setContentKind] = useState<'duas' | 'videos' | 'articles'>(
     'duas',
@@ -379,7 +428,15 @@ export function AdminPanelView({
     setHiddenSectionsDraft(siteSettings.hiddenSections);
     setHiddenCategoriesDraft(siteSettings.hiddenCategories);
     setHeroDescDraft(siteSettings.heroDescription);
+    setContactLinksDraft(siteSettings.contactLinks ?? DEFAULT_CONTACT_LINKS);
   }, [siteSettings]);
+
+  useEffect(() => {
+    if (requestedTab === 'fatwaCategories') {
+      setActiveTab('fatwaCategories');
+      onClearRequestedTab?.();
+    }
+  }, [requestedTab, onClearRequestedTab]);
 
   useEffect(() => {
     if (!isAdmin) {
@@ -1163,6 +1220,55 @@ export function AdminPanelView({
     }
   };
 
+  const handleSaveContactLinks = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setContactLinksError(null);
+
+    const channels: (keyof FooterContactLinks)[] = [
+      'facebook',
+      'telegram',
+      'youtube',
+      'whatsapp',
+      'phone',
+      'email',
+      'website',
+      'github',
+    ];
+    const normalizedLinks: FooterContactLinks = {...DEFAULT_CONTACT_LINKS};
+
+    for (const ch of channels) {
+      const res = normalizeSingleContactLink(ch, contactLinksDraft[ch]);
+      if (res.error) {
+        setContactLinksError(res.error);
+        return;
+      }
+      normalizedLinks[ch] = res.value;
+    }
+
+    setContactLinksDraft(normalizedLinks);
+    setIsSavingContactLinks(true);
+    try {
+      await saveSiteSettings(user.uid, {
+        ...siteSettings,
+        contactLinks: normalizedLinks,
+      });
+      showNotice(
+        'success',
+        'ဆက်သွယ်ရေး ခလုတ်လင့်ခ်များကို Website အောက်ခြေသို့ Live Sync လုပ်ပြီးပါပြီ။',
+      );
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'ဆက်သွယ်ရေးလင့်ခ်များ Sync လုပ်ရာတွင် အမှားဖြစ်ပေါ်ပါသည်။';
+      setContactLinksError(msg);
+      showNotice('error', msg);
+    } finally {
+      setIsSavingContactLinks(false);
+    }
+  };
+
   const executeConfirmedDelete = async () => {
     if (!pendingDelete) return;
     setIsDeleting(true);
@@ -1200,6 +1306,34 @@ export function AdminPanelView({
       } else if (pendingDelete.kind === 'message') {
         await deleteContactMessage(pendingDelete.id);
         showNotice('success', 'မက်ဆေ့ချ်ကို ဖျက်လိုက်ပါပြီ။');
+      } else if (pendingDelete.kind === 'fatwaCategory') {
+        if (fatwaCategoryDocs.length === 0) {
+          for (const cat of DEFAULT_FATWA_CATEGORIES) {
+            if (cat.id !== pendingDelete.id && user) {
+              await saveFatwaCategoryRecord(user.uid, {
+                id: cat.id,
+                nameMy: cat.nameMy,
+                nameEn: cat.nameEn,
+                descriptionMy: cat.descriptionMy,
+                sortOrder: cat.sortOrder,
+                isExistingDoc: true,
+              });
+            }
+          }
+        } else {
+          await deleteFatwaCategoryRecord(pendingDelete.id);
+        }
+        if (editingFatwaCatId === pendingDelete.id) {
+          setEditingFatwaCatId(null);
+          setFatwaCatNameMy('');
+          setFatwaCatNameEn('');
+          setFatwaCatDescMy('');
+          setFatwaCatOrder(0);
+        }
+        showNotice(
+          'success',
+          `“${pendingDelete.label}” ဖသ်ဝါကဏ္ဍကို ဖျက်သိမ်းပြီးပါပြီ။`,
+        );
       } else if (pendingDelete.kind === 'adminInvite') {
         await revokeAdminInvite(pendingDelete.id);
         showNotice(
@@ -1215,6 +1349,82 @@ export function AdminPanelView({
       );
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleSaveFatwaCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const cleanedMy = fatwaCatNameMy.trim();
+    if (!cleanedMy) {
+      showNotice('error', 'ဖသ်ဝါ ကဏ္ဍအမည် (မြန်မာ) ထည့်သွင်းပါ။');
+      return;
+    }
+    setIsSavingFatwaCat(true);
+    try {
+      const existingIds = new Set(fatwaCategories.map((c) => c.id));
+      const targetId =
+        editingFatwaCatId || generateFatwaCategorySlug(fatwaCatNameEn, existingIds);
+
+      if (!editingFatwaCatId && fatwaCategoryDocs.length === 0) {
+        await seedDefaultFatwaCategories(user.uid);
+      }
+
+      const maxOrder = fatwaCategories.reduce(
+        (max, c, idx) => Math.max(max, c.sortOrder ?? idx),
+        fatwaCategories.length,
+      );
+
+      await saveFatwaCategoryRecord(user.uid, {
+        id: targetId,
+        nameMy: cleanedMy,
+        nameEn: fatwaCatNameEn.trim(),
+        descriptionMy: fatwaCatDescMy.trim(),
+        sortOrder: editingFatwaCatId ? fatwaCatOrder : maxOrder + 1,
+        isExistingDoc: Boolean(editingFatwaCatId),
+      });
+
+      showNotice(
+        'success',
+        editingFatwaCatId
+          ? `“${cleanedMy}” ဖသ်ဝါကဏ္ဍကို ပြင်ဆင်သိမ်းဆည်းပြီးပါပြီ။`
+          : `“${cleanedMy}” ဖသ်ဝါကဏ္ဍအသစ်ကို ထည့်သွင်းပြီးပါပြီ။`,
+      );
+      setEditingFatwaCatId(null);
+      setFatwaCatNameMy('');
+      setFatwaCatNameEn('');
+      setFatwaCatDescMy('');
+      setFatwaCatOrder(0);
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'ဖသ်ဝါကဏ္ဍ သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsSavingFatwaCat(false);
+    }
+  };
+
+  const handleSeedFatwaDefaults = async () => {
+    if (!user) return;
+    setIsSavingFatwaCat(true);
+    try {
+      await seedDefaultFatwaCategories(user.uid);
+      showNotice(
+        'success',
+        'မူလ ဖသ်ဝါကဏ္ဍ ၆ ခုကို Firestore ထဲသို့ ထည့်သွင်းပြီးပါပြီ။',
+      );
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'မူလကဏ္ဍများ ထည့်သွင်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    } finally {
+      setIsSavingFatwaCat(false);
     }
   };
 
@@ -2043,9 +2253,19 @@ export function AdminPanelView({
             {id: 'drive' as const, label: 'Google Drive သိုလှောင်ခန်း', icon: HardDrive},
             {id: 'content' as const, label: 'ဒိုအာ · ဗီဒီယို · ဆောင်းပါး', icon: LayoutGrid},
             {
+              id: 'fatwaCategories' as const,
+              label: `ဖသ်ဝါကဏ္ဍများ (${fatwaCategories.length})`,
+              icon: Scale,
+            },
+            {
               id: 'messages' as const,
               label: `ဆက်သွယ်စာများ (${unreadMessageCount})`,
               icon: Inbox,
+            },
+            {
+              id: 'links' as const,
+              label: 'ဆက်သွယ်ရေးလင့်ခ် (Footer Sync)',
+              icon: Link2,
             },
             {
               id: 'settings' as const,
@@ -2212,7 +2432,7 @@ export function AdminPanelView({
                   value={bookTitle}
                   onChange={(e) => setBookTitle(e.target.value)}
                   placeholder="မထည့်ပါက Google Drive ဖိုင်အမည်အတိုင်း တင်ပေးပါမည်"
-                  className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B]"
+                  className={`w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] rounded-lg text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] ${getScriptFontClass(bookTitle)}`}
                 />
               </div>
 
@@ -2567,7 +2787,9 @@ export function AdminPanelView({
                               </span>
                             )}
                           </div>
-                          <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate">
+                          <p
+                            className={`text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] truncate ${getScriptFontClass(book.title)}`}
+                          >
                             {book.title}
                           </p>
                           {book.author.trim() && (
@@ -3806,6 +4028,526 @@ export function AdminPanelView({
           </div>
         )}
 
+        {/* TAB: FOOTER CONTACT BUTTONS & LIVE LINKS SYNC */}
+        {activeTab === 'links' && user && (
+          <form
+            onSubmit={(e) => void handleSaveContactLinks(e)}
+            className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 space-y-6"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
+                  <Share2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
+                    Website အောက်ခြေ ဆက်သွယ်ရေး ခလုတ်များနှင့် လင့်ခ်များ (Footer Contact Sync)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
+                    အောက်ပါအကွက်များတွင် ဆက်သွယ်လိုသော လင့်ခ်များ ထည့်သွင်းပြီး Sync လုပ်ပါက Website အောက်ခြေအကွက်ထဲရှိ ဆက်သွယ်ရေး Button များထဲသို့ ချက်ချင်းပြောင်းလဲ Sync ပေးပါမည်။ မထည့်လိုသော ခလုတ်ကို အလွတ်ထား၍ ဖျောက်ထားနိုင်ပါသည်။
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setContactLinksError(null);
+                  setContactLinksDraft(DEFAULT_CONTACT_LINKS);
+                }}
+                className="min-h-[38px] px-3.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#F5F8F6] dark:hover:bg-[#131E36] shrink-0"
+              >
+                မူလလင့်ခ်များ ပြန်ထည့်ရန်
+              </button>
+            </div>
+
+            {contactLinksError && (
+              <div className="p-3.5 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900/60 text-xs sm:text-sm text-red-700 dark:text-red-300 leading-relaxed">
+                {contactLinksError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  htmlFor="footer-link-facebook"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  Facebook Page / Profile Link
+                </label>
+                <input
+                  id="footer-link-facebook"
+                  type="text"
+                  value={contactLinksDraft.facebook}
+                  onChange={(e) =>
+                    setContactLinksDraft((prev) => ({
+                      ...prev,
+                      facebook: e.target.value,
+                    }))
+                  }
+                  placeholder="https://www.facebook.com/yourpage"
+                  className="w-full min-h-[42px] px-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-telegram"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  Telegram Link သို့မဟုတ် @Username
+                </label>
+                <input
+                  id="footer-link-telegram"
+                  type="text"
+                  value={contactLinksDraft.telegram}
+                  onChange={(e) =>
+                    setContactLinksDraft((prev) => ({
+                      ...prev,
+                      telegram: e.target.value,
+                    }))
+                  }
+                  placeholder="https://t.me/yourchannel သို့မဟုတ် @username"
+                  className="w-full min-h-[42px] px-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-youtube"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  YouTube Channel Link
+                </label>
+                <input
+                  id="footer-link-youtube"
+                  type="text"
+                  value={contactLinksDraft.youtube}
+                  onChange={(e) =>
+                    setContactLinksDraft((prev) => ({
+                      ...prev,
+                      youtube: e.target.value,
+                    }))
+                  }
+                  placeholder="https://www.youtube.com/@yourchannel"
+                  className="w-full min-h-[42px] px-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-whatsapp"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  WhatsApp Link သို့မဟုတ် ဖုန်းနံပါတ် (+959...)
+                </label>
+                <input
+                  id="footer-link-whatsapp"
+                  type="text"
+                  value={contactLinksDraft.whatsapp}
+                  onChange={(e) =>
+                    setContactLinksDraft((prev) => ({
+                      ...prev,
+                      whatsapp: e.target.value,
+                    }))
+                  }
+                  placeholder="https://wa.me/959... သို့မဟုတ် +959..."
+                  className="w-full min-h-[42px] px-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-phone"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  တိုက်ရိုက် ဖုန်းခေါ်ရန် နံပါတ် (Phone)
+                </label>
+                <div className="relative">
+                  <input
+                    id="footer-link-phone"
+                    type="text"
+                    value={contactLinksDraft.phone}
+                    onChange={(e) =>
+                      setContactLinksDraft((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
+                    placeholder="+95 9 123 456 789"
+                    className="w-full min-h-[42px] pl-9 pr-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                  />
+                  <Phone className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-email"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  ဆက်သွယ်ရန် Email လိပ်စာ
+                </label>
+                <div className="relative">
+                  <input
+                    id="footer-link-email"
+                    type="email"
+                    value={contactLinksDraft.email}
+                    onChange={(e) =>
+                      setContactLinksDraft((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
+                    placeholder="contact@example.com"
+                    className="w-full min-h-[42px] pl-9 pr-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                  />
+                  <Mail className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-website"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  အခြား Website / Blog Link
+                </label>
+                <div className="relative">
+                  <input
+                    id="footer-link-website"
+                    type="text"
+                    value={contactLinksDraft.website}
+                    onChange={(e) =>
+                      setContactLinksDraft((prev) => ({
+                        ...prev,
+                        website: e.target.value,
+                      }))
+                    }
+                    placeholder="https://yourwebsite.com"
+                    className="w-full min-h-[42px] pl-9 pr-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                  />
+                  <Globe className="w-4 h-4 text-[#64748B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="footer-link-github"
+                  className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1.5"
+                >
+                  GitHub Profile Link
+                </label>
+                <input
+                  id="footer-link-github"
+                  type="text"
+                  value={contactLinksDraft.github}
+                  onChange={(e) =>
+                    setContactLinksDraft((prev) => ({
+                      ...prev,
+                      github: e.target.value,
+                    }))
+                  }
+                  placeholder="https://github.com/username"
+                  className="w-full min-h-[42px] px-3.5 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                />
+              </div>
+            </div>
+
+            {/* Active Footer Buttons Preview */}
+            <div className="p-4 rounded-xl bg-[#0B152B] border border-[#1D2F57] space-y-2.5">
+              <p className="text-[11px] font-semibold text-[#93C5FD]">
+                Footer အောက်ခြေတွင် ပေါ်မည့် ခလုတ်များ (Live Preview)
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  {key: 'facebook' as const, label: 'Facebook'},
+                  {key: 'telegram' as const, label: 'Telegram'},
+                  {key: 'youtube' as const, label: 'YouTube'},
+                  {key: 'whatsapp' as const, label: 'WhatsApp'},
+                  {
+                    key: 'phone' as const,
+                    label: contactLinksDraft.phone.trim() || 'Phone',
+                  },
+                  {key: 'email' as const, label: 'Email'},
+                  {key: 'website' as const, label: 'Website'},
+                  {key: 'github' as const, label: 'GitHub'},
+                ]
+                  .filter((item) => Boolean(contactLinksDraft[item.key].trim()))
+                  .map((item) => (
+                    <span
+                      key={item.key}
+                      className="px-3 py-1.5 rounded-lg bg-[#132242] border border-white/15 text-[#E2E8F0] text-xs font-semibold inline-flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#34D399]" />
+                      <span>{item.label}</span>
+                    </span>
+                  ))}
+                <span className="px-3 py-1.5 rounded-lg bg-[#146B3A]/35 border border-[#34D399]/35 text-[#A7F3D0] text-xs font-semibold">
+                  စာပို့ဆက်သွယ်ရန်
+                </span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#EDF1EE] dark:border-[#1E2C4A]">
+              <p className="text-xs text-[#5A6860] dark:text-[#94A3B8]">
+                Sync လုပ်ပြီးသည်နှင့် Website အောက်ခြေရှိ ခလုတ်များ အားလုံးထံ ချက်ချင်း အသက်ဝင်ပါမည်။
+              </p>
+              <button
+                type="submit"
+                disabled={isSavingContactLinks}
+                className="min-h-[44px] px-6 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors disabled:opacity-60"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 ${isSavingContactLinks ? 'animate-spin' : ''}`}
+                />
+                <span>
+                  {isSavingContactLinks
+                    ? 'Sync လုပ်နေပါသည်...'
+                    : 'လင့်ခ်များ သိမ်းဆည်းပြီး Footer သို့ Sync လုပ်မည်'}
+                </span>
+              </button>
+            </div>
+          </form>
+        )}
+
+        {/* TAB: FATWA CATEGORIES FULL MANAGEMENT */}
+        {activeTab === 'fatwaCategories' && user && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
+                    ဖသ်ဝါမေးမြန်းရန် ကဏ္ဍများ (Fatwa Categories) စီမံခန့်ခွဲမှု
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
+                    ဖသ်ဝါစာမျက်နှာတွင် စာဖတ်သူများ ရွေးချယ်မေးမြန်းနိုင်မည့် ကဏ္ဍတစ်ခုချင်းစီကို အသစ်ထည့်ခြင်း၊ ပြင်ဆင်ခြင်း၊ အစဉ်လိုက်စီခြင်းနှင့် ဖျက်သိမ်းခြင်းတို့ကို အပြည့်အဝ စီမံနိုင်ပါသည်။
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                {fatwaCategoryDocs.length === 0 && (
+                  <button
+                    type="button"
+                    disabled={isSavingFatwaCat}
+                    onClick={() => void handleSeedFatwaDefaults()}
+                    className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1B2A4A] text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7]"
+                  >
+                    မူလကဏ္ဍ ၆ ခု Sync သိမ်းရန်
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onNavigate('fatwa-admin')}
+                  className="min-h-[40px] px-4 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold inline-flex items-center gap-1.5"
+                >
+                  <Scale className="w-3.5 h-3.5" />
+                  <span>
+                    ဖသ်ဝါဖြေကြားရန် ({pendingFatwaCount})
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Add / Edit Fatwa Category Form */}
+              <form
+                onSubmit={(e) => void handleSaveFatwaCategory(e)}
+                className="lg:col-span-5 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
+                  <h3 className="text-sm sm:text-base font-bold text-[#115E34] dark:text-[#6EE7B7]">
+                    {editingFatwaCatId
+                      ? 'ဖသ်ဝါကဏ္ဍ ပြင်ဆင်ရန်'
+                      : 'ဖသ်ဝါကဏ္ဍ အသစ်ထည့်ရန်'}
+                  </h3>
+                  {editingFatwaCatId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingFatwaCatId(null);
+                        setFatwaCatNameMy('');
+                        setFatwaCatNameEn('');
+                        setFatwaCatDescMy('');
+                        setFatwaCatOrder(0);
+                      }}
+                      className="text-xs font-semibold text-[#5A6860] dark:text-[#94A3B8] hover:underline"
+                    >
+                      မပြင်တော့ပါ
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="fatwa-cat-name-my"
+                    className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                  >
+                    ကဏ္ဍအမည် (မြန်မာ) *
+                  </label>
+                  <input
+                    id="fatwa-cat-name-my"
+                    type="text"
+                    required
+                    value={fatwaCatNameMy}
+                    onChange={(e) => setFatwaCatNameMy(e.target.value)}
+                    placeholder="ဥပမာ - ဝတ်ပြုကိုးကွယ်မှု (အိဗာဒသ်)"
+                    className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="fatwa-cat-name-en"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                    >
+                      English Label (URL Slug အတွက်)
+                    </label>
+                    <input
+                      id="fatwa-cat-name-en"
+                      type="text"
+                      value={fatwaCatNameEn}
+                      onChange={(e) => setFatwaCatNameEn(e.target.value)}
+                      placeholder="Ibadah & Prayer"
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="fatwa-cat-order"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                    >
+                      အစဉ် (Order)
+                    </label>
+                    <input
+                      id="fatwa-cat-order"
+                      type="number"
+                      min={0}
+                      max={10000}
+                      value={fatwaCatOrder}
+                      onChange={(e) =>
+                        setFatwaCatOrder(Math.max(0, Number(e.target.value) || 0))
+                      }
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="fatwa-cat-desc"
+                    className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                  >
+                    အကြောင်းအရာ ရှင်းလင်းချက်
+                  </label>
+                  <textarea
+                    id="fatwa-cat-desc"
+                    rows={3}
+                    value={fatwaCatDescMy}
+                    onChange={(e) => setFatwaCatDescMy(e.target.value)}
+                    placeholder="ဤကဏ္ဍထဲတွင် မည်သည့်မေးခွန်းများ မေးမြန်းနိုင်ကြောင်း..."
+                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSavingFatwaCat}
+                  className="w-full min-h-[44px] px-5 py-2 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>
+                    {isSavingFatwaCat
+                      ? 'သိမ်းဆည်းနေပါသည်...'
+                      : editingFatwaCatId
+                        ? 'ပြင်ဆင်မှု သိမ်းဆည်းရန်'
+                        : 'ဖသ်ဝါကဏ္ဍအသစ် ထည့်သွင်းမည်'}
+                  </span>
+                </button>
+              </form>
+
+              {/* Fatwa Categories List */}
+              <div className="lg:col-span-7 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 divide-y divide-[#EDF1EE] dark:divide-[#1E2C4A]">
+                {fatwaCategories.length === 0 ? (
+                  <p className="text-sm text-[#5A6860] dark:text-[#94A3B8] py-8 text-center">
+                    ဖသ်ဝါကဏ္ဍ မရှိသေးပါ။ ဘေးဘက်မှ အသစ်ထည့်သွင်းပါ။
+                  </p>
+                ) : (
+                  fatwaCategories.map((cat, idx) => (
+                    <div
+                      key={cat.id}
+                      className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#5A6860] dark:text-[#94A3B8]">
+                          <span className="font-mono tabular-nums">
+                            #{typeof cat.sortOrder === 'number' ? cat.sortOrder : idx}
+                          </span>
+                          <span aria-hidden="true">·</span>
+                          <span className="font-mono">{cat.id}</span>
+                          {cat.nameEn && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span>{cat.nameEn}</span>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9]">
+                          {cat.nameMy}
+                        </p>
+                        {cat.descriptionMy && (
+                          <p className="text-xs text-[#5A6860] dark:text-[#94A3B8] line-clamp-2">
+                            {cat.descriptionMy}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingFatwaCatId(cat.id);
+                            setFatwaCatNameMy(cat.nameMy);
+                            setFatwaCatNameEn(cat.nameEn);
+                            setFatwaCatDescMy(cat.descriptionMy);
+                            setFatwaCatOrder(
+                              typeof cat.sortOrder === 'number' ? cat.sortOrder : idx,
+                            );
+                          }}
+                          className="px-3 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] text-[#1E3A8A] dark:text-[#93C5FD] text-xs font-semibold hover:bg-[#EFF3FA] dark:hover:bg-[#131E36] inline-flex items-center gap-1"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>ပြင်ရန်</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPendingDelete({
+                              kind: 'fatwaCategory',
+                              id: cat.id,
+                              label: cat.nameMy,
+                            })
+                          }
+                          className="px-3 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-700 dark:text-red-300 text-xs font-semibold hover:bg-red-50 dark:hover:bg-red-950/60 inline-flex items-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>ဖျက်ရန်</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 6: ADMIN & TELEGRAM BOT SETTINGS */}
         {activeTab === 'settings' && user && (
           <div className="space-y-6">
@@ -4591,7 +5333,7 @@ export function AdminPanelView({
                 required
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg"
+                className={`w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg ${getScriptFontClass(editTitle)}`}
               />
             </div>
 

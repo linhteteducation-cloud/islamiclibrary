@@ -153,6 +153,47 @@ service cloud.firestore {
       data.updatedAt is timestamp;
     }
 
+    function isOptionalHttpsUrl(val) {
+      return val is string && (
+        val == '' ||
+        (val.size() >= 10 && val.size() <= 300 && val.matches('^https://.*$'))
+      );
+    }
+
+    function isOptionalContactEmail(val) {
+      return val is string && (
+        val == '' ||
+        (val.size() >= 5 && val.size() <= 160 && val.matches('^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$'))
+      );
+    }
+
+    function isOptionalPhone(val) {
+      return val is string && (
+        val == '' ||
+        (val.size() >= 5 && val.size() <= 30 && val.matches('^[+0-9][0-9\\- ()]{4,29}$'))
+      );
+    }
+
+    function isValidContactLinks(links) {
+      return links is map &&
+        links.keys().hasAll([
+          'facebook', 'telegram', 'youtube', 'whatsapp',
+          'github', 'email', 'phone', 'website'
+        ]) &&
+        links.keys().hasOnly([
+          'facebook', 'telegram', 'youtube', 'whatsapp',
+          'github', 'email', 'phone', 'website'
+        ]) &&
+        isOptionalHttpsUrl(links.facebook) &&
+        isOptionalHttpsUrl(links.telegram) &&
+        isOptionalHttpsUrl(links.youtube) &&
+        isOptionalHttpsUrl(links.whatsapp) &&
+        isOptionalHttpsUrl(links.github) &&
+        isOptionalContactEmail(links.email) &&
+        isOptionalPhone(links.phone) &&
+        isOptionalHttpsUrl(links.website);
+    }
+
     function isValidSiteSettings(data) {
       return data.keys().hasAll([
         'hiddenSections', 'hiddenCategories', 'driveFolderId',
@@ -160,7 +201,8 @@ service cloud.firestore {
       ]) &&
       data.keys().hasOnly([
         'hiddenSections', 'hiddenCategories', 'driveFolderId',
-        'driveFolderName', 'heroDescription', 'updatedByUid', 'updatedAt'
+        'driveFolderName', 'heroDescription', 'contactLinks',
+        'updatedByUid', 'updatedAt'
       ]) &&
       data.hiddenSections is list && data.hiddenSections.size() <= 20 &&
       (data.hiddenSections.size() == 0 || data.hiddenSections[0] is string) &&
@@ -169,6 +211,7 @@ service cloud.firestore {
       data.driveFolderId is string && data.driveFolderId.size() <= 200 &&
       data.driveFolderName is string && data.driveFolderName.size() <= 120 &&
       data.heroDescription is string && data.heroDescription.size() <= 1000 &&
+      (!('contactLinks' in data) || isValidContactLinks(data.contactLinks)) &&
       data.updatedByUid is string && data.updatedByUid.size() >= 1 && data.updatedByUid.size() <= 128 &&
       data.updatedAt is timestamp;
     }
@@ -247,6 +290,79 @@ service cloud.firestore {
         'video', 'folder', 'sparkles', 'layers'
       ] &&
       data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidFatwaCategory(data) {
+      return data.keys().hasAll([
+        'nameMy', 'nameEn', 'descriptionMy', 'sortOrder',
+        'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'nameMy', 'nameEn', 'descriptionMy', 'sortOrder',
+        'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.nameMy is string && data.nameMy.size() >= 1 && data.nameMy.size() <= 120 &&
+      data.nameEn is string && data.nameEn.size() <= 120 &&
+      data.descriptionMy is string && data.descriptionMy.size() <= 400 &&
+      data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidFatwaQuestion(data) {
+      return data.keys().hasAll([
+        'askerName', 'city', 'email', 'phone', 'viber',
+        'categoryId', 'categoryLabel', 'subject', 'question',
+        'status', 'answerText', 'muftiName', 'isPublishedPublicly',
+        'publishedFatwaId', 'answeredByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'askerName', 'city', 'email', 'phone', 'viber',
+        'categoryId', 'categoryLabel', 'subject', 'question',
+        'status', 'answerText', 'muftiName', 'isPublishedPublicly',
+        'publishedFatwaId', 'answeredByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.askerName is string && data.askerName.size() >= 1 && data.askerName.size() <= 120 &&
+      data.city is string && data.city.size() >= 1 && data.city.size() <= 100 &&
+      data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+      data.email.matches('^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$') &&
+      data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 30 &&
+      data.phone.matches('^[+0-9][0-9\\- ()]{4,29}$') &&
+      data.viber is string && data.viber.size() <= 30 &&
+      (data.viber == '' || (data.viber.size() >= 5 && data.viber.matches('^[+0-9][0-9\\- ()]{4,29}$'))) &&
+      isValidCategoryId(data.categoryId) &&
+      data.categoryLabel is string && data.categoryLabel.size() >= 1 && data.categoryLabel.size() <= 120 &&
+      data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 240 &&
+      data.question is string && data.question.size() >= 1 && data.question.size() <= 6000 &&
+      data.status in ['pending', 'answered', 'archived'] &&
+      data.answerText is string && data.answerText.size() <= 12000 &&
+      data.muftiName is string && data.muftiName.size() <= 160 &&
+      data.isPublishedPublicly is bool &&
+      data.publishedFatwaId is string && data.publishedFatwaId.size() <= 128 &&
+      data.answeredByUid is string && data.answeredByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    function isValidPublishedFatwa(data) {
+      return data.keys().hasAll([
+        'categoryId', 'categoryLabel', 'subject', 'question',
+        'answerText', 'muftiName', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'categoryId', 'categoryLabel', 'subject', 'question',
+        'answerText', 'muftiName', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      isValidCategoryId(data.categoryId) &&
+      data.categoryLabel is string && data.categoryLabel.size() >= 1 && data.categoryLabel.size() <= 120 &&
+      data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 240 &&
+      data.question is string && data.question.size() >= 1 && data.question.size() <= 6000 &&
+      data.answerText is string && data.answerText.size() >= 1 && data.answerText.size() <= 12000 &&
+      data.muftiName is string && data.muftiName.size() <= 160 &&
       data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
       data.createdAt is timestamp &&
       data.updatedAt is timestamp;
@@ -344,7 +460,8 @@ service cloud.firestore {
         incoming().updatedAt == request.time &&
         incoming().diff(existing()).affectedKeys().hasOnly([
           'hiddenSections', 'hiddenCategories', 'driveFolderId',
-          'driveFolderName', 'heroDescription', 'updatedByUid', 'updatedAt'
+          'driveFolderName', 'heroDescription', 'contactLinks',
+          'updatedByUid', 'updatedAt'
         ]);
       allow delete: if isValidId(settingId) && isAdmin();
     }
@@ -423,6 +540,73 @@ service cloud.firestore {
           'nameMy', 'nameEn', 'descriptionMy', 'iconName', 'sortOrder', 'updatedAt'
         ]);
       allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // Fatwa categories (Public read, strictly Admin write/delete)
+    match /fatwaCategories/{categoryId} {
+      allow get: if isValidId(categoryId);
+      allow list: if true;
+      allow create: if isValidId(categoryId) && isValidCategoryId(categoryId) && isAdmin() && isValidFatwaCategory(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(categoryId) && isValidCategoryId(categoryId) && isAdmin() && isValidFatwaCategory(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'nameMy', 'nameEn', 'descriptionMy', 'sortOrder', 'updatedAt'
+        ]);
+      allow delete: if isValidId(categoryId) && isAdmin();
+    }
+
+    // Fatwa questions with asker PII (Public create with pending state, strictly Admin-only get/list/update/delete)
+    match /fatwaQuestions/{questionId} {
+      allow get: if isValidId(questionId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(questionId) && isValidFatwaQuestion(incoming()) &&
+        incoming().status == 'pending' &&
+        incoming().answerText == '' &&
+        incoming().muftiName == '' &&
+        incoming().isPublishedPublicly == false &&
+        incoming().publishedFatwaId == '' &&
+        incoming().answeredByUid == '' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(questionId) && isAdmin() && isValidFatwaQuestion(incoming()) &&
+        incoming().askerName == existing().askerName &&
+        incoming().city == existing().city &&
+        incoming().email == existing().email &&
+        incoming().phone == existing().phone &&
+        incoming().viber == existing().viber &&
+        incoming().question == existing().question &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'categoryId', 'categoryLabel', 'subject', 'status',
+          'answerText', 'muftiName', 'isPublishedPublicly',
+          'publishedFatwaId', 'answeredByUid', 'updatedAt'
+        ]);
+      allow delete: if isValidId(questionId) && isAdmin();
+    }
+
+    // Publicly published Fatwa Q&A archive without PII (Public read, strictly Admin write)
+    match /publishedFatwas/{fatwaId} {
+      allow get: if isValidId(fatwaId);
+      allow list: if true;
+      allow create: if isValidId(fatwaId) && isAdmin() && isValidPublishedFatwa(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(fatwaId) && isAdmin() && isValidPublishedFatwa(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'categoryId', 'categoryLabel', 'subject', 'question',
+          'answerText', 'muftiName', 'updatedAt'
+        ]);
+      allow delete: if isValidId(fatwaId) && isAdmin();
     }
   }
 }

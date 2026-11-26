@@ -1,4 +1,10 @@
-import {CategoryIconName, CategoryItem, SiteSettings} from '../types/library';
+import {
+  CategoryIconName,
+  CategoryItem,
+  FatwaCategoryItem,
+  FooterContactLinks,
+  SiteSettings,
+} from '../types/library';
 
 export const COVER_IMAGES = {
   libraryFeature: '/src/assets/images/feature_islamic_library_1795378756930.jpg',
@@ -7,12 +13,24 @@ export const COVER_IMAGES = {
 export const DEFAULT_HERO_DESCRIPTION =
   'ဤ အခမဲ့ အွန်လိုင်း အစ္စလာမ့်စာကြည့်တိုက်တွင် ကုရ်အာန်ကျမ်းတော်မြတ်နှင့်ကိုယ်တော်မြတ် (ဆွ) ၏ မွန်မြတ်လှသော ဟဒီးစ်တော်များ၊ အစ္စလာမ့်ယုံကြည်ချက်အကီဒဟ်များ၊ သမိုင်းဖတ်စာများ၊ အစ္စလာမ်ရှရီအသ်ဥပဒေများ၊ ဒိုအာနှင့် အအ်မာလ်များ၊ ကိုယ်ကျင့်သီလနှင့်  ကောင်ရာညွန်းကြားခြင်းများဆိုင်ရာ PDF စာအုပ်များနှင့် သုတေသနစာတမ်းများကို စုံလင်စွာ ဖတ်ရှုဒေါင်းလုဒ်ရယူနိုင်ပါသည်။';
 
+export const DEFAULT_CONTACT_LINKS: FooterContactLinks = {
+  facebook: 'https://www.facebook.com/junidesolaimani',
+  telegram: 'https://t.me/junidesolaimani',
+  youtube: '',
+  whatsapp: '',
+  github: 'https://github.com/junidesolaimani',
+  email: 'linhteteducation@gmail.com',
+  phone: '',
+  website: '',
+};
+
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   hiddenSections: [],
   hiddenCategories: [],
   driveFolderId: '',
   driveFolderName: 'Myanmar Muslim Library PDFs',
   heroDescription: DEFAULT_HERO_DESCRIPTION,
+  contactLinks: DEFAULT_CONTACT_LINKS,
 };
 
 export const MANAGEABLE_SECTIONS: {id: string; label: string}[] = [
@@ -206,3 +224,78 @@ export function generateCategorySlug(
   }
   return candidate;
 }
+
+export const DEFAULT_FATWA_CATEGORIES: FatwaCategoryItem[] = [
+  {
+    id: 'ibadah-salat',
+    nameMy: 'ဝတ်ပြုကိုးကွယ်မှု (အိဗာဒသ်)',
+    nameEn: 'Worship & Prayer (Ibadah)',
+    descriptionMy: 'နမာဇ်၊ ရိုဇာ၊ ဇကားသ်၊ ဟဂ်ျနှင့် သဟာရသ်ဆိုင်ရာ မေးခွန်းများ',
+    sortOrder: 0,
+    isDefaultSeed: true,
+  },
+  {
+    id: 'nikah-family',
+    nameMy: 'အိမ်ထောင်ရေးနှင့် မိသားစု',
+    nameEn: 'Marriage & Family (Nikah)',
+    descriptionMy: 'နိကာဟ်၊ သလာက်၊ မိဘဆွေမျိုးနှင့် မိသားစုဆိုင်ရာ ရှရီအသ်စည်းမျဉ်းများ',
+    sortOrder: 1,
+    isDefaultSeed: true,
+  },
+  {
+    id: 'muamalat-finance',
+    nameMy: 'စီးပွားရေးနှင့် ငွေကြေး',
+    nameEn: 'Business & Finance (Muamalat)',
+    descriptionMy: 'ဟလာလ်/ဟရာမ် စီးပွားရေး၊ ရောင်းဝယ်ဖောက်ကားမှုနှင့် ငွေကြေးကိစ္စများ',
+    sortOrder: 2,
+    isDefaultSeed: true,
+  },
+  {
+    id: 'aqeedah-beliefs',
+    nameMy: 'ယုံကြည်ချက် (အကီဒဟ်)',
+    nameEn: 'Creed & Beliefs (Aqeedah)',
+    descriptionMy: 'အီမာန်ယုံကြည်ချက်နှင့် အစ္စလာမ့်အခြေခံသဘောတရားများ',
+    sortOrder: 3,
+    isDefaultSeed: true,
+  },
+  {
+    id: 'halal-haram-food',
+    nameMy: 'အစားအသောက်နှင့် နေ့စဉ်ဘဝ',
+    nameEn: 'Halal Food & Daily Life',
+    descriptionMy: 'ဟလာလ်/ဟရာမ် အစားအစာ၊ ဝတ်စားဆင်ယင်မှုနှင့် နေ့စဉ်လူမှုရေး',
+    sortOrder: 4,
+    isDefaultSeed: true,
+  },
+  {
+    id: 'mirath-inheritance',
+    nameMy: 'အမွေခွဲဝေမှုနှင့် အထွေထွေ',
+    nameEn: 'Inheritance & General Fiqh',
+    descriptionMy: 'မီရာစ် (အမွေဆက်ခံခွင့်) နှင့် အထွေထွေ ဖိကဟ်မေးခွန်းများ',
+    sortOrder: 5,
+    isDefaultSeed: true,
+  },
+];
+
+export function generateFatwaCategorySlug(
+  nameEn: string,
+  existingIds: Set<string>,
+): string {
+  const base = nameEn
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 44);
+
+  const candidateBase =
+    base && base !== 'all' ? base : `fatwa-cat-${Date.now().toString(36)}`;
+
+  let candidate = candidateBase;
+  let counter = 2;
+  while (existingIds.has(candidate) || candidate === 'all') {
+    candidate = `${candidateBase}-${counter}`.slice(0, 58);
+    counter += 1;
+  }
+  return candidate;
+}
+

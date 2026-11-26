@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Menu, Shield, X} from 'lucide-react';
+import {Menu, Scale, Shield, X} from 'lucide-react';
 import {PageRoute, SiteSettings} from '../types/library';
 import {PWAInstallButton} from './PWAInstallButton';
 import {ThemeToggle} from './ThemeToggle';
@@ -8,6 +8,8 @@ interface NavbarProps {
   currentPage: PageRoute;
   onNavigate: (page: PageRoute) => void;
   siteSettings: SiteSettings;
+  isAdmin?: boolean;
+  pendingFatwaCount?: number;
 }
 
 const ALL_NAV_ITEMS: {id: PageRoute; label: string}[] = [
@@ -24,7 +26,13 @@ const MOBILE_EXTRA_ITEMS: {id: PageRoute; label: string}[] = [
   {id: 'contact', label: 'ဆက်သွယ်ရန်'},
 ];
 
-export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
+export function Navbar({
+  currentPage,
+  onNavigate,
+  siteSettings,
+  isAdmin = false,
+  pendingFatwaCount = 0,
+}: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const visibleDesktopLinks = ALL_NAV_ITEMS.filter(
@@ -98,6 +106,24 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
           <ThemeToggle variant="navbar" />
           <PWAInstallButton variant="header" />
 
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => handleSelect('fatwa-admin')}
+              className={`hidden lg:inline-flex items-center justify-center gap-1.5 min-h-[40px] px-3.5 py-2 text-[13px] font-semibold rounded-md whitespace-nowrap shrink-0 transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#6EE7B7] ${
+                currentPage === 'fatwa-admin'
+                  ? 'bg-[#B85338] text-white'
+                  : 'bg-[#146B3A] text-white hover:bg-[#0F522D]'
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span>
+                ဖသ်ဝါဖြေကြားရန်
+                {pendingFatwaCount > 0 ? ` (${pendingFatwaCount})` : ''}
+              </span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => handleSelect('admin')}
@@ -159,10 +185,30 @@ export function Navbar({currentPage, onNavigate, siteSettings}: NavbarProps) {
               />
             </div>
 
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => handleSelect('fatwa-admin')}
+                className={`w-full text-left px-3.5 min-h-[44px] rounded-md text-sm font-semibold flex items-center gap-2 mt-1 border-t border-[#1D2F57] pt-2.5 transition-colors ${
+                  currentPage === 'fatwa-admin'
+                    ? 'bg-[#B85338] text-white'
+                    : 'text-[#6EE7B7] hover:bg-white/8 hover:text-white'
+                }`}
+              >
+                <Scale className="w-4 h-4" />
+                <span>
+                  ဖသ်ဝါဖြေကြားရန်
+                  {pendingFatwaCount > 0 ? ` (${pendingFatwaCount})` : ''}
+                </span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => handleSelect('admin')}
-              className={`w-full text-left px-3.5 min-h-[44px] rounded-md text-sm font-semibold flex items-center gap-2 mt-1 border-t border-[#1D2F57] pt-2.5 transition-colors ${
+              className={`w-full text-left px-3.5 min-h-[44px] rounded-md text-sm font-semibold flex items-center gap-2 ${
+                isAdmin ? '' : 'mt-1 border-t border-[#1D2F57] pt-2.5'
+              } transition-colors ${
                 currentPage === 'admin'
                   ? 'bg-[#B85338] text-white'
                   : 'text-[#93C5FD] hover:bg-white/8 hover:text-white'

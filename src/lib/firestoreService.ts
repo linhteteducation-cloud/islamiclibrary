@@ -12,7 +12,11 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore';
-import {DEFAULT_SITE_SETTINGS} from '../data/libraryData';
+import {
+  DEFAULT_CONTACT_LINKS,
+  DEFAULT_FATWA_CATEGORIES,
+  DEFAULT_SITE_SETTINGS,
+} from '../data/libraryData';
 import {
   AdminInviteItem,
   ArticleItem,
@@ -21,6 +25,11 @@ import {
   CategoryItem,
   ContactMessageItem,
   DuaItem,
+  FatwaCategoryItem,
+  FatwaQuestionItem,
+  FatwaQuestionStatus,
+  FooterContactLinks,
+  PublishedFatwaItem,
   SiteSettings,
   TelegramSettings,
   VideoItem,
@@ -186,6 +195,99 @@ export function subscribeArticles(onData: (articles: ArticleItem[]) => void) {
   );
 }
 
+const SAFE_HTTPS_REGEX = /^https:\/\/[^\s]+$/;
+const CONTACT_EMAIL_REGEX =
+  /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+const CONTACT_PHONE_REGEX = /^[+0-9][0-9\- ()]{4,29}$/;
+
+export function normalizeSingleContactLink(
+  channel: keyof FooterContactLinks,
+  rawValue: string,
+): {value: string; error?: string} {
+  const trimmed = (rawValue || '').trim();
+  if (!trimmed) return {value: ''};
+
+  if (channel === 'email') {
+    const cleanEmail = trimmed.replace(/^mailto:/i, '').trim().slice(0, 160);
+    if (!CONTACT_EMAIL_REGEX.test(cleanEmail)) {
+      return {
+        value: '',
+        error: 'Email လိပ်စာ ပုံစံ မမှန်ကန်ပါ (ဥပမာ - name@gmail.com)။',
+      };
+    }
+    return {value: cleanEmail};
+  }
+
+  if (channel === 'phone') {
+    const cleanPhone = trimmed
+      .replace(/^tel:/i, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 30);
+    if (!CONTACT_PHONE_REGEX.test(cleanPhone)) {
+      return {
+        value: '',
+        error: 'ဖုန်းနံပါတ် ပုံစံ မမှန်ကန်ပါ (ဥပမာ - +959123456789)။',
+      };
+    }
+    return {value: cleanPhone};
+  }
+
+  if (/^(javascript|data|vbscript|file):/i.test(trimmed)) {
+    return {
+      value: '',
+      error: 'လုံခြုံရေးအရ ခွင့်မပြုသော Link ဖြစ်နေပါသည်။ https:// Link ကိုသာ ထည့်သွင်းပါ။',
+    };
+  }
+
+  let normalized = trimmed;
+  if (channel === 'telegram' && normalized.startsWith('@')) {
+    const username = normalized.slice(1).trim();
+    normalized = username ? `https://t.me/${username}` : '';
+  } else if (
+    channel === 'whatsapp' &&
+    /^[+0-9][0-9\s\-()]{5,25}$/.test(normalized)
+  ) {
+    const digitsOnly = normalized.replace(/[^0-9]/g, '');
+    normalized = digitsOnly ? `https://wa.me/${digitsOnly}` : '';
+  } else if (/^http:\/\//i.test(normalized)) {
+    normalized = `https://${normalized.slice(7)}`;
+  } else if (!/^https:\/\//i.test(normalized)) {
+    normalized = `https://${normalized.replace(/^\/+/, '')}`;
+  }
+
+  normalized = normalized.slice(0, 300);
+  if (
+    !normalized ||
+    normalized.length < 10 ||
+    !SAFE_HTTPS_REGEX.test(normalized) ||
+    !normalized.slice(8).includes('.')
+  ) {
+    return {
+      value: '',
+      error: `${channel} Link သည် မှန်ကန်သော https:// URL ဖြစ်ရပါမည်။`,
+    };
+  }
+
+  return {value: normalized};
+}
+
+export function sanitizeContactLinks(
+  links?: Partial<FooterContactLinks> | null,
+): FooterContactLinks {
+  const source = links || DEFAULT_CONTACT_LINKS;
+  return {
+    facebook: normalizeSingleContactLink('facebook', String(source.facebook ?? '')).value,
+    telegram: normalizeSingleContactLink('telegram', String(source.telegram ?? '')).value,
+    youtube: normalizeSingleContactLink('youtube', String(source.youtube ?? '')).value,
+    whatsapp: normalizeSingleContactLink('whatsapp', String(source.whatsapp ?? '')).value,
+    github: normalizeSingleContactLink('github', String(source.github ?? '')).value,
+    email: normalizeSingleContactLink('email', String(source.email ?? '')).value,
+    phone: normalizeSingleContactLink('phone', String(source.phone ?? '')).value,
+    website: normalizeSingleContactLink('website', String(source.website ?? '')).value,
+  };
+}
+
 export function subscribeSiteSettings(onData: (settings: SiteSettings) => void) {
   const path = 'siteSettings/main';
   return onSnapshot(
@@ -196,6 +298,12 @@ export function subscribeSiteSettings(onData: (settings: SiteSettings) => void) 
         return;
       }
       const data = snap.data();
+      const hasContactLinks =
+        data.contactLinks && typeof data.contactLinks === 'object';
+      const rawLinks = hasContactLinks
+        ? (data.contactLinks as Record<string, unknown>)
+        : null;
+
       onData({
         hiddenSections: Array.isArray(data.hiddenSections)
           ? data.hiddenSections.map(String)
@@ -210,6 +318,18 @@ export function subscribeSiteSettings(onData: (settings: SiteSettings) => void) 
         heroDescription: String(
           data.heroDescription || DEFAULT_SITE_SETTINGS.heroDescription,
         ),
+        contactLinks: rawLinks
+          ? {
+              facebook: String(rawLinks.facebook ?? ''),
+              telegram: String(rawLinks.telegram ?? ''),
+              youtube: String(rawLinks.youtube ?? ''),
+              whatsapp: String(rawLinks.whatsapp ?? ''),
+              github: String(rawLinks.github ?? ''),
+              email: String(rawLinks.email ?? ''),
+              phone: String(rawLinks.phone ?? ''),
+              website: String(rawLinks.website ?? ''),
+            }
+          : DEFAULT_CONTACT_LINKS,
       });
     },
     (error) => handleFirestoreError(error, OperationType.GET, path),
@@ -438,6 +558,7 @@ export async function saveSiteSettings(uid: string, settings: SiteSettings) {
       driveFolderId: settings.driveFolderId.trim().slice(0, 200),
       driveFolderName: settings.driveFolderName.trim().slice(0, 120),
       heroDescription: settings.heroDescription.trim().slice(0, 1000),
+      contactLinks: sanitizeContactLinks(settings.contactLinks),
       updatedByUid: uid,
       updatedAt: serverTimestamp(),
     });
@@ -725,3 +846,407 @@ export async function deleteCategoryRecord(categoryId: string) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }
 }
+
+// ---------- Fatwa Categories (Full Admin Control) ----------
+
+export function subscribeFatwaCategories(
+  onData: (categories: FatwaCategoryItem[]) => void,
+) {
+  const path = 'fatwaCategories';
+  const q = query(collection(db, path), orderBy('sortOrder', 'asc'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            nameMy: String(data.nameMy || ''),
+            nameEn: String(data.nameEn || ''),
+            descriptionMy: String(data.descriptionMy || ''),
+            sortOrder: Number(data.sortOrder ?? 100),
+            createdByUid: String(data.createdByUid || ''),
+          };
+        }),
+      );
+    },
+    (error) => handleFirestoreError(error, OperationType.LIST, path),
+  );
+}
+
+export async function saveFatwaCategoryRecord(
+  uid: string,
+  payload: {
+    id: string;
+    nameMy: string;
+    nameEn: string;
+    descriptionMy: string;
+    sortOrder: number;
+    isExistingDoc?: boolean;
+  },
+) {
+  const cleanId = payload.id
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  if (!cleanId || cleanId === 'all') {
+    throw new Error('Fatwa Category ID မမှန်ကန်ပါ။');
+  }
+  const path = `fatwaCategories/${cleanId}`;
+  const docRef = doc(db, 'fatwaCategories', cleanId);
+  const cleanFields = {
+    nameMy: payload.nameMy.trim().slice(0, 120),
+    nameEn: payload.nameEn.trim().slice(0, 120),
+    descriptionMy: payload.descriptionMy.trim().slice(0, 400),
+    sortOrder: Math.max(
+      0,
+      Math.min(10000, Math.round(Number(payload.sortOrder) || 0)),
+    ),
+  };
+  if (!cleanFields.nameMy) {
+    throw new Error('ဖသ်ဝါ ကဏ္ဍအမည် ထည့်သွင်းပါ။');
+  }
+
+  try {
+    await enableNetwork(db).catch(() => {});
+    if (payload.isExistingDoc) {
+      try {
+        await updateDoc(docRef, {
+          ...cleanFields,
+          updatedAt: serverTimestamp(),
+        });
+      } catch (updateErr) {
+        const msg =
+          updateErr instanceof Error ? updateErr.message : String(updateErr);
+        const code =
+          typeof updateErr === 'object' && updateErr && 'code' in updateErr
+            ? String((updateErr as {code?: unknown}).code || '')
+            : '';
+        if (code === 'not-found' || msg.includes('No document to update')) {
+          await setDoc(docRef, {
+            ...cleanFields,
+            createdByUid: uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        } else {
+          throw updateErr;
+        }
+      }
+    } else {
+      await setDoc(docRef, {
+        ...cleanFields,
+        createdByUid: uid,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    return cleanId;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.WRITE, path);
+  }
+}
+
+export async function seedDefaultFatwaCategories(uid: string) {
+  for (const cat of DEFAULT_FATWA_CATEGORIES) {
+    await saveFatwaCategoryRecord(uid, {
+      id: cat.id,
+      nameMy: cat.nameMy,
+      nameEn: cat.nameEn,
+      descriptionMy: cat.descriptionMy,
+      sortOrder: cat.sortOrder,
+      isExistingDoc: true,
+    });
+  }
+}
+
+export async function deleteFatwaCategoryRecord(categoryId: string) {
+  const path = `fatwaCategories/${categoryId}`;
+  try {
+    await deleteDoc(doc(db, 'fatwaCategories', categoryId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// ---------- Fatwa Questions (Admin-Only PII) & Published Fatwa Archive ----------
+
+export function subscribeFatwaQuestions(
+  onData: (questions: FatwaQuestionItem[]) => void,
+) {
+  const path = 'fatwaQuestions';
+  const q = query(collection(db, path), orderBy('createdAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(
+        snap.docs.map((d) => {
+          const data = d.data();
+          const rawStatus = String(data.status || 'pending');
+          const status: FatwaQuestionStatus =
+            rawStatus === 'answered' || rawStatus === 'archived'
+              ? rawStatus
+              : 'pending';
+          return {
+            id: d.id,
+            askerName: String(data.askerName || ''),
+            city: String(data.city || ''),
+            email: String(data.email || ''),
+            phone: String(data.phone || ''),
+            viber: String(data.viber || ''),
+            categoryId: String(data.categoryId || ''),
+            categoryLabel: String(data.categoryLabel || ''),
+            subject: String(data.subject || ''),
+            question: String(data.question || ''),
+            status,
+            answerText: String(data.answerText || ''),
+            muftiName: String(data.muftiName || ''),
+            isPublishedPublicly: Boolean(data.isPublishedPublicly),
+            publishedFatwaId: String(data.publishedFatwaId || ''),
+            answeredByUid: String(data.answeredByUid || ''),
+            createdAtLabel: formatTimestamp(data.createdAt),
+            answeredAtLabel:
+              status === 'answered' ? formatTimestamp(data.updatedAt) : '',
+          };
+        }),
+      );
+    },
+    (error) => handleFirestoreError(error, OperationType.LIST, path),
+  );
+}
+
+export function subscribePublishedFatwas(
+  onData: (items: PublishedFatwaItem[]) => void,
+) {
+  const path = 'publishedFatwas';
+  const q = query(collection(db, path), orderBy('updatedAt', 'desc'));
+  return onSnapshot(
+    q,
+    (snap) => {
+      onData(
+        snap.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            categoryId: String(data.categoryId || ''),
+            categoryLabel: String(data.categoryLabel || ''),
+            subject: String(data.subject || ''),
+            question: String(data.question || ''),
+            answerText: String(data.answerText || ''),
+            muftiName: String(data.muftiName || ''),
+            createdByUid: String(data.createdByUid || ''),
+            answeredAtLabel: formatTimestamp(data.updatedAt),
+          };
+        }),
+      );
+    },
+    (error) => handleFirestoreError(error, OperationType.LIST, path),
+  );
+}
+
+export async function submitFatwaQuestion(payload: {
+  askerName: string;
+  city: string;
+  email: string;
+  phone: string;
+  viber: string;
+  categoryId: string;
+  categoryLabel: string;
+  subject: string;
+  question: string;
+}) {
+  const path = 'fatwaQuestions';
+  const askerName = payload.askerName.trim().slice(0, 120);
+  const city = payload.city.trim().slice(0, 100);
+  const email = payload.email.trim().toLowerCase().slice(0, 160);
+  const phone = payload.phone.replace(/\s+/g, ' ').trim().slice(0, 30);
+  const viber = payload.viber.replace(/\s+/g, ' ').trim().slice(0, 30);
+  const categoryId = payload.categoryId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  const categoryLabel = payload.categoryLabel.trim().slice(0, 120);
+  const subject = payload.subject.trim().slice(0, 240);
+  const question = payload.question.trim().slice(0, 6000);
+
+  if (!askerName) throw new Error('အမည် ထည့်သွင်းပါ။');
+  if (!city) throw new Error('နေထိုင်သည့်မြို့ ထည့်သွင်းပါ။');
+  if (!CONTACT_EMAIL_REGEX.test(email)) {
+    throw new Error('မှန်ကန်သော Email လိပ်စာ ထည့်သွင်းပါ။');
+  }
+  if (!CONTACT_PHONE_REGEX.test(phone)) {
+    throw new Error('မှန်ကန်သော ဖုန်းနံပါတ် ထည့်သွင်းပါ။');
+  }
+  if (viber && !CONTACT_PHONE_REGEX.test(viber)) {
+    throw new Error('Viber နံပါတ် ပုံစံ မမှန်ကန်ပါ (ဥပမာ - +959...)။');
+  }
+  if (!categoryId || !categoryLabel) {
+    throw new Error('ဖသ်ဝါ ကဏ္ဍ ရွေးချယ်ပါ။');
+  }
+  if (!subject) throw new Error('မေးခွန်းခေါင်းစဉ် ထည့်သွင်းပါ။');
+  if (!question) throw new Error('မေးမြန်းလိုသည့် အကြောင်းအရာ ထည့်သွင်းပါ။');
+
+  try {
+    await addDoc(collection(db, path), {
+      askerName,
+      city,
+      email,
+      phone,
+      viber,
+      categoryId,
+      categoryLabel,
+      subject,
+      question,
+      status: 'pending',
+      answerText: '',
+      muftiName: '',
+      isPublishedPublicly: false,
+      publishedFatwaId: '',
+      answeredByUid: '',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function answerFatwaQuestion(
+  uid: string,
+  questionItem: FatwaQuestionItem,
+  payload: {
+    categoryId: string;
+    categoryLabel: string;
+    subject: string;
+    status: FatwaQuestionStatus;
+    answerText: string;
+    muftiName: string;
+    isPublishedPublicly: boolean;
+  },
+) {
+  const cleanCategoryId = payload.categoryId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+  const cleanCategoryLabel = payload.categoryLabel.trim().slice(0, 120);
+  const cleanSubject = payload.subject.trim().slice(0, 240);
+  const cleanAnswer = payload.answerText.trim().slice(0, 12000);
+  const cleanMufti = payload.muftiName.trim().slice(0, 160);
+  const shouldPublish = Boolean(payload.isPublishedPublicly && cleanAnswer);
+
+  let nextPublishedFatwaId = questionItem.publishedFatwaId;
+
+  if (shouldPublish) {
+    const targetPubId = questionItem.publishedFatwaId || questionItem.id;
+    const pubPath = `publishedFatwas/${targetPubId}`;
+    const pubRef = doc(db, 'publishedFatwas', targetPubId);
+    const pubFields = {
+      categoryId: cleanCategoryId || questionItem.categoryId,
+      categoryLabel: cleanCategoryLabel || questionItem.categoryLabel,
+      subject: cleanSubject || questionItem.subject,
+      question: questionItem.question.trim().slice(0, 6000),
+      answerText: cleanAnswer,
+      muftiName: cleanMufti,
+    };
+    try {
+      if (questionItem.publishedFatwaId) {
+        try {
+          await updateDoc(pubRef, {
+            ...pubFields,
+            updatedAt: serverTimestamp(),
+          });
+        } catch (updateErr) {
+          const msg =
+            updateErr instanceof Error ? updateErr.message : String(updateErr);
+          const code =
+            typeof updateErr === 'object' && updateErr && 'code' in updateErr
+              ? String((updateErr as {code?: unknown}).code || '')
+              : '';
+          if (code === 'not-found' || msg.includes('No document to update')) {
+            await setDoc(pubRef, {
+              ...pubFields,
+              createdByUid: uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+          } else {
+            throw updateErr;
+          }
+        }
+      } else {
+        await setDoc(pubRef, {
+          ...pubFields,
+          createdByUid: uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+      nextPublishedFatwaId = targetPubId;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, pubPath);
+    }
+  } else if (questionItem.publishedFatwaId) {
+    const pubPath = `publishedFatwas/${questionItem.publishedFatwaId}`;
+    try {
+      await deleteDoc(doc(db, 'publishedFatwas', questionItem.publishedFatwaId));
+    } catch {
+      // Ignore if already removed
+    }
+    void pubPath;
+    nextPublishedFatwaId = '';
+  }
+
+  const questionPath = `fatwaQuestions/${questionItem.id}`;
+  try {
+    await updateDoc(doc(db, 'fatwaQuestions', questionItem.id), {
+      categoryId: cleanCategoryId || questionItem.categoryId,
+      categoryLabel: cleanCategoryLabel || questionItem.categoryLabel,
+      subject: cleanSubject || questionItem.subject,
+      status: payload.status,
+      answerText: cleanAnswer,
+      muftiName: cleanMufti,
+      isPublishedPublicly: shouldPublish,
+      publishedFatwaId: nextPublishedFatwaId,
+      answeredByUid: cleanAnswer ? uid : questionItem.answeredByUid,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, questionPath);
+  }
+}
+
+export async function deleteFatwaQuestionRecord(
+  questionId: string,
+  publishedFatwaId?: string,
+) {
+  if (publishedFatwaId) {
+    try {
+      await deleteDoc(doc(db, 'publishedFatwas', publishedFatwaId));
+    } catch {
+      // Ignore missing published archive item
+    }
+  }
+  const path = `fatwaQuestions/${questionId}`;
+  try {
+    await deleteDoc(doc(db, 'fatwaQuestions', questionId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+export async function deletePublishedFatwaRecord(fatwaId: string) {
+  const path = `publishedFatwas/${fatwaId}`;
+  try {
+    await deleteDoc(doc(db, 'publishedFatwas', fatwaId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
