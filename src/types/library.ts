@@ -219,3 +219,23 @@ export interface PublishedFatwaItem {
   createdByUid: string;
   answeredAtLabel?: string;
 }
+
+export type DuaSlideMimeType =
+  | 'image/png'
+  | 'image/jpeg'
+  | 'image/webp'
+  | 'image/gif'
+  | 'url';
+
+export interface DuaSlideItem {
+  id: string;
+  title: string;
+  caption: string;
+  imageUrl: string;
+  mimeType: DuaSlideMimeType;
+  sortOrder: number;
+  published: boolean;
+  createdByUid: string;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+}

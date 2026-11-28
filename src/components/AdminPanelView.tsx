@@ -15,6 +15,7 @@ import {
   FolderOpen,
   Globe,
   HardDrive,
+  ImagePlus,
   Inbox,
   LayoutGrid,
   Link2,
@@ -56,12 +57,14 @@ import {
   createArticleRecord,
   createBookRecord,
   createDuaRecord,
+  createDuaSlideRecord,
   createVideoRecord,
   DEFAULT_TELEGRAM_SETTINGS,
   deleteArticleRecord,
   deleteBookRecord,
   deleteContactMessage,
   deleteDuaRecord,
+  deleteDuaSlideRecord,
   deleteFatwaCategoryRecord,
   deleteVideoRecord,
   markContactMessageRead,
@@ -75,6 +78,7 @@ import {
   subscribeContactMessages,
   subscribeTelegramSettings,
   updateBookRecord,
+  updateDuaSlideRecord,
 } from '../lib/firestoreService';
 import {
   buildDriveUrls,
@@ -106,6 +110,10 @@ import {
   TelegramDiscoveredChat,
 } from '../lib/telegramIntegration';
 import {
+  normalizeDuaImageExternalUrl,
+  processDuaImageFile,
+} from '../lib/imageUpload';
+import {
   AdminInviteItem,
   ArticleItem,
   BookCategoryId,
@@ -114,6 +122,8 @@ import {
   ContactMessageItem,
   DriveFileSummary,
   DuaItem,
+  DuaSlideItem,
+  DuaSlideMimeType,
   FatwaCategoryItem,
   FooterContactLinks,
   MaterialType,
@@ -135,6 +145,7 @@ interface AdminPanelViewProps {
   categories: CategoryItem[];
   onOpenCategoryManager: () => void;
   duas: DuaItem[];
+  duaSlides: DuaSlideItem[];
   videos: VideoItem[];
   articles: ArticleItem[];
   siteSettings: SiteSettings;
@@ -152,8 +163,9 @@ type AdminTab =
   | 'visibility'
   | 'drive'
   | 'content'
-  | 'messages'
+  | 'duaSlides'
   | 'fatwaCategories'
+  | 'messages'
   | 'links'
   | 'settings';
 
@@ -161,6 +173,7 @@ interface PendingDelete {
   kind:
     | 'book'
     | 'dua'
+    | 'duaSlide'
     | 'video'
     | 'article'
     | 'driveFile'
@@ -183,6 +196,7 @@ export function AdminPanelView({
   categories,
   onOpenCategoryManager,
   duas,
+  duaSlides,
   videos,
   articles,
   siteSettings,
@@ -424,6 +438,22 @@ export function AdminPanelView({
   const [alsoDeleteFromDrive, setAlsoDeleteFromDrive] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Home Page Sliding Dua Image Banners state (PNG/JPEG/WebP/GIF/URL)
+  const [editingDuaSlideId, setEditingDuaSlideId] = useState<string | null>(
+    null,
+  );
+  const [duaSlideTitle, setDuaSlideTitle] = useState('');
+  const [duaSlideCaption, setDuaSlideCaption] = useState('');
+  const [duaSlideImageUrl, setDuaSlideImageUrl] = useState('');
+  const [duaSlideMimeType, setDuaSlideMimeType] =
+    useState<DuaSlideMimeType>('image/png');
+  const [duaSlideSortOrder, setDuaSlideSortOrder] = useState(0);
+  const [duaSlidePublished, setDuaSlidePublished] = useState(true);
+  const [duaSlideExternalUrlInput, setDuaSlideExternalUrlInput] = useState('');
+  const [isProcessingDuaImages, setIsProcessingDuaImages] = useState(false);
+  const [isSavingDuaSlide, setIsSavingDuaSlide] = useState(false);
+  const [duaSlideError, setDuaSlideError] = useState<string | null>(null);
+
   useEffect(() => {
     setHiddenSectionsDraft(siteSettings.hiddenSections);
     setHiddenCategoriesDraft(siteSettings.hiddenCategories);
@@ -432,8 +462,8 @@ export function AdminPanelView({
   }, [siteSettings]);
 
   useEffect(() => {
-    if (requestedTab === 'fatwaCategories') {
-      setActiveTab('fatwaCategories');
+    if (requestedTab === 'fatwaCategories' || requestedTab === 'duaSlides') {
+      setActiveTab(requestedTab);
       onClearRequestedTab?.();
     }
   }, [requestedTab, onClearRequestedTab]);
@@ -1299,6 +1329,23 @@ export function AdminPanelView({
       } else if (pendingDelete.kind === 'dua') {
         await deleteDuaRecord(pendingDelete.id);
         showNotice('success', 'ဒိုအာကို ဖျက်လိုက်ပါပြီ။');
+      } else if (pendingDelete.kind === 'duaSlide') {
+        await deleteDuaSlideRecord(pendingDelete.id);
+        if (editingDuaSlideId === pendingDelete.id) {
+          setEditingDuaSlideId(null);
+          setDuaSlideTitle('');
+          setDuaSlideCaption('');
+          setDuaSlideImageUrl('');
+          setDuaSlideMimeType('image/png');
+          setDuaSlideSortOrder(0);
+          setDuaSlidePublished(true);
+          setDuaSlideExternalUrlInput('');
+          setDuaSlideError(null);
+        }
+        showNotice(
+          'success',
+          `“${pendingDelete.label}” ဒိုအာပုံကို ဖျက်သိမ်းပြီးပါပြီ။`,
+        );
       } else if (pendingDelete.kind === 'video') {
         await deleteVideoRecord(pendingDelete.id);
         showNotice('success', 'ဗီဒီယိုကို ဖျက်လိုက်ပါပြီ။');
@@ -1427,6 +1474,230 @@ export function AdminPanelView({
       );
     } finally {
       setIsSavingFatwaCat(false);
+    }
+  };
+
+  const resetDuaSlideForm = () => {
+    setEditingDuaSlideId(null);
+    setDuaSlideTitle('');
+    setDuaSlideCaption('');
+    setDuaSlideImageUrl('');
+    setDuaSlideMimeType('image/png');
+    setDuaSlideSortOrder(duaSlides.length + 1);
+    setDuaSlidePublished(true);
+    setDuaSlideExternalUrlInput('');
+    setDuaSlideError(null);
+  };
+
+  const startEditingDuaSlide = (slide: DuaSlideItem) => {
+    setEditingDuaSlideId(slide.id);
+    setDuaSlideTitle(slide.title);
+    setDuaSlideCaption(slide.caption);
+    setDuaSlideImageUrl(slide.imageUrl);
+    setDuaSlideMimeType(slide.mimeType);
+    setDuaSlideSortOrder(slide.sortOrder);
+    setDuaSlidePublished(slide.published);
+    setDuaSlideExternalUrlInput(slide.mimeType === 'url' ? slide.imageUrl : '');
+    setDuaSlideError(null);
+  };
+
+  const handleDuaSlideFileSelected = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0 || !user) return;
+
+    setDuaSlideError(null);
+    setIsProcessingDuaImages(true);
+    try {
+      if (files.length === 1) {
+        const processed = await processDuaImageFile(files[0]);
+        setDuaSlideImageUrl(processed.imageUrl);
+        setDuaSlideMimeType(processed.mimeType);
+        setDuaSlideExternalUrlInput('');
+        if (!duaSlideTitle.trim()) {
+          setDuaSlideTitle(processed.titleSuggestion);
+        }
+        if (!editingDuaSlideId && duaSlideSortOrder === 0) {
+          const maxOrder = duaSlides.reduce(
+            (max, s) => Math.max(max, s.sortOrder || 0),
+            0,
+          );
+          setDuaSlideSortOrder(maxOrder + 1);
+        }
+        showNotice(
+          'success',
+          `ပုံဖိုင် (${processed.mimeType.replace('image/', '').toUpperCase()}) ကို အဆင်သင့်ပြင်ဆင်ပြီးပါပြီ — “သိမ်းဆည်းမည်” ခလုတ်ကို နှိပ်ပါ။`,
+        );
+      } else {
+        // Multi-file direct batch upload into /duaSlides
+        let nextOrder =
+          duaSlides.reduce((max, s) => Math.max(max, s.sortOrder || 0), 0) + 1;
+        let uploadedCount = 0;
+        const failedNames: string[] = [];
+
+        for (const file of files) {
+          try {
+            const processed = await processDuaImageFile(file);
+            await createDuaSlideRecord(user.uid, {
+              title: processed.titleSuggestion,
+              caption: '',
+              imageUrl: processed.imageUrl,
+              mimeType: processed.mimeType,
+              sortOrder: nextOrder,
+              published: true,
+            });
+            nextOrder += 1;
+            uploadedCount += 1;
+          } catch (fileErr) {
+            const msg =
+              fileErr instanceof Error ? fileErr.message : 'တင်သွင်းမရပါ';
+            failedNames.push(`${file.name} (${msg})`);
+          }
+        }
+
+        if (uploadedCount > 0) {
+          showNotice(
+            'success',
+            `ဒိုအာပုံ ${uploadedCount} ပုံကို ပထမစာမျက်နှာ Slider သို့ တိုက်ရိုက်တင်သွင်းပြီးပါပြီ။`,
+          );
+        }
+        if (failedNames.length > 0) {
+          const errText = `အချို့ပုံများ မတင်နိုင်ပါ: ${failedNames.join(' · ')}`;
+          setDuaSlideError(errText);
+          if (uploadedCount === 0) {
+            showNotice('error', errText);
+          }
+        }
+      }
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'ပုံဖိုင် စစ်ဆေးတင်သွင်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။';
+      setDuaSlideError(msg);
+      showNotice('error', msg);
+    } finally {
+      setIsProcessingDuaImages(false);
+    }
+  };
+
+  const handleApplyDuaSlideExternalUrl = () => {
+    setDuaSlideError(null);
+    try {
+      const normalized = normalizeDuaImageExternalUrl(duaSlideExternalUrlInput);
+      setDuaSlideImageUrl(normalized);
+      setDuaSlideMimeType('url');
+      if (!duaSlideTitle.trim()) {
+        setDuaSlideTitle('ဒိုအာပုံရိပ်');
+      }
+    } catch (err) {
+      setDuaSlideError(
+        err instanceof Error
+          ? err.message
+          : 'ပုံ Link စစ်ဆေးရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
+    }
+  };
+
+  const handleSaveDuaSlide = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setDuaSlideError(null);
+
+    let finalImageUrl = duaSlideImageUrl.trim();
+    let finalMime: DuaSlideMimeType = duaSlideMimeType;
+
+    if (!finalImageUrl && duaSlideExternalUrlInput.trim()) {
+      try {
+        finalImageUrl = normalizeDuaImageExternalUrl(duaSlideExternalUrlInput);
+        finalMime = 'url';
+        setDuaSlideImageUrl(finalImageUrl);
+        setDuaSlideMimeType('url');
+      } catch (err) {
+        const msg =
+          err instanceof Error
+            ? err.message
+            : 'ပုံ Link စစ်ဆေးရာတွင် အမှားဖြစ်ပေါ်ပါသည်။';
+        setDuaSlideError(msg);
+        return;
+      }
+    }
+
+    if (!finalImageUrl) {
+      setDuaSlideError(
+        'PNG, JPEG, WebP, GIF ပုံဖိုင်တစ်ခု ရွေးချယ်တင်သွင်းပါ (သို့မဟုတ်) ပုံ Link ထည့်သွင်းပါ။',
+      );
+      return;
+    }
+
+    setIsSavingDuaSlide(true);
+    try {
+      const cleanTitle = duaSlideTitle.trim() || 'ဒိုအာပုံရိပ်';
+      const cleanCaption = duaSlideCaption.trim();
+      const maxOrder = duaSlides.reduce(
+        (max, s) => Math.max(max, s.sortOrder || 0),
+        0,
+      );
+      const cleanOrder =
+        editingDuaSlideId || duaSlideSortOrder > 0
+          ? duaSlideSortOrder
+          : maxOrder + 1;
+
+      if (editingDuaSlideId) {
+        await updateDuaSlideRecord(editingDuaSlideId, {
+          title: cleanTitle,
+          caption: cleanCaption,
+          imageUrl: finalImageUrl,
+          mimeType: finalMime,
+          sortOrder: cleanOrder,
+          published: duaSlidePublished,
+        });
+        showNotice('success', `“${cleanTitle}” ဒိုအာပုံကို ပြင်ဆင်သိမ်းဆည်းပြီးပါပြီ။`);
+      } else {
+        await createDuaSlideRecord(user.uid, {
+          title: cleanTitle,
+          caption: cleanCaption,
+          imageUrl: finalImageUrl,
+          mimeType: finalMime,
+          sortOrder: cleanOrder,
+          published: duaSlidePublished,
+        });
+        showNotice(
+          'success',
+          `“${cleanTitle}” ဒိုအာပုံကို ပထမစာမျက်နှာ Slider သို့ ထည့်သွင်းပြီးပါပြီ။`,
+        );
+      }
+      resetDuaSlideForm();
+    } catch (err) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : 'ဒိုအာပုံ သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ပါသည်။';
+      setDuaSlideError(msg);
+      showNotice('error', msg);
+    } finally {
+      setIsSavingDuaSlide(false);
+    }
+  };
+
+  const handleToggleDuaSlidePublished = async (slide: DuaSlideItem) => {
+    try {
+      await updateDuaSlideRecord(slide.id, {published: !slide.published});
+      showNotice(
+        'success',
+        !slide.published
+          ? `“${slide.title}” ကို ပထမစာမျက်နှာတွင် ပြန်လည်ပြသပြီးပါပြီ။`
+          : `“${slide.title}” ကို ယာယီဝှက်ထားပြီးပါပြီ။`,
+      );
+    } catch (err) {
+      showNotice(
+        'error',
+        err instanceof Error
+          ? err.message
+          : 'ပြသမှု အခြေအနေ ပြောင်းလဲရာတွင် အမှားဖြစ်ပေါ်ပါသည်။',
+      );
     }
   };
 
@@ -2254,6 +2525,11 @@ export function AdminPanelView({
             {id: 'visibility' as const, label: 'ကဏ္ဍဖယ်ထုတ် / ပြသမှု', icon: Sliders},
             {id: 'drive' as const, label: 'Google Drive သိုလှောင်ခန်း', icon: HardDrive},
             {id: 'content' as const, label: 'ဒိုအာ · ဗီဒီယို · ဆောင်းပါး', icon: LayoutGrid},
+            {
+              id: 'duaSlides' as const,
+              label: `ပုံ Dua များ (${duaSlides.length})`,
+              icon: ImagePlus,
+            },
             {
               id: 'fatwaCategories' as const,
               label: `ဖသ်ဝါကဏ္ဍများ (${fatwaCategories.length})`,
@@ -4544,6 +4820,354 @@ export function AdminPanelView({
                       </div>
                     </div>
                   ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB: HOME PAGE SLIDING DUA IMAGE BANNERS (PNG/JPEG/WebP/GIF/URL) */}
+        {activeTab === 'duaSlides' && user && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-[#EBF4EE] dark:bg-[#0D231B] text-[#146B3A] dark:text-[#6EE7B7] flex items-center justify-center shrink-0">
+                  <ImagePlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A241E] dark:text-[#F1F5F9]">
+                    ပထမစာမျက်နှာ ရွေ့လျားနေသော ပုံ Dua များ (PNG · JPEG · WebP · GIF)
+                  </h2>
+                  <p className="text-xs sm:text-sm text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
+                    ဖုန်း သို့မဟုတ် ကွန်ပျူတာမှ PNG နှင့် JPEG/JPG ဒိုအာပုံများကို တိုက်ရိုက်ရွေးချယ်တင်သွင်းနိုင်ပြီး
+                    ပထမစာမျက်နှာတွင် အလိုအလျောက် ရွေ့လျားပြသပေးပါမည်။
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onNavigate('home')}
+                className="min-h-[40px] px-4 py-2 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1B2A4A] text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7] inline-flex items-center gap-1.5 shrink-0"
+              >
+                <Eye className="w-4 h-4" />
+                <span>ပထမစာမျက်နှာတွင် ကြည့်ရန်</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Upload / Edit Dua Slide Form */}
+              <form
+                onSubmit={(e) => void handleSaveDuaSlide(e)}
+                className="lg:col-span-5 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
+                  <h3 className="text-sm sm:text-base font-bold text-[#115E34] dark:text-[#6EE7B7]">
+                    {editingDuaSlideId
+                      ? 'ဒိုအာပုံ အချက်အလက် ပြင်ဆင်ရန်'
+                      : 'ဒိုအာပုံ အသစ်တင်ရန်'}
+                  </h3>
+                  {editingDuaSlideId && (
+                    <button
+                      type="button"
+                      onClick={resetDuaSlideForm}
+                      className="text-xs font-semibold text-[#9B7417] dark:text-[#E2C792] hover:underline"
+                    >
+                      အသစ်ပြန်စရန်
+                    </button>
+                  )}
+                </div>
+
+                {/* File Upload Dropzone */}
+                <div className="rounded-xl border border-dashed border-[#146B3A]/45 dark:border-[#34D399]/40 bg-[#F6FAF7] dark:bg-[#091815] p-4 space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-[#115E34] dark:text-[#6EE7B7]">
+                      ၁. စက်ထဲမှ ပုံဖိုင်တိုက်ရိုက်တင်သွင်းရန်
+                    </p>
+                    <p className="text-[11px] text-[#4A5850] dark:text-[#94A3B8] mt-0.5 leading-relaxed">
+                      PNG, JPEG/JPG, WebP, GIF ပုံများ အားလုံးရပါသည်။ တစ်ပုံချင်း (သို့) ပုံများစွာ တစ်ပြိုင်နက် ရွေးချယ်တင်နိုင်ပါသည်။
+                    </p>
+                  </div>
+
+                  <label
+                    className={`w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs font-semibold inline-flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                      isProcessingDuaImages ? 'opacity-65 pointer-events-none' : ''
+                    }`}
+                  >
+                    {isProcessingDuaImages ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4" />
+                    )}
+                    <span>
+                      {isProcessingDuaImages
+                        ? 'ပုံဖိုင် ပြင်ဆင်တင်သွင်းနေပါသည်...'
+                        : editingDuaSlideId
+                          ? 'ပုံအသစ် ပြောင်းလဲရွေးချယ်ရန် (PNG / JPEG)'
+                          : 'PNG / JPEG ပုံများ ရွေးချယ်တင်သွင်းရန်'}
+                    </span>
+                    <input
+                      type="file"
+                      multiple={!editingDuaSlideId}
+                      accept="image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
+                      onChange={(e) => void handleDuaSlideFileSelected(e)}
+                      className="sr-only"
+                    />
+                  </label>
+                </div>
+
+                {/* Live Image Preview */}
+                {duaSlideImageUrl && (
+                  <div className="rounded-xl border border-[#E2E8E4] dark:border-[#263759] bg-[#F1F5F9] dark:bg-[#070D1C] p-2.5 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-[#526058] dark:text-[#94A3B8]">
+                      <span>ပုံအစမ်းကြည့်ရှုမှု (Preview)</span>
+                      <span className="uppercase">
+                        {duaSlideMimeType === 'url'
+                          ? 'HTTPS URL'
+                          : duaSlideMimeType.replace('image/', '')}
+                      </span>
+                    </div>
+                    <div className="aspect-[4/3] w-full rounded-lg overflow-hidden bg-white dark:bg-[#0D1526] flex items-center justify-center">
+                      <img
+                        src={duaSlideImageUrl}
+                        alt={duaSlideTitle || 'Dua slide preview'}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Optional External Image URL */}
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="dua-slide-external-url"
+                    className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1]"
+                  >
+                    သို့မဟုတ် ပြင်ပပုံ Link (HTTPS / Google Drive Share Link)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="dua-slide-external-url"
+                      type="url"
+                      value={duaSlideExternalUrlInput}
+                      onChange={(e) => setDuaSlideExternalUrlInput(e.target.value)}
+                      placeholder="https://... (သို့) Google Drive Image Link"
+                      className="flex-1 min-w-0 min-h-[40px] px-3 py-2 text-xs bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyDuaSlideExternalUrl}
+                      className="min-h-[40px] px-3.5 py-2 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-[#F8FAF9] dark:bg-[#131E36] hover:bg-[#EBF4EE] dark:hover:bg-[#1B2A4A] text-xs font-semibold text-[#115E34] dark:text-[#6EE7B7] shrink-0"
+                    >
+                      Link ထည့်မည်
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="sm:col-span-2">
+                    <label
+                      htmlFor="dua-slide-title"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                    >
+                      ဒိုအာပုံ ခေါင်းစဉ်
+                    </label>
+                    <input
+                      id="dua-slide-title"
+                      type="text"
+                      value={duaSlideTitle}
+                      onChange={(e) => setDuaSlideTitle(e.target.value)}
+                      placeholder="ဥပမာ - နံနက်ခင်း ဒိုအာ"
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="dua-slide-order"
+                      className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                    >
+                      အစဉ် (Order)
+                    </label>
+                    <input
+                      id="dua-slide-order"
+                      type="number"
+                      min={0}
+                      max={10000}
+                      value={duaSlideSortOrder}
+                      onChange={(e) =>
+                        setDuaSlideSortOrder(
+                          Math.max(0, Number(e.target.value) || 0),
+                        )
+                      }
+                      className="w-full min-h-[42px] px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] rounded-lg tabular-nums"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="dua-slide-caption"
+                    className="block text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] mb-1"
+                  >
+                    ရှင်းလင်းချက် / မှတ်ချက် (Optional)
+                  </label>
+                  <textarea
+                    id="dua-slide-caption"
+                    rows={2}
+                    value={duaSlideCaption}
+                    onChange={(e) => setDuaSlideCaption(e.target.value)}
+                    placeholder="ဥပမာ - နေ့စဉ် နံနက်ပိုင်း ဖတ်ရှုရန်"
+                    className="w-full px-3 py-2 text-sm bg-[#F8FAF9] dark:bg-[#131E36] border border-[#D4DDD7] dark:border-[#263759] text-[#131B2E] dark:text-[#F1F5F9] placeholder:text-[#64748B] rounded-lg resize-none"
+                  />
+                </div>
+
+                <label className="flex items-center gap-2.5 text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={duaSlidePublished}
+                    onChange={(e) => setDuaSlidePublished(e.target.checked)}
+                    className="w-4 h-4 accent-[#146B3A]"
+                  />
+                  <span>ပထမစာမျက်နှာ Slider တွင် ချက်ချင်းပြသမည်</span>
+                </label>
+
+                {duaSlideError && (
+                  <p className="text-xs font-medium text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900/60 rounded-lg px-3 py-2">
+                    {duaSlideError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isSavingDuaSlide || isProcessingDuaImages}
+                  className="w-full min-h-[44px] px-4 py-2.5 rounded-lg bg-[#146B3A] hover:bg-[#0F522D] text-white text-xs sm:text-sm font-semibold inline-flex items-center justify-center gap-2 disabled:opacity-60 transition-colors"
+                >
+                  {isSavingDuaSlide ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>
+                    {isSavingDuaSlide
+                      ? 'သိမ်းဆည်းနေပါသည်...'
+                      : editingDuaSlideId
+                        ? 'ပြင်ဆင်မှု သိမ်းဆည်းမည်'
+                        : 'သိမ်းဆည်းပြီး ပထမစာမျက်နှာတွင် ပြသမည်'}
+                  </span>
+                </button>
+              </form>
+
+              {/* Uploaded Dua Slides List */}
+              <div className="lg:col-span-7 bg-white dark:bg-[#0D1526] border border-[#E2E8E4] dark:border-[#1E2C4A] rounded-xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-[#EDF1EE] dark:border-[#1E2C4A] pb-3">
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-[#1A241E] dark:text-[#F1F5F9]">
+                      တင်ထားပြီးသော ပုံ Dua များ ({duaSlides.length})
+                    </h3>
+                    <p className="text-xs text-[#5A6860] dark:text-[#94A3B8]">
+                      ပြသထားသည့် ပုံများကို ပထမစာမျက်နှာတွင် အလိုအလျောက် ဘေးတိုက်ရွေ့လျားပြသပေးပါမည်။
+                    </p>
+                  </div>
+                </div>
+
+                {duaSlides.length === 0 ? (
+                  <div className="py-12 text-center space-y-2 border border-dashed border-[#D4DDD7] dark:border-[#263759] rounded-xl">
+                    <ImagePlus className="w-8 h-8 text-[#94A3B8] mx-auto" />
+                    <p className="text-sm font-semibold text-[#1A241E] dark:text-[#F1F5F9]">
+                      ပုံ Dua များ မထည့်သွင်းရသေးပါ
+                    </p>
+                    <p className="text-xs text-[#5A6860] dark:text-[#94A3B8]">
+                      ဘယ်ဘက်မှ “PNG / JPEG ပုံများ ရွေးချယ်တင်သွင်းရန်” ကို နှိပ်၍ စတင်ထည့်သွင်းနိုင်ပါသည်။
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {duaSlides.map((slide) => (
+                      <div
+                        key={slide.id}
+                        className="rounded-xl border border-[#E2E8E4] dark:border-[#1E2C4A] bg-[#F8FAF9] dark:bg-[#091020] overflow-hidden flex flex-col"
+                      >
+                        <div className="aspect-[4/3] w-full bg-[#F1F5F9] dark:bg-[#070D1C] overflow-hidden flex items-center justify-center border-b border-[#E2E8E4] dark:border-[#1E2C4A]">
+                          <img
+                            src={slide.imageUrl}
+                            alt={slide.title || 'Dua image'}
+                            loading="lazy"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <div className="p-3.5 flex-1 flex flex-col justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+                              <span
+                                className={
+                                  slide.published
+                                    ? 'text-[#115E34] dark:text-[#6EE7B7]'
+                                    : 'text-[#B45309] dark:text-[#FCD34D]'
+                                }
+                              >
+                                {slide.published ? 'ပြသနေသည်' : 'ဝှက်ထားသည်'}
+                              </span>
+                              <span className="text-[#5A6860] dark:text-[#94A3B8] tabular-nums">
+                                #{slide.sortOrder} ·{' '}
+                                {slide.mimeType === 'url'
+                                  ? 'URL'
+                                  : slide.mimeType.replace('image/', '').toUpperCase()}
+                              </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-[#1A241E] dark:text-[#F1F5F9] line-clamp-1">
+                              {slide.title || 'ဒိုအာပုံရိပ်'}
+                            </h4>
+                            {slide.caption && (
+                              <p className="text-xs text-[#5A6860] dark:text-[#94A3B8] line-clamp-2">
+                                {slide.caption}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 pt-1 border-t border-[#E2E8E4] dark:border-[#1E2C4A]">
+                            <button
+                              type="button"
+                              onClick={() => void handleToggleDuaSlidePublished(slide)}
+                              className="flex-1 min-h-[34px] px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] text-xs font-semibold text-[#35433A] dark:text-[#CBD5E1] hover:bg-[#EBF4EE] dark:hover:bg-[#1B2A4A] inline-flex items-center justify-center gap-1"
+                            >
+                              {slide.published ? (
+                                <>
+                                  <EyeOff className="w-3.5 h-3.5" />
+                                  <span>ဝှက်မည်</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>ပြသမည်</span>
+                                </>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => startEditingDuaSlide(slide)}
+                              className="min-h-[34px] px-2.5 py-1.5 rounded-lg border border-[#D4DDD7] dark:border-[#263759] bg-white dark:bg-[#131E36] text-xs font-semibold text-[#1E3A8A] dark:text-[#93C5FD] hover:bg-[#EFF6FF] dark:hover:bg-[#1B2A4A] inline-flex items-center gap-1"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>ပြင်ရန်</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPendingDelete({
+                                  kind: 'duaSlide',
+                                  id: slide.id,
+                                  label: slide.title || 'ဒိုအာပုံရိပ်',
+                                })
+                              }
+                              className="min-h-[34px] px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 bg-white dark:bg-[#131E36] text-xs font-semibold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/60 inline-flex items-center gap-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </div>

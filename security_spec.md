@@ -9,6 +9,7 @@
 - `/fatwaQuestions` allows public `create` with strict validation (`status == 'pending'`, empty answer fields, valid Email/Phone/Viber formats), while `get`, `list`, `update`, and `delete` are strictly restricted to `isAdmin()` so asker Name, City, Email, Phone, and Viber No PII never leaks.
 - `/publishedFatwas` contains zero PII and allows public reads, while only Admins can create/update/delete published answers.
 - `/fatwaCategories` allows public reads and strictly Admin-only writes/deletes.
+- `/duaSlides` allows public reads only for `published == true` slides and restricts `imageUrl` to `https://` or safe PNG/JPEG/WebP/GIF base64 payloads (`<= 850KB`), with Admin-only writes/deletes.
 - `createdAt` and `uploadedByUid` / `createdByUid` are immutable after creation; `createdAt` and `updatedAt` must equal `request.time`.
 
 ## 2. Adversarial Test Payloads ("Dirty Dozen")

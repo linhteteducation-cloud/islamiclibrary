@@ -21,16 +21,19 @@ import {
   BookItem,
   CategoryId,
   CategoryItem,
+  DuaSlideItem,
   PageRoute,
   SiteSettings,
 } from '../types/library';
 import {BookCoverFrame} from './BookCoverFrame';
 import {BookTitleEditor} from './BookTitleEditor';
 import {CategoryIcon} from './CategoryIcon';
+import {DuaImageSlider} from './DuaImageSlider';
 
 interface HomeViewProps {
   books: BookItem[];
   categories: CategoryItem[];
+  duaSlides: DuaSlideItem[];
   siteSettings: SiteSettings;
   onNavigate: (page: PageRoute) => void;
   onSelectCategory: (categoryId: CategoryId) => void;
@@ -43,11 +46,13 @@ interface HomeViewProps {
     categoryId: BookCategoryId,
   ) => Promise<void>;
   onOpenCategoryManager?: () => void;
+  onOpenDuaSlidesAdmin?: () => void;
 }
 
 export function HomeView({
   books,
   categories,
+  duaSlides,
   siteSettings,
   onNavigate,
   onSelectCategory,
@@ -56,6 +61,7 @@ export function HomeView({
   onRenameBook,
   onUpdateBookDetails,
   onOpenCategoryManager,
+  onOpenDuaSlidesAdmin,
 }: HomeViewProps) {
   const [downloadingBookId, setDownloadingBookId] = useState<string | null>(
     null,
@@ -155,6 +161,13 @@ export function HomeView({
           </div>
         </div>
       </section>
+
+      {/* Moving / Sliding Dua Image Gallery */}
+      <DuaImageSlider
+        slides={duaSlides}
+        isAdmin={isAdmin}
+        onOpenDuaSlidesAdmin={onOpenDuaSlidesAdmin}
+      />
 
       {/* Browse by Category Grid */}
       {visibleCategories.length > 0 && (

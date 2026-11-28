@@ -25,6 +25,8 @@ import {
   CategoryItem,
   ContactMessageItem,
   DuaItem,
+  DuaSlideItem,
+  DuaSlideMimeType,
   FatwaCategoryItem,
   FatwaQuestionItem,
   FatwaQuestionStatus,
@@ -1245,6 +1247,146 @@ export async function deletePublishedFatwaRecord(fatwaId: string) {
   const path = `publishedFatwas/${fatwaId}`;
   try {
     await deleteDoc(doc(db, 'publishedFatwas', fatwaId));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.DELETE, path);
+  }
+}
+
+// ---------- Home Page Sliding Dua Image Banners (PNG/JPEG/WebP/GIF/URL) ----------
+
+export function subscribeDuaSlides(
+  includeUnpublished: boolean,
+  onData: (slides: DuaSlideItem[]) => void,
+) {
+  const path = 'duaSlides';
+  const q = includeUnpublished
+    ? query(collection(db, path))
+    : query(collection(db, path), where('published', '==', true));
+
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items: DuaSlideItem[] = snap.docs
+        .map((d) => {
+          const data = d.data();
+          const rawMime = String(data.mimeType || 'image/jpeg');
+          const mimeType: DuaSlideMimeType =
+            rawMime === 'image/png' ||
+            rawMime === 'image/jpeg' ||
+            rawMime === 'image/webp' ||
+            rawMime === 'image/gif' ||
+            rawMime === 'url'
+              ? rawMime
+              : 'image/jpeg';
+
+          return {
+            id: d.id,
+            title: String(data.title || ''),
+            caption: String(data.caption || ''),
+            imageUrl: String(data.imageUrl || ''),
+            mimeType,
+            sortOrder: Math.max(0, Math.round(Number(data.sortOrder ?? 0))),
+            published: Boolean(data.published),
+            createdByUid: String(data.createdByUid || ''),
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+          };
+        })
+        .sort((a, b) => {
+          if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+          return toTimestampMillis(b.createdAt) - toTimestampMillis(a.createdAt);
+        });
+      onData(items);
+    },
+    (error) => handleFirestoreError(error, OperationType.LIST, path),
+  );
+}
+
+export async function createDuaSlideRecord(
+  uid: string,
+  payload: {
+    title: string;
+    caption: string;
+    imageUrl: string;
+    mimeType: DuaSlideMimeType;
+    sortOrder: number;
+    published: boolean;
+  },
+) {
+  const path = 'duaSlides';
+  const cleanTitle = payload.title.trim().slice(0, 200) || 'ဒိုအာပုံရိပ်';
+  const cleanCaption = payload.caption.trim().slice(0, 500);
+  const cleanImageUrl = payload.imageUrl.trim();
+  if (!cleanImageUrl || cleanImageUrl.length < 10 || cleanImageUrl.length > 850000) {
+    throw new Error('ပုံဒေတာ မမှန်ကန်ပါ (သို့မဟုတ် 850KB ထက် ကျော်လွန်နေပါသည်)။');
+  }
+  try {
+    const ref = await addDoc(collection(db, path), {
+      title: cleanTitle,
+      caption: cleanCaption,
+      imageUrl: cleanImageUrl,
+      mimeType: payload.mimeType,
+      sortOrder: Math.max(0, Math.min(10000, Math.round(Number(payload.sortOrder) || 0))),
+      published: Boolean(payload.published),
+      createdByUid: uid,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+    return ref.id;
+  } catch (error) {
+    handleFirestoreError(error, OperationType.CREATE, path);
+  }
+}
+
+export async function updateDuaSlideRecord(
+  slideId: string,
+  payload: Partial<{
+    title: string;
+    caption: string;
+    imageUrl: string;
+    mimeType: DuaSlideMimeType;
+    sortOrder: number;
+    published: boolean;
+  }>,
+) {
+  const path = `duaSlides/${slideId}`;
+  try {
+    const patch: Record<string, unknown> = {updatedAt: serverTimestamp()};
+    if (payload.title !== undefined) {
+      patch.title = payload.title.trim().slice(0, 200) || 'ဒိုအာပုံရိပ်';
+    }
+    if (payload.caption !== undefined) {
+      patch.caption = payload.caption.trim().slice(0, 500);
+    }
+    if (payload.imageUrl !== undefined) {
+      const cleanUrl = payload.imageUrl.trim();
+      if (!cleanUrl || cleanUrl.length < 10 || cleanUrl.length > 850000) {
+        throw new Error('ပုံဒေတာ မမှန်ကန်ပါ။');
+      }
+      patch.imageUrl = cleanUrl;
+    }
+    if (payload.mimeType !== undefined) {
+      patch.mimeType = payload.mimeType;
+    }
+    if (payload.sortOrder !== undefined) {
+      patch.sortOrder = Math.max(
+        0,
+        Math.min(10000, Math.round(Number(payload.sortOrder) || 0)),
+      );
+    }
+    if (payload.published !== undefined) {
+      patch.published = Boolean(payload.published);
+    }
+    await updateDoc(doc(db, 'duaSlides', slideId), patch);
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+}
+
+export async function deleteDuaSlideRecord(slideId: string) {
+  const path = `duaSlides/${slideId}`;
+  try {
+    await deleteDoc(doc(db, 'duaSlides', slideId));
   } catch (error) {
     handleFirestoreError(error, OperationType.DELETE, path);
   }

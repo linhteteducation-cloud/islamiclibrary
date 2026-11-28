@@ -41,6 +41,7 @@ import {
   subscribeBooks,
   subscribeCategories,
   subscribeDuas,
+  subscribeDuaSlides,
   subscribeFatwaCategories,
   subscribeFatwaQuestions,
   subscribePublishedFatwas,
@@ -56,6 +57,7 @@ import {
   CategoryId,
   CategoryItem,
   DuaItem,
+  DuaSlideItem,
   FatwaCategoryItem,
   FatwaQuestionItem,
   PageRoute,
@@ -172,6 +174,7 @@ export default function App() {
   // Live Firestore collections (zero demo data)
   const [books, setBooks] = useState<BookItem[]>([]);
   const [duas, setDuas] = useState<DuaItem[]>([]);
+  const [duaSlides, setDuaSlides] = useState<DuaSlideItem[]>([]);
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [articles, setArticles] = useState<ArticleItem[]>([]);
   const [customCategoryDocs, setCustomCategoryDocs] = useState<CategoryItem[]>(
@@ -263,18 +266,27 @@ export default function App() {
 
   useEffect(() => {
     const unsubBooks = subscribeBooks(isAdmin, setBooks);
+    const unsubDuaSlides = subscribeDuaSlides(isAdmin, setDuaSlides);
     if (!isAdmin) {
       setFatwaQuestions([]);
-      return () => unsubBooks();
+      return () => {
+        unsubBooks();
+        unsubDuaSlides();
+      };
     }
     const unsubFatwaQuestions = subscribeFatwaQuestions(setFatwaQuestions);
     return () => {
       unsubBooks();
+      unsubDuaSlides();
       unsubFatwaQuestions();
     };
   }, [isAdmin]);
 
   const publishedBooks = books.filter((b) => b.published);
+  const publishedDuaSlides = useMemo(
+    () => duaSlides.filter((s) => s.published),
+    [duaSlides],
+  );
   const syncedActiveBook = activeBook
     ? (isAdmin ? books : publishedBooks).find((b) => b.id === activeBook.id) ??
       null
@@ -627,6 +639,7 @@ export default function App() {
           <HomeView
             books={publishedBooks}
             categories={mergedCategories}
+            duaSlides={publishedDuaSlides}
             siteSettings={siteSettings}
             onNavigate={handleNavigate}
             onSelectCategory={handleSelectCategory}
@@ -635,6 +648,10 @@ export default function App() {
             onRenameBook={handleRenameBook}
             onUpdateBookDetails={handleUpdateBookDetails}
             onOpenCategoryManager={() => setCategoryManagerOpen(true)}
+            onOpenDuaSlidesAdmin={() => {
+              setAdminInitialTab('duaSlides');
+              handleNavigate('admin');
+            }}
           />
         )}
 
@@ -699,6 +716,7 @@ export default function App() {
             categories={mergedCategories}
             onOpenCategoryManager={() => setCategoryManagerOpen(true)}
             duas={duas}
+            duaSlides={duaSlides}
             videos={videos}
             articles={articles}
             siteSettings={siteSettings}

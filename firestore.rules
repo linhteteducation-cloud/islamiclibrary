@@ -368,6 +368,38 @@ service cloud.firestore {
       data.updatedAt is timestamp;
     }
 
+    function isValidDuaSlideImage(val) {
+      return val is string && val.size() >= 10 && val.size() <= 850000 && (
+        (val.size() <= 1000 && val[0:8] == 'https://') ||
+        (val.size() >= 30 && (
+          val[0:22] == 'data:image/png;base64,' ||
+          val[0:23] == 'data:image/jpeg;base64,' ||
+          val[0:23] == 'data:image/webp;base64,' ||
+          val[0:22] == 'data:image/gif;base64,'
+        ))
+      );
+    }
+
+    function isValidDuaSlide(data) {
+      return data.keys().hasAll([
+        'title', 'caption', 'imageUrl', 'mimeType', 'sortOrder',
+        'published', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'title', 'caption', 'imageUrl', 'mimeType', 'sortOrder',
+        'published', 'createdByUid', 'createdAt', 'updatedAt'
+      ]) &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+      data.caption is string && data.caption.size() <= 500 &&
+      isValidDuaSlideImage(data.imageUrl) &&
+      data.mimeType in ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'url'] &&
+      data.sortOrder is int && data.sortOrder >= 0 && data.sortOrder <= 10000 &&
+      data.published is bool &&
+      data.createdByUid is string && data.createdByUid.size() >= 1 && data.createdByUid.size() <= 128 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
     // Startup connection check path
     match /test/connection {
       allow get: if true;
@@ -607,6 +639,24 @@ service cloud.firestore {
           'answerText', 'muftiName', 'updatedAt'
         ]);
       allow delete: if isValidId(fatwaId) && isAdmin();
+    }
+
+    // Home page sliding Dua image cards (Public read when published, strictly Admin write)
+    match /duaSlides/{slideId} {
+      allow get: if isValidId(slideId) && (existing().published == true || isAdmin());
+      allow list: if resource.data.published == true || isAdmin();
+      allow create: if isValidId(slideId) && isAdmin() && isValidDuaSlide(incoming()) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(slideId) && isAdmin() && isValidDuaSlide(incoming()) &&
+        incoming().createdByUid == existing().createdByUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'title', 'caption', 'imageUrl', 'mimeType', 'sortOrder', 'published', 'updatedAt'
+        ]);
+      allow delete: if isValidId(slideId) && isAdmin();
     }
   }
 }

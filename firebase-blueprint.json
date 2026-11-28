@@ -390,6 +390,36 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "DuaSlide": {
+      "title": "DuaSlide",
+      "description": "Home page sliding Dua image banner supporting PNG, JPEG, WebP, GIF uploads or HTTPS image links",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "caption": { "type": "string", "maxLength": 500 },
+        "imageUrl": { "type": "string", "minLength": 10, "maxLength": 850000 },
+        "mimeType": {
+          "type": "string",
+          "enum": ["image/png", "image/jpeg", "image/webp", "image/gif", "url"]
+        },
+        "sortOrder": { "type": "integer" },
+        "published": { "type": "boolean" },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "title",
+        "caption",
+        "imageUrl",
+        "mimeType",
+        "sortOrder",
+        "published",
+        "createdByUid",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -444,6 +474,10 @@
     "/publishedFatwas/{fatwaId}": {
       "schema": { "$ref": "#/entities/PublishedFatwa" },
       "description": "Publicly readable Fatwa Q&A answers without any personal contact PII"
+    },
+    "/duaSlides/{slideId}": {
+      "schema": { "$ref": "#/entities/DuaSlide" },
+      "description": "Sliding Dua image cards (PNG, JPEG, WebP, GIF, URL) displayed on the Home page"
     }
   }
 }
