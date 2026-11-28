@@ -632,6 +632,8 @@ export default function App() {
         siteSettings={siteSettings}
         isAdmin={isAdmin}
         pendingFatwaCount={pendingFatwaCount}
+        books={isAdmin ? books : publishedBooks}
+        onOpenBook={handleOpenBook}
       />
 
       <main className="flex-1">

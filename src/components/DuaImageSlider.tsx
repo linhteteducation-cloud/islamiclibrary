@@ -144,17 +144,8 @@ export function DuaImageSlider({
       className="bg-white dark:bg-[#09101E] border-b border-[#E2E6EE] dark:border-[#192848] py-10 sm:py-14"
     >
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 sm:mb-8">
-          <div>
-            <p className="text-xs font-semibold tracking-wider text-[#146B3A] dark:text-[#6EE7B7] mb-1">
-              နေ့စဉ်ဖတ်ရှုမှတ်သားဖွယ် ဒိုအာကတ်များ
-            </p>
-            <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#131B2E] dark:text-[#F1F5F9] [text-wrap:balance]">
-              ရွေ့လျား ဒိုအာပုံရိပ်များ (Dua Gallery)
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        {((slides.length > 1 && maxIndex > 0) || (isAdmin && onOpenDuaSlidesAdmin)) && (
+          <div className="flex flex-wrap items-center justify-end gap-2 mb-4 sm:mb-5">
             {slides.length > 1 && maxIndex > 0 && (
               <>
                 <span className="text-xs text-[#525E75] dark:text-[#94A3B8] tabular-nums mr-1">
@@ -212,7 +203,7 @@ export function DuaImageSlider({
               </button>
             )}
           </div>
-        </div>
+        )}
 
         {slides.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#CBD5E1] dark:border-[#263759] bg-[#F8FAFC] dark:bg-[#0D1526] p-7 sm:p-9 text-center space-y-3">
