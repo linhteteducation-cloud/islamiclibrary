@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState} from 'react';
 import {User} from 'firebase/auth';
+import {Analytics} from '@vercel/analytics/react';
 import {AdminPanelView} from './components/AdminPanelView';
 import {ArticlesView} from './components/ArticlesView';
 import {BookReaderModal} from './components/BookReaderModal';
@@ -761,6 +762,7 @@ export default function App() {
 
       <OfflineIndicator />
       <DownloadToast />
+      <Analytics />
     </div>
   );
 }
